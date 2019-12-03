@@ -1,10 +1,9 @@
-""" Graph and multigraph implementations for DaCe. """
+""" File containing DaCe-serializable versions of graphs, nodes, and edges. """
 
 from collections import deque, OrderedDict
 import itertools
 import networkx as nx
 from dace.dtypes import deduplicate
-from dace.properties import Property
 import dace.serialize
 
 
@@ -41,13 +40,15 @@ class Edge(object):
         yield self._data
 
     def to_json(self, parent_graph):
-        # Slight hack to preserve the old format (attributes should not behave like this)
+        # Slight hack to preserve the old format (attributes should not
+        # behave like this)
         memlet_ret = self.data.to_json(parent_graph)
         ret = {
             'type': type(self).__name__,
+            # TODO: Why is data() not a Property instance?
+            #       (Would need MemletProperty class)
             'attributes': {
-                'data':
-                memlet_ret  #TODO: FIXME: Why is data() not a Property instance? (Would need MemletProperty class)
+                'data': memlet_ret
             },
             'src': str(parent_graph.node_id(self.src)),
             'dst': str(parent_graph.node_id(self.dst)),
@@ -127,17 +128,17 @@ class MultiConnectorEdge(MultiEdge):
     def src_conn(self):
         return self._src_conn
 
-    @property
-    def src_connector(self):
-        return self._src_conn
+    @src_conn.setter
+    def src_conn(self, val):
+        self._src_conn = val
 
     @property
     def dst_conn(self):
         return self._dst_conn
 
-    @property
-    def dst_connector(self):
-        return self._dst_conn
+    @dst_conn.setter
+    def dst_conn(self, val):
+        self._dst_conn = val
 
     def __iter__(self):
         yield self._src
@@ -164,6 +165,11 @@ class Graph(object):
             'edges': [e.to_json(self) for e in self.edges()],
         }
         return ret
+
+    @property
+    def nx(self):
+        """ Returns a networkx version of this graph if available. """
+        raise TypeError("No networkx version exists for this graph type")
 
     def nodes(self):
         """Returns an iterable to internal graph nodes."""
@@ -372,16 +378,6 @@ class SubgraphView(Graph):
     def __init__(self, graph, subgraph_nodes):
         self._graph = graph
         self._subgraph_nodes = subgraph_nodes
-        self._parallel_parent = None
-
-    def is_parallel(self):
-        return self._parallel_parent is not None
-
-    def set_parallel_parent(self, parallel_parent):
-        self._parallel_parent = parallel_parent
-
-    def get_parallel_parent(self):
-        return self._parallel_parent
 
     def nodes(self):
         return self._subgraph_nodes
@@ -461,6 +457,7 @@ class SubgraphView(Graph):
 @dace.serialize.serializable
 class DiGraph(Graph):
     def __init__(self):
+        super().__init__()
         self._nx = nx.DiGraph()
 
     def nodes(self):
@@ -518,6 +515,7 @@ class DiGraph(Graph):
 
 class MultiDiGraph(DiGraph):
     def __init__(self):
+        super().__init__()
         self._nx = nx.MultiDiGraph()
 
     @staticmethod
@@ -526,7 +524,7 @@ class MultiDiGraph(DiGraph):
 
     def add_edge(self, source, destination, data):
         key = self._nx.add_edge(source, destination, data=data)
-        return (source, destination, data, key)
+        return source, destination, data, key
 
     def remove_edge(self, edge):
         self._nx.remove_edge(edge[0], edge[1], edge.key)
@@ -553,7 +551,7 @@ class MultiDiConnectorGraph(MultiDiGraph):
             data=data,
             src_conn=src_connector,
             dst_conn=dst_connector)
-        return (source, src_connector, destination, dst_connector, data, key)
+        return source, src_connector, destination, dst_connector, data, key
 
     def remove_edge(self, edge):
         self._nx.remove_edge(edge[0], edge[1], edge.key)
@@ -705,10 +703,15 @@ class OrderedMultiDiConnectorGraph(OrderedMultiDiGraph):
     def __init__(self):
         super().__init__()
 
-    def add_edge(self, src, src_conn, dst, dst_conn, data):
+    def add_edge(self, src, src_connector, dst, dst_connector, data):
         key = self._nx.add_edge(
-            src, dst, data=data, src_conn=src_conn, dst_conn=dst_conn)
-        edge = MultiConnectorEdge(src, src_conn, dst, dst_conn, data, key)
+            src,
+            dst,
+            data=data,
+            src_conn=src_connector,
+            dst_conn=dst_connector)
+        edge = MultiConnectorEdge(src, src_connector, dst, dst_connector, data,
+                                  key)
         if src not in self._nodes:
             self.add_node(src)
         if dst not in self._nodes:
