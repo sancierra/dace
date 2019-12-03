@@ -1,30 +1,31 @@
+import dace
+from dace import dtypes, symbolic, subsets
+from dace.dtypes import ScheduleType
+from dace.config import Config
+from dace.graph import nodes
 from dace.codegen.instrumentation.provider import InstrumentationProvider
-from dace.graph.nodes import EntryNode, ExitNode, MapEntry, MapExit, Tasklet
+from dace.graph.nodes import EntryNode, ExitNode, MapEntry, MapExit, Tasklet, \
+                             Reduce, AccessNode, NestedSDFG, ConsumeEntry
 from dace.graph.graph import SubgraphView
 from dace.memlet import Memlet
 from dace.data import Array
+from dace.sdfg import scope_contains_scope
+from dace.symbolic import SymExpr, symbols_in_sympy_expr
 
-from dace import symbolic, subsets
-from dace.codegen import cppunparse
-
-from dace.config import Config
-
-from dace.dtypes import ScheduleType
-
-import re
-
-import sympy as sp
-import os
+from functools import reduce
 import ast
 import copy
+import os
+import operator
+import re
+from string import Template
 import sqlite3
-import dace
-from dace import dtypes
-from dace.graph import nodes
+import sympy as sp
+import traceback
 
-# Helper function to get the module path
-if __name__ == "__main__":
-    print("path: " + os.path.dirname(__file__))
+from statistics import stdev, mean
+import statistics
+import subprocess
 
 
 ############# COPIED FROM cpu.py TO AVOID IMPORT LOOPS. TODO: Move elsewhere #############
@@ -272,6 +273,16 @@ class PAPIInstrumentation(InstrumentationProvider):
     def __init__(self):
         self._papi_used = False
         self._configured = False
+        self._parallel_scopes = {}
+
+    def is_parallel(self, scope):
+        return scope in self._parallel_scopes
+
+    def set_parallel_parent(self, scope, parent_id):
+        self._parallel_scopes[scope] = parent_id
+
+    def get_parallel_parent(self, scope):
+        return self._parallel_scopes[scope]
 
     def configure_papi(self):
         if self._papi_used and not self._configured:
@@ -347,9 +358,7 @@ class PAPIInstrumentation(InstrumentationProvider):
         components = dace.sdfg.concurrent_subgraphs(state)
 
         for c in components:
-            c.set_parallel_parent(
-                parent_id
-            )  # Keep in mind not to add supersection start markers!
+            self.set_parallel_parent(c, parent_id)
 
     def on_copy_begin(self, sdfg, state, src_node, dst_node, edge,
                       local_stream, global_stream, copy_shape, src_strides,
@@ -494,7 +503,7 @@ class PAPIInstrumentation(InstrumentationProvider):
                 perf_expected_data_movement_sympy *= (
                     ai[1] + 1 - ai[0]) / ai[2]
 
-            if not state.is_parallel():
+            if not self.is_parallel(state):
                 # Now we put a start marker, but only if we are in a serial state
                 result.write(
                     PAPIInstrumentation.perf_supersection_start_string(
@@ -829,9 +838,7 @@ class PAPIInstrumentation(InstrumentationProvider):
                 node,
             )
 
-    @staticmethod
-    def perf_get_supersection_start_string(node, sdfg, dfg, unified_id):
-        from dace import dtypes
+    def perf_get_supersection_start_string(self, node, sdfg, dfg, unified_id):
         if node.map.schedule == dtypes.ScheduleType.CPU_Multicore:
 
             if not hasattr(node.map, '_can_be_supersection_start'):
@@ -849,8 +856,8 @@ class PAPIInstrumentation(InstrumentationProvider):
                 if x.map.schedule == dtypes.ScheduleType.CPU_Multicore:
                     # Nested SuperSections are not supported
                     # We have to mark the outermost section,
-                    # which also means that we have to somehow tell the lower nodes
-                    # to not mark the section start.
+                    # which also means that we have to somehow tell the lower
+                    # nodes to not mark the section start.
                     x.map._can_be_supersection_start = False
                 elif x.map.schedule == dtypes.ScheduleType.Sequential:
                     x.map._can_be_supersection_start = False
@@ -863,14 +870,14 @@ class PAPIInstrumentation(InstrumentationProvider):
             ) and PAPIInstrumentation.map_depth(
                     node
             ) <= PAPISettings.perf_max_scope_depth(
-            ) and node.map._can_be_supersection_start and not dfg.is_parallel(
-            ):
+            ) and node.map._can_be_supersection_start and not self.is_parallel(
+                    dfg):
                 return "__perf_store.markSuperSectionStart(%d);\n" % unified_id
             elif PAPISettings.perf_supersection_emission_debug():
                 reasons = []
                 if not node.map._can_be_supersection_start:
                     reasons.append("CANNOT_BE_SS")
-                if dfg.is_parallel():
+                if self.is_parallel(dfg):
                     reasons.append("CONTAINER_IS_PARALLEL")
                 if PAPIInstrumentation.map_depth(
                         node) > PAPISettings.perf_max_scope_depth():
@@ -888,8 +895,8 @@ class PAPIInstrumentation(InstrumentationProvider):
             (PAPIInstrumentation.is_deepest_node(node, dfg))
                 and PAPIInstrumentation.map_depth(node) <=
                 PAPISettings.perf_max_scope_depth()
-        ) and node.map._can_be_supersection_start and not dfg.is_parallel():
-            # Also put this here if it is _REALLY_ safe to do so. (Basically, even if the schedule is sequential, we can serialize to keep buffer usage low)
+        ) and node.map._can_be_supersection_start and not self.is_parallel(dfg):
+            # Serialize to keep buffer usage low
             return "__perf_store.markSuperSectionStart(%d);\n" % unified_id
 
         # Otherwise, do nothing (empty string)
@@ -903,8 +910,6 @@ class PAPIInstrumentation(InstrumentationProvider):
 
     @staticmethod
     def set_map_depth(mapEntry: MapEntry, DFG: SubgraphView):
-        from dace.graph.nodes import Reduce, AccessNode, NestedSDFG
-
         # Set the depth for the mapEntry
 
         # We do not use mapEntry for now, but it might be required for different implementations
@@ -972,7 +977,6 @@ class PAPIInstrumentation(InstrumentationProvider):
     @staticmethod
     def instrument_entry(mapEntry: MapEntry, DFG: SubgraphView):
         # Skip consume entries
-        from dace.graph.nodes import ConsumeEntry
         if isinstance(mapEntry, ConsumeEntry):
             return False
         if mapEntry.map.instrument != dace.InstrumentationType.PAPI_Counters:
@@ -1399,9 +1403,6 @@ class PAPIInstrumentation(InstrumentationProvider):
 
     @staticmethod
     def read_available_perfcounters(config=None):
-        from string import Template
-        import subprocess
-
         papi_avail_str = "papi_avail -a"
         s = Template(
             PAPISettings.get_config(
@@ -1567,7 +1568,6 @@ class PAPIUtils(object):
 
     @staticmethod
     def get_roofline_data(data_source):
-        import json
         with sqlite3.connect(data_source) as conn:
             c = conn.cursor()
 
@@ -1796,7 +1796,6 @@ LIMIT
 
                 print("Finalizing for pid " + str(pid))
                 # Now we can select the median
-                import statistics
 
                 # First, zip the values together
                 zipped = zip(total_critical_path, sp_op_sums, dp_op_sums,
@@ -1944,107 +1943,7 @@ LIMIT
             executor.async_host.notify("Done reading remote PAPI Counters")
 
     @staticmethod
-    def gather_remote_metrics(config=None):
-        """ Returns a dictionary of metrics collected by instrumentation. """
-
-        # Run the tools/membench file on remote.
-        remote_workdir = PAPISettings.get_config(
-            "execution", "general", "workdir", config=config)
-        from diode.remote_execution import Executor
-        from string import Template
-        import subprocess
-        executor = Executor(None, True, None)
-        executor.setConfig(config)
-
-        remote_filepath = remote_workdir + "/" + "membench.cpp"
-
-        executor.copy_file_to_remote("tools/membench.cpp", remote_filepath)
-
-        libs = PAPISettings.get_config(
-            "compiler", "cpu", "libs", config=config).split(" ")
-
-        libflags = map(lambda x: "-l" + x, libs)
-
-        libflagstring = "".join(libflags)
-
-        path_resolve_command = "python3 -m dace.codegen.instrumentation.PAPISettings"
-        # Get the library path
-        s = Template(
-            PAPISettings.get_config(
-                "execution", "general", "execcmd", config=config))
-        cmd = s.substitute(
-            host=PAPISettings.get_config(
-                "execution", "general", "host", config=config),
-            command=path_resolve_command)
-
-        p = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True)
-
-        stdout, _ = p.communicate(timeout=60)
-
-        remote_dace_path = re.search(r"path: (?P<dace_path>.*)", str(stdout))
-        if remote_dace_path:
-            remote_dace_path = remote_dace_path['dace_path']
-        print("Remote dace path: %s" % remote_dace_path)
-
-        # Now create the include path from that
-        include_path = "\"" + remote_dace_path + "/" + "runtime/include" + "\""
-
-        print("remote_workdir: " + remote_workdir)
-        compile_and_run_command = "cd " + remote_workdir + " && " + " pwd && " + PAPISettings.get_config(
-            "compiler", "cpu", "executable", config=config
-        ) + " " + PAPISettings.get_config(
-            "compiler", "cpu", "args", config=config
-        ) + " " + "-fopenmp" + " " + PAPISettings.get_config(
-            "compiler", "cpu", "additional_args", config=config
-        ) + " -I" + include_path + " " + "membench.cpp -o membench" + " " + libflagstring + " && " + "./membench"
-
-        # Wrap that into a custom shell because ssh will not keep context.
-        # The HEREDOC is needed because we already use " and ' inside the command.
-        compile_and_run_command = "<< EOF\nsh -c '" + compile_and_run_command + "'" + "\nEOF"
-
-        print("Compile command is " + compile_and_run_command)
-
-        # run this command
-        s = Template(
-            PAPISettings.get_config(
-                "execution", "general", "execcmd", config=config))
-        cmd = s.substitute(
-            host=PAPISettings.get_config(
-                "execution", "general", "host", config=config),
-            command=compile_and_run_command)
-
-        p2 = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True)
-
-        stdout2, _ = p2.communicate(timeout=60)
-
-        # print("stdout2: " + str(stdout2))
-
-        bytes_per_cycle = re.search(r"result: (?P<bytes_per_cycle>.*?$)",
-                                    str(stdout2))
-        if bytes_per_cycle:
-            bytes_per_cycle = bytes_per_cycle['bytes_per_cycle']
-        print("Bytes per cycle: %s" % bytes_per_cycle)
-
-        executor.remote_delete_file(remote_workdir + "/membench.cpp")
-        executor.remote_delete_file(remote_workdir + "/membench")
-
-        return bytes_per_cycle
-
-    @staticmethod
     def reduce_iteration_count(begin, end, step, retparams: dict):
-
-        from dace.symbolic import symbols_in_sympy_expr
-
         # There are different rules when expanding depending on where the expand should happen
 
         if isinstance(begin, int):
@@ -2114,7 +2013,6 @@ LIMIT
     @staticmethod
     def get_iteration_count(mapEntry: MapEntry, vars: dict):
         """ Get the number of iterations for this map, allowing other variables as bounds. """
-        from dace.symbolic import SymExpr
 
         _map = mapEntry.map
         _it = _map.params
@@ -2192,8 +2090,6 @@ LIMIT
 
     @staticmethod
     def get_out_memlet_costs(sdfg, state_id, node, dfg):
-        from dace.graph import nodes
-        from dace.sdfg import scope_contains_scope
         scope_dict = sdfg.nodes()[state_id].scope_dict()
 
         out_costs = 0
@@ -2341,7 +2237,6 @@ LIMIT
 
     @staticmethod
     def get_memory_input_size(node, sdfg, dfg, state_id, sym2cpp):
-        from dace.graph import nodes
         curr_state = sdfg.nodes()[state_id]
 
         data_inputs = []
@@ -2359,12 +2254,7 @@ LIMIT
                 bytes_per_element = 0
             data_inputs.append(bytes_per_element * num_accesses)
 
-        from functools import reduce
-        import operator
         input_size = reduce(operator.add, data_inputs, 0)
-
-        import sympy as sp
-        import dace.symbolic as symbolic
 
         input_size = symbolic.pystr_to_symbolic(input_size)
 
@@ -2503,7 +2393,6 @@ LIMIT
 
     @staticmethod
     def print_instrumentation_output(data: str, config=None):
-        import json
         PAPISettings.transcriptor_print("print_instrumentation_output start")
         # Regex for Section start + bytes: # Section start \(node (?P<section_start_node>[0-9]+)\)\nbytes: (?P<section_start_bytes>[0-9]+)
         # Regex for general entries: # entry \((?P<entry_node>[0-9]+), (?P<entry_thread>[0-9]+), (?P<entry_iteration>[0-9]+), (?P<entry_flags>[0-9]+)\)\n((?P<value_key>[0-9-]+): (?P<value_val>[0-9-]+)\n)*
@@ -2785,7 +2674,6 @@ LIMIT
                 pass
 
         if PAPISettings.perf_use_sql():
-            import sqlite3
             dbpath = PAPISettings.get_config(
                 "instrumentation", "sql_database_file", config=config)
             conn = sqlite3.Connection(dbpath)
@@ -2869,7 +2757,6 @@ VALUES
                             out.write(x.toCSVstring())
 
         except:
-            import traceback
             print("[Error] Failed to jsonify")
             print(traceback.format_exc())
 
@@ -2913,7 +2800,6 @@ VALUES
                 # Now we can get the balance
                 for i, t in enumerate(tot_cyc):
                     print("Thread %d took %d cycles" % (i, t))
-                from statistics import stdev, mean
                 if len(tot_cyc) > 1 and mean(tot_cyc) != 0:
 
                     print("stdev: %d" % stdev(tot_cyc))
@@ -2950,8 +2836,6 @@ class PerfPAPIInfo:
 
     def load_info(self, config=None):
         """ Load information about the counters from remote. """
-        from string import Template
-        import subprocess
 
         print("Loading counter info from remote...")
 
