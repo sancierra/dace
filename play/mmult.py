@@ -22,10 +22,12 @@ def GEMM1(A: dace.float64[M, K], B: dace.float64[K, N],
     dace.reduce(lambda a, b: a + b, tmp, C, axis=2)
 
 if __name__ == '__main__':
-    GEMM1.compile(strict = False)
+    GEMM1.compile(strict = True)
     N.set(300)
     K.set(300)
     M.set(300)
     A = numpy.random.rand(N.get(),K.get())
     B = numpy.random.rand(K.get(),M.get())
     R = numpy.ndarray(shape=[N,M])
+
+    GEMM1(A=A,B=B,C=R)

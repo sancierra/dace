@@ -35,3 +35,6 @@ from .mpi import MPITransformMap
 
 # Algorithmic
 from .matrix_product_transpose import MatrixProductTranspose
+
+# Luca
+from .gpu_subgraph import GPUTransformSubgraph
