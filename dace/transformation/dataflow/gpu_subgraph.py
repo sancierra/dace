@@ -17,10 +17,10 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
         GPU arrays outside for access copies
     """
 
+    debug = Property(desc = "debug mode", dtype = bool, default = False)
     fullcopy = Property(desc = "Copy whole arrays instead of used subset",
                         dtype = bool, default = False)
 
-    # TODO: ???
     toplevel_trans = Property(desc="Make all GPU transients top-level",
                         dtype = bool, default = False)
 
@@ -177,12 +177,13 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
 
         # Analogously to GPUTransformMap
         # avoid importing loops
-        print("##############")
-        print("BEFORE")
-        print(nsdfg_node)
-        print(nsdfg_node.sdfg.nodes()[0].nodes())
-        print(graph.nodes())
-        print("###############")
+        if GPUTransformSubgraph.debug:
+            print("##############")
+            print("--before:")
+            print(nsdfg_node)
+            print(nsdfg_node.sdfg.nodes()[0].nodes())
+            print(graph.nodes())
+            print("###############")
 
         from dace.transformation.interstate import GPUTransformSDFG
         transformation = GPUTransformSDFG(0,0,{},0)
@@ -193,13 +194,13 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
         # apply transformation
         transformation.apply(nsdfg_node.sdfg)
 
-
-        print("##############")
-        print("AFTER")
-        print(nsdfg_node)
-        print(nsdfg_node.sdfg.nodes()[0].nodes())
-        print(graph.nodes())
-        print("###############")
+        if GPUTransformSubgraph.debug:
+            print("##############")
+            print("AFTER")
+            print(nsdfg_node)
+            print(nsdfg_node.sdfg.nodes()[0].nodes())
+            print(graph.nodes())
+            print("###############")
 
         # inline back
         sdfg.apply_strict_transformations()
