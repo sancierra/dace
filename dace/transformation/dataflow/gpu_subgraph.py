@@ -1,7 +1,7 @@
 """ Contains the GPU Subgraph transformation """
 
 
-from dace import data, dtypes, sdfg, registry
+from dace import data, dtypes, sdfg as sd, registry
 from dace.graph import nodes, nxutil
 from dace.graph.graph import SubgraphView
 from dace.transformation import pattern_matching, helpers
@@ -45,8 +45,6 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
     def can_be_applied(graph, candidate, expr_index, sdfg, strict = False):
         node = graph.nodes()[candidate[GPUTransformSubgraph._entry]]
 
-        print("Node =", node)
-
         # input: no accessNode, no map/stream exit, no stream entry
         if isinstance(node, nodes.AccessNode):
             return False
@@ -65,44 +63,43 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
 
         scope_dict = graph.scope_dict()
         start_scope = scope_dict[node]
-        scope_subgraph = graph.scope_subgraph(start_scope, include_exit = True)
+        if start_scope is None:
+            scope_subgraph = SubgraphView(graph, graph.nodes())
+        else:
+            scope_subgraph = graph.scope_subgraph(start_scope, include_exit = False)
+
 
         queue = [node]
         subgraph = []
         while len(queue) > 0:
             current = queue.pop(0)
-            if sdfg.scope_contains_scope(scope_dict, node, current):
+            if sd.scope_contains_scope(scope_dict, node, current):
                 # add to list
-                if current not in subgraph:
+                if current not in subgraph and current in scope_subgraph:
                     subgraph.append(current)
-                for e in graph.out_edges(current):
-                    # add to queue
-                    queue.append(e.dst)
 
-        print(subgraph)
+                    for e in graph.out_edges(current):
+                        # add to queue
+                        queue.append(e.dst)
 
         # checks:
 
         # not inside device level schedules
         # use is_devicelevel
-        if sdfg.is_devicelevel(sdfg, state, node):
-            print("False -- IsDeviceLevel")
+        if sd.is_devicelevel(sdfg, graph, node):
             return False
 
 
         for current_node in subgraph:
-            # every top level map must not contain any dynamic inputs
-            # probably just for the first map encountered
+            # every relative top level map must not contain any dynamic inputs
             if isinstance(current_node, nodes.MapEntry):
-                if scope_dict[current_node] is None:
-                    if sdfg.has_dynamic_map_inputs(graph, current_node):
-                        print("False -- Dynamic Inputs")
+                if scope_dict[current_node] == start_scope:
+                    if sd.has_dynamic_map_inputs(graph, current_node):
                         return False
 
             # also check for map schedules diallowed to transform to GPUs in general
             if isinstance(current_node, nodes.MapEntry) or isinstance(current_node, nodes.Reduce):
                 if current_node.schedule in [dtypes.ScheduleType.MPI, dtypes.GPU_SCHEDULES]:
-                    print("False -- Wrong schedule")
                     return False
 
 
@@ -111,10 +108,10 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
             if isinstance(current_node, nodes.AccessNode):
                 if(current_node.desc(sdfg).storage != dtypes.StorageType.Default
                         and current_node.desc(sdfg).storage != dtypes.StorageType.Register):
-                        print("False -- AccessNode")
                         return False
 
-        # if we are not at scope level 0 and output is a stream, return False
+        '''
+        # not needed: if we are not at relative scope level 0 and output is a stream, return False
         if start_scope is not None:
             for current_node in subgraph:
                 if isinstance(current_node, nodes.ExitNode):
@@ -125,8 +122,9 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
                                     and isinstance(sdfg.arrays[dst.data], data.Stream):
                                 print("False -- Ground Level output Stream")
                                 return False
+        '''
 
-        # else return True
+        # success
         return True
 
     @staticmethod
@@ -140,37 +138,68 @@ class GPUTransformSubgraph(pattern_matching.Transformation):
         graph = sdfg.nodes()[self.state_id]
         entry = graph.nodes()[self.subgraph[GPUTransformSubgraph._entry]]
 
-        # TODO: recalculate subgraph set
-        queue = [entry]
-        subgraph = []
-        while len(queue) > 0:
-            current = queue.pop(0)
-            if sdfg.scope_contains_scope(scope_dict, node, current):
-                # add to list
-                if current not in subgraph:
-                    subgraph.append(current)
-                for e in graph.out_edges(current):
-                    # add to queue
-                    queue.append(e.dst)
+        if isinstance(entry, nodes.NestedSDFG):
+            # nested sdfg: skip the whole procedure and go directly to end
+            nsdfg_node = entry
+        else:
+            # recalculate subgraph set
 
-        print(subgraph)
-        # TODO: create subgraph view and then sdfg
-        subgraph_view = graph.SubgraphView(graph, subgraph)
-        # TODO: push to gpu
-        nsdfg_node = helpers.nest_state_subgraph(sdfg, graph,
-                                                subgraph_view,
-                                                full_data = self.fullcopy)
+            scope_dict = graph.scope_dict()
+            start_scope = scope_dict[entry]
+            if start_scope is None:
+                scope_subgraph = SubgraphView(graph, graph.nodes())
+            else:
+                scope_subgraph = graph.scope_subgraph(start_scope, include_exit = False)
+
+            queue = [entry]
+            subgraph = []
+            while len(queue) > 0:
+                current = queue.pop(0)
+                if sd.scope_contains_scope(scope_dict, entry, current):
+                    # add to list
+                    if current not in subgraph and current in scope_subgraph:
+                        subgraph.append(current)
+
+                        for e in graph.out_edges(current):
+                            # add to queue
+                            queue.append(e.dst)
+
+            # create subgraph view and then sdfg
+            subgraph_view = SubgraphView(graph, subgraph)
+            #print("subgraph_view")
+            #print(subgraph_view)
+            #print(subgraph_view.nodes())
+
+            # nest as a subgraph, then push to GPU
+            nsdfg_node = helpers.nest_state_subgraph(sdfg, graph,
+                                                    subgraph_view,
+                                                    full_data = self.fullcopy)
 
         # Analogously to GPUTransformMap
         # avoid importing loops
+        print("##############")
+        print("BEFORE")
+        print(nsdfg_node)
+        print(nsdfg_node.sdfg.nodes()[0].nodes())
+        print(graph.nodes())
+        print("###############")
+
         from dace.transformation.interstate import GPUTransformSDFG
         transformation = GPUTransformSDFG(0,0,{},0)
         transformation.register_trans = self.register_trans
         transformation.sequential_innermaps = self.sequential_innermaps
-        transformation.top_level_trans = self.top_level_trans
+        transformation.toplevel_trans = self.toplevel_trans
 
         # apply transformation
-        transfomation.apply(nsdfg_node.sdfg)
+        transformation.apply(nsdfg_node.sdfg)
 
-        # inline back if possible
+
+        print("##############")
+        print("AFTER")
+        print(nsdfg_node)
+        print(nsdfg_node.sdfg.nodes()[0].nodes())
+        print(graph.nodes())
+        print("###############")
+
+        # inline back
         sdfg.apply_strict_transformations()

@@ -616,7 +616,7 @@ def applyOptPath(sdfg, optpath, useGlobalSuffix=True, sdfg_props=None):
     sdfg_props = sdfg_props or []
     step = 0
     for x in optpath:
-        optimizer = SDFGOptimizer(sdfg, inplace=True)
+        optimizer = SDFGOptimizer(sdfg, inplace=False)
 
         name = x['name']
         classname = name[:name.index('$')] if name.find('$') >= 0 else name

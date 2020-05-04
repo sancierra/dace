@@ -19,15 +19,15 @@ def GEMM1(A: dace.float64[M, K], B: dace.float64[K, N],
         out >> tmp[i,j,k]
         out = in_A * in_B
 
-    dace.reduce(lambda a, b: a + b, tmp, C, axis=2)
+    dace.reduce(lambda a, b: a + b, tmp, C, axis=2, identity = 0)
 
 if __name__ == '__main__':
-    GEMM1.compile(strict = True)
+    #GEMM1.compile(strict = True)
     N.set(300)
     K.set(300)
     M.set(300)
-    A = numpy.random.rand(N.get(),K.get())
-    B = numpy.random.rand(K.get(),M.get())
-    R = numpy.ndarray(shape=[N,M])
+    A = np.random.rand(N.get(),K.get())
+    B = np.random.rand(K.get(),M.get())
+    R = np.ndarray(shape=[N.get(),M.get()])
 
     GEMM1(A=A,B=B,C=R)
