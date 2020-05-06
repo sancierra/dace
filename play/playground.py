@@ -57,6 +57,7 @@ def GEMMRef(A, B, C, alpha, gamma):
     return A.dot(B) * alpha + C * gamma
 
 
+
 if __name__ == '__main__':
     '''
     n = 3
@@ -135,6 +136,17 @@ if __name__ == '__main__':
     print("node_to_children = True:")
     print(state.scope_dict(node_to_children = True))
 
+    print("Scope_Tree")
+    print(state.scope_tree())
+
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.graph.nodes.EntryNode):
+            print("Node", node)
+            print("Ranges", node.map.range.ranges)
+            print("Tile sizes", node.map.range.tile_sizes)
+
+    for edge in state.edges():
+        print(edge._data.veclen)
     # this works so far...
 
     # Next up, try to test out some of the SDFG API functions
