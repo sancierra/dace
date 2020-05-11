@@ -1,7 +1,7 @@
 import ast
 import astunparse
 import dace
-import dace.graph.graph import SubgraphView
+from dace.graph.graph import SubgraphView
 from dace.graph.nodes import CodeNode, LibraryNode, Reduce
 from dace.sdfg import Scope
 from dace.symbolic import pystr_to_symbolic
@@ -25,10 +25,12 @@ def count_moved_data(sdfg: dace.SDFG, symbols: Dict[str, Any] = None) -> int:
 
 
 def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
-                                                                Any]) -> int:
+                                                                Any] = None) -> int:
     stree_root = state.scope_tree()[None]
     sdict = state.scope_dict(node_to_children=True)
     result = 0
+    symbols = symbols or {}
+
 
     edges_counted = set()
 
@@ -53,7 +55,7 @@ def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
             # Do not count edges twice
             edges_counted |= set(state.in_edges(node))
             # Gather outputs from exit node
-            exit_node = state.exit_nodes(node)[0]
+            exit_node = state.exit_node(node)
             outputs = sum(e.data.num_accesses
                           for e in state.out_edges(exit_node)
                           if e not in edges_counted)
@@ -65,11 +67,12 @@ def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
         result += node_result
     return result
 
-def count_moved_data_subgraph(state: dace.SDFGState, subgraph: SubgraphView, symbols: Dict[str,Any]) -> int:
+def count_moved_data_subgraph(state: dace.SDFGState, subgraph: SubgraphView, symbols: Dict[str,Any] = None) -> int:
 
     stree_root = state.scope_tree()[None]
     sdict = state.scope_dict(node_to_children=True)
     result = 0
+    symbols = symbols or {}
 
     edges_counted = set()
 

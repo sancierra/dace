@@ -3963,7 +3963,49 @@ class SDFGState(OrderedMultiDiConnectorGraph, MemletTrackingView):
                         'Dimensionality mismatch between src/dst subsets',
                         sdfg, state_id, eid)
         ########################################
+    def to_cuda(self, subgraph: SubgraphView = None,
+                      register_trans = False,
+                      sequential_innermaps = False,
+                      toplevel_trans = False):
+        # pushes the current state onto the GPU
+        # returns a new sdfg object with the state attached
 
+        # TODO: Test this
+
+        sdfg_new = copy.deepcopy(self.sdfg)
+        if subgraph is None:
+            state_new = sdfg_new.nodes()[self.state_id]
+            # do some tests
+            for node in state_new.nodes():
+                if is_devicelevel(sdfg, graph, node):
+                    raise RuntimeError("Cannot push to CUDA: is_devicelevel returned True for a node")
+
+            view = SubgraphView(state_new, state_new.nodes())
+
+        else:
+            state_new = sdfg_new.nodes()[self.state_id]
+            # do some tests
+            for node in subgraph:
+                if is_devicelevel(sdfg, graph, node):
+                    raise RuntimeError("Cannot push to CUDA: is_devicelevel returned True for a subgraph node")
+                if (isinstance(node, nd.AccessNode) and
+                        node.desc(sdfg).storage != dtypes.StorageType.Default
+                        and node.desc(sdfg).storage !=
+                        dtypes.StorageType.Register):
+                    raise RuntimeError("Cannot push to CUDA: StorageType not correct on one of the AccessNodes")
+                # TODO: can check whether is connected, returns to the same level etc..
+            view = subgraph
+        from dace.transformation.interstate import GPUTransformSDFG
+        transformation = GPUTransformSDFG(0,0,{},0)
+        transformation.register_trans = register_trans
+        transformation.sequential_innermaps = sequential_innermaps
+        transformation.toplevel_trans = top_level_trans
+        nsdfg_node = dace.transformation.helpers.nest_state_subgraph(sdfg_new, state_new, view)
+        transformation.apply(nsdfg_node)
+        return sdfg_new
+
+
+############################################################################
 
 def scope_contains_scope(sdict, node, other_node):
     """ Returns true iff scope of `node` contains the scope of  `other_node`.

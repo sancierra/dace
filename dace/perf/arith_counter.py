@@ -78,8 +78,9 @@ def evalsyms(base: Dict[str, Any], new: Dict[str, Any]):
 
 
 def count_arithmetic_ops_state(state: dace.SDFGState,
-                               symbols: Dict[str, Any]) -> int:
+                               symbols: Dict[str, Any] = None) -> int:
     global INDENT
+    symbols = symbols or {}
     stree_root = state.scope_tree()[None]
     sdict = state.scope_dict(node_to_children=True)
     result = 0
@@ -108,12 +109,12 @@ def count_arithmetic_ops_state(state: dace.SDFGState,
                                                                    symbols,
                                                                    state)
             elif isinstance(node, dace.nodes.Tasklet):
-                if node._code['language'] == dace.Language.CPP:
+                if node.code.language == dace.Language.CPP:
                     for oedge in state.out_edges(node):
                         node_result += bigo(oedge.data.num_accesses)
                 else:
                     node_result += count_arithmetic_ops_code(
-                        node._code['code_or_block'])
+                        node.code.code)
             elif isinstance(node, dace.nodes.Reduce):
                 node_result += state.in_edges(node)[
                     0].data.subset.num_elements() * count_arithmetic_ops_code(
@@ -150,11 +151,13 @@ def count_arithmetic_ops_state(state: dace.SDFGState,
 
 
 def count_arithmetic_ops_subgraph(subgraph: SubgraphView, state: dace.SDFGState,
-                               symbols: Dict[str, Any]) -> int:
+                               symbols: Dict[str, Any] = None) -> int:
     global INDENT
     stree_root = state.scope_tree()[None]
     sdict = state.scope_dict(node_to_children=True)
     result = 0
+    symbols = symbols or {}
+
 
     def traverse(scope: Scope) -> int:
         global INDENT
