@@ -1,6 +1,10 @@
 import dace
 import numpy as np
 
+from roofline import Roofline
+from specs import *
+from optimizer import SDFGRooflineOptimizer
+
 dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
@@ -32,4 +36,7 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
 
 
 if __name__ == '__main__':
-    softmax.to_sdfg().save('smax.sdfg')
+    sdfg = softmax.to_sdfg()
+    roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:30, B:30, SN:300, SM:300})
+    opt = SDFGRooflineOptimizer(sdfg, roofline)
+    opt.optimize()

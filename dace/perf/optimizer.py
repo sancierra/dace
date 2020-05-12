@@ -27,9 +27,9 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
 
     def __init__(self, sdfg, roofline, inplace=False, roofline_save = ''):
         super().__init__(sdfg, inplace=inplace)
-        self.sdfg.fill_scope_connectors()
-        if self.sdfg._propagate:
-            dace.sdfg.propagate_labels_sdfg(self.sdfg)
+        #self.sdfg.fill_scope_connectors()
+        #if self.sdfg._propagate:
+        #    dace.sdfg.propagate_labels_sdfg(self.sdfg)
 
         self.roofline = roofline
 
@@ -55,15 +55,14 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
 
         if SAVE_INTERMEDIATE:
             self.sdfg.save(os.path.join('_dacegraphs', 'before.sdfg'))
+        if VISUALIZE_SDFV:
+            view(self.sdfg, self.roofline)
 
         self.roofline.evaluate('baseline', self.sdfg)
 
         cumulated_pattern_name = ''
         # Optimize until there is not pattern matching or user stops the process.
         pattern_counter = 0
-
-        if VISUALIZE_SDFV:
-            view(self.sdfg, self.roofline)
         while True:
             # Print in the UI all the pattern matching options.
             ui_options = sorted(self.get_pattern_matches())
@@ -112,6 +111,10 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
             print('You selected (%s) pattern %s with parameters %s' %
                   (match_id, pattern_match.print_match(sdfg), str(param_dict)))
 
+            # update name pattern
+            cumulated_pattern_name += '|' if cumulated_pattern_name != '' else ''
+            cumulated_pattern_name += pattern_match.print_match(sdfg)[0:4]
+
             # Set each parameter of the parameter dictionary separately
             for k, v in param_dict.items():
                 setattr(pattern_match, k, v)
@@ -128,11 +131,7 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
             if not pattern_match.annotates_memlets():
                 labeling.propagate_labels_sdfg(self.sdfg)
 
-            cumulated_pattern_name += '|' if cumulated_pattern_name != '' else ''
-            cumulated_pattern_name += pattern_match.print_match(sdfg)[0:4]
-
             self.roofline.evaluate(cumulated_pattern_name, self.sdfg)
-
 
 
             pattern_counter += 1
