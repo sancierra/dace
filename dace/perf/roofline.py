@@ -1,6 +1,10 @@
 import dace
 from dace.graph.graph import SubgraphView, Graph
 from dace.graph.nodes import CodeNode, LibraryNode, Reduce
+from dace.properties import Property
+import dace.symbolic as sym
+import dace.dtypes as types
+
 from typing import Any, Dict, List, Union, Type
 
 from dace.perf.arith_counter import count_arithmetic_ops, \
@@ -11,17 +15,13 @@ from dace.perf.movement_counter import count_moved_data, \
                              count_moved_data_state, \
                              count_moved_data_subgraph
 
-from dace.properties import Property
-import dace.symbolic as sym
-import dace.dtypes as types
-
-
 import os, sys, platform
 import subprocess
+
 import matplotlib.pyplot as plot
 
 import math
-
+import sympy
 
 class PerformanceSpec:
     ''' PerformanceSpec Struct
@@ -109,6 +109,7 @@ class Roofline:
         else:
             self.symbols = symbols
 
+
     def evaluate(self, name: str,
                    graph: Graph,
                    symbols_replacement: Dict[str, Any] = None):
@@ -149,10 +150,19 @@ class Roofline:
             flot_count = count_arithmetic_ops_state(graph, symbols_replacement)
 
         operational_intensity = flop_count / (memory_count * self.specs.bytes_per_datapoint)
+        # evaluate remaining sym functions
+        x, y = sympy.symbols('x y')
+        sym_locals = {sympy.Function('int_floor') : sympy.Lambda((x,y), sympy.functions.elementary.integers.floor  (x/y)),
+                      sympy.Function('int_ceil')  : sympy.Lambda((x,y), sympy.functions.elementary.integers.ceiling(x/y)),
+                      sympy.Function('floor')     : sympy.Lambda((x),   sympy.functions.elementary.integers.floor(x)),
+                      sympy.Function('ceiling')   : sympy.Lambda((x),   sympy.functions.elementary.integers.ceiling(x)),
+                      }
+        for fun, lam in sym_locals.items():
+            operational_intensity.replace(fun, lam)
+
 
         self.data_symbolic[name] = operational_intensity
         try:
-            # TODO: Better symbol operability
             self.data[name] = sym.evaluate(operational_intensity, self.symbols)
             self.data[name] = float(self.data[name])
         except TypeError:
@@ -219,9 +229,6 @@ class Roofline:
     def sdfv(self):
         pass
 
-    def _spec_from_json():
-        # TODO
-        pass
     @staticmethod
     def gather_system_specs():
         # TODO: Auto system specs inferrence

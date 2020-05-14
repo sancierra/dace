@@ -25,13 +25,14 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
         with integrated Roofline plotter
     '''
 
-    def __init__(self, sdfg, roofline, inplace=False, roofline_save = ''):
+    def __init__(self, sdfg, roofline, inplace=False, roofline_save = None):
         super().__init__(sdfg, inplace=inplace)
         #self.sdfg.fill_scope_connectors()
         #if self.sdfg._propagate:
         #    dace.sdfg.propagate_labels_sdfg(self.sdfg)
 
         self.roofline = roofline
+        self.roofline_save = roofline_save
 
 
     def optimize(self):
@@ -52,13 +53,12 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
         VISUALIZE_SDFV = Config.get_bool('optimizer', 'visualize_sdfv')
         SAVE_INTERMEDIATE = Config.get_bool('optimizer', 'save_intermediate')
 
+        self.roofline.evaluate('baseline', self.sdfg)
 
         if SAVE_INTERMEDIATE:
             self.sdfg.save(os.path.join('_dacegraphs', 'before.sdfg'))
         if VISUALIZE_SDFV:
             view(self.sdfg, self.roofline)
-
-        self.roofline.evaluate('baseline', self.sdfg)
 
         cumulated_pattern_name = ''
         # Optimize until there is not pattern matching or user stops the process.

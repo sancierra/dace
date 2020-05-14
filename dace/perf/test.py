@@ -1,7 +1,7 @@
 import dace
 import numpy as np
 
-import roofline
+import dace.perf.roofline
 
 
 N = dace.symbol('N')
@@ -35,10 +35,15 @@ if __name__ == '__main__':
     peak_performance = 2.7 * 4 * 2 * 4
 
     symbols = {M: 300, N:300, K:300}
-    spec = roofline.PerformanceSpec(peak_bandwidth, peak_performance, dace.float64)
-    roof = roofline.Roofline(spec, symbols, debug = True)
+    spec = dace.perf.roofline.PerformanceSpec(peak_bandwidth, peak_performance, dace.float64)
+    roof = dace.perf.roofline.Roofline(spec, symbols, debug = True)
 
     #dace.perf.sdfv_roofline.view(sdfg, roof)
 
+    print("SDFGRooflineOptimizer")
     optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg, roof, inplace = False)
     optimizer.optimize()
+
+    #print("SDFGOptimizer")
+    #optimizer = dace.transformation.optimizer.SDFGOptimizer(sdfg)
+    #optimizer.optimize()

@@ -1,9 +1,9 @@
 import dace
 import numpy as np
 
-from roofline import Roofline
-from specs import *
-from optimizer import SDFGRooflineOptimizer
+from dace.perf.roofline import Roofline
+from dace.perf.specs import *
+from dace.perf.optimizer import SDFGRooflineOptimizer
 
 dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
