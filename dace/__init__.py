@@ -14,5 +14,11 @@ from .graph.edges import InterstateEdge
 from .graph.labeling import propagate_labels_sdfg, propagate_memlet
 from .symbolic import symbol
 
+from .perf.roofline import Roofline, PerformanceSpec
+from .perf.optimizer import *
+from .perf.sdfv_roofline import *
+from .perf.specs import *
+
+
 # Run Jupyter notebook code
 from .jupyter import *
