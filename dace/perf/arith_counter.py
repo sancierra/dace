@@ -104,10 +104,7 @@ def count_arithmetic_ops_state(state: dace.SDFGState,
                 INDENT += 1
                 node_result += count_arithmetic_ops(node.sdfg, nested_syms)
                 INDENT -= 1
-            elif isinstance(node, dace.nodes.LibraryNode):
-                node_result += LIBNODES_TO_ARITHMETICS[type(node)](node,
-                                                                   symbols,
-                                                                   state)
+
             elif isinstance(node, dace.nodes.Tasklet):
                 if node.code.language == dace.Language.CPP:
                     for oedge in state.out_edges(node):
@@ -115,11 +112,14 @@ def count_arithmetic_ops_state(state: dace.SDFGState,
                 else:
                     node_result += count_arithmetic_ops_code(
                         node.code.code)
-            elif isinstance(node, dace.nodes.Reduce):
+            elif isinstance(node, dace.libraries.standard.nodes.reduce.Reduce):
                 node_result += state.in_edges(node)[
                     0].data.subset.num_elements() * count_arithmetic_ops_code(
                         node.wcr)
-
+            elif isinstance(node, dace.nodes.LibraryNode):
+                node_result += LIBNODES_TO_ARITHMETICS[type(node)](node,
+                                                                   symbols,
+                                                                   state)
             # Augment list by WCR edges
             if isinstance(node, (dace.nodes.CodeNode, dace.nodes.AccessNode)):
                 for oedge in state.out_edges(node):
@@ -191,7 +191,7 @@ def count_arithmetic_ops_subgraph(subgraph: SubgraphView, state: dace.SDFGState,
                     else:
                         node_result += count_arithmetic_ops_code(
                             node._code['code_or_block'])
-                elif isinstance(node, dace.nodes.Reduce):
+                elif isinstance(node, dace.libraries.standard.nodes.reduce.Reduce):
                     node_result += state.in_edges(node)[
                         0].data.subset.num_elements() * count_arithmetic_ops_code(
                             node.wcr)

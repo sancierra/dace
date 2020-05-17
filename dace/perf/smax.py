@@ -38,5 +38,7 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
 if __name__ == '__main__':
     sdfg = softmax.to_sdfg()
     roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:30, B:30, SN:300, SM:300})
+    #sdfg.expand_library_nodes()
+    sdfg.apply_strict_transformations()
     opt = SDFGRooflineOptimizer(sdfg, roofline)
     opt.optimize()

@@ -1,6 +1,6 @@
 import dace
 from dace.graph.graph import SubgraphView, Graph
-from dace.graph.nodes import CodeNode, LibraryNode, Reduce
+from dace.graph.nodes import CodeNode, LibraryNode
 from dace.properties import Property
 import dace.symbolic as sym
 import dace.dtypes as types
