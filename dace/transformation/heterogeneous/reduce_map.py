@@ -180,7 +180,6 @@ class ReduceMap(pattern_matching.Transformation):
                                             outputs = {"out"},
                                             code = "out = reduction_in + array_in")
 
-            # TODO: connect tasklet with transient and input ancestor path
             edge_to_remove = graph.out_edges(transient_node_inner)[0]
 
             new_memlet_array_inner =    Memlet(data = out_storage_node.data,
@@ -271,10 +270,14 @@ class ReduceMap(pattern_matching.Transformation):
         graph.remove_node(inner_exit)
         graph.remove_node(identity_tasklet)
 
-
-        # TODO: create setzero identities for other reductions than +
         sdfg.validate()
-        propagate_labels_sdfg(sdfg)
+
+        # setzero stuff
+
+        if identity is None:
+            # set transient_inner to set_zero = True
+            # TODO: create identities for other reductions
+            transient_node_inner.setzero = True
         return
 
 
