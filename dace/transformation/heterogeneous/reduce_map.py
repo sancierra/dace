@@ -8,6 +8,7 @@ from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
+from dace.graph.labeling import propagate_labels_sdfg
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -92,13 +93,8 @@ class ReduceMap(pattern_matching.Transformation):
         inner_exit = nstate.exit_node(inner_entry)
         outer_exit = nstate.exit_node(outer_entry)
 
-        print(outer_entry)
-        print(inner_entry)
-        print(inner_exit)
-        print(outer_exit)
         ###### create an out transient between inner and outer map exit
         array_out = nstate.out_edges(outer_exit)[0].data.data
-        print("Data being reduced:", array_out)
 
         from dace.transformation.dataflow.local_storage import LocalStorage
         local_storage_subgraph = {
@@ -108,8 +104,6 @@ class ReduceMap(pattern_matching.Transformation):
         nsdfg_id = nsdfg.sdfg.sdfg_list.index(nsdfg.sdfg)
         nstate_id = 0
 
-        print("****")
-        print(nsdfg.sdfg.nodes())
 
         local_storage = LocalStorage(nsdfg_id,
                                      nstate_id,
@@ -156,9 +150,10 @@ class ReduceMap(pattern_matching.Transformation):
 
 
         else:
-            array_closest_ancestor = nodes.AccessNode(storage_node.data,
+            array_closest_ancestor = nodes.AccessNode(out_storage_node.data,
                                         access = dtypes.AccessType.ReadOnly)
             graph.add_node(array_closest_ancestor)
+
 
 
         # array_closest_ancestor now points to the node we want to connect
@@ -183,32 +178,36 @@ class ReduceMap(pattern_matching.Transformation):
             new_tasklet = graph.add_tasklet(name = "reduction_transient_update",
                                             inputs = {"reduction_in", "array_in"},
                                             outputs = {"out"},
-                                            code = """
-                                            out = reduction_in + array_in
-                                            """)
+                                            code = "out = reduction_in + array_in")
+
             # TODO: connect tasklet with transient and input ancestor path
             edge_to_remove = graph.out_edges(transient_node_inner)[0]
 
-            new_memlet_array     = Memlet(data = out_storage_node.data,
-                                          num_accesses = 1,
-                                          subset = edge_to_remove.data.subset,
-                                          vector_length = 1)
-            new_memlet_reduction = Memlet(data = graph.out_edges(inner_exit)[0].data.data,
-                                          num_accesses = 1,
-                                          subset = graph.out_edges(inner_exit)[0].data.subset,
-                                          vector_length = 1)
-            new_memlet_out       = Memlet(data = edge_to_remove.data.data,
-                                          num_accesses = 1,
-                                          subset = edge_to_remove.data.subset,
-                                          vecotor_length = 1)
+            new_memlet_array_inner =    Memlet(data = out_storage_node.data,
+                                            num_accesses = 1,
+                                            subset = edge_to_remove.data.subset,
+                                            vector_length = 1)
+            new_memlet_array_outer =    Memlet(data = array_closest_ancestor.data,
+                                            num_accesses = graph.in_edges(outer_entry)[0].data.num_accesses,
+                                            subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)),                         ### TODO
+                                            vector_length = 1)
+
+            new_memlet_reduction =      Memlet(data = graph.out_edges(inner_exit)[0].data.data,
+                                            num_accesses = 1,
+                                            subset = graph.out_edges(inner_exit)[0].data.subset,
+                                            vector_length = 1)
+            new_memlet_out_inner =      Memlet(data = edge_to_remove.data.data,
+                                            num_accesses = 1,
+                                            subset = edge_to_remove.data.subset,
+                                            vector_length = 1)
+            new_memlet_out_outer =      dcpy(new_memlet_array_outer)
 
             # remove old edges
+
             outer_edge_to_remove = None
-            conn_to_remove = None
             for edge in graph.out_edges(outer_exit):
-                if edge.src_conn == edge_to_remove.src_conn:
+                if edge.src == edge_to_remove.dst:
                     outer_edge_to_remove = edge
-                    conn_to_remove = None
 
             # debug
             if outer_edge_to_remove is None:
@@ -224,40 +223,46 @@ class ReduceMap(pattern_matching.Transformation):
                            "reduction_in",
                            new_memlet_reduction)
 
-            graph.add_memlet_path(array_closest_ancestor,
-                                  outer_entry,
-                                  new_tasklet,
-                                  memlet = new_memlet_array,
-                                  src_conn = None,
-                                  dst_conn = "array_in")
+            graph.add_edge(outer_entry,
+                           None,
+                           new_tasklet,
+                           "array_in",
+                           new_memlet_array_inner)
+            graph.add_edge(array_closest_ancestor,
+                           None,
+                           outer_entry,
+                           None,
+                           new_memlet_array_outer)
+            graph.add_edge(new_tasklet,
+                           "out",
+                           outer_exit,
+                           None,
+                           new_memlet_out_inner)
+            graph.add_edge(outer_exit,
+                           None,
+                           out_storage_node,
+                           None,
+                           new_memlet_out_outer)
 
-            graph.add_memlet_path(new_tasklet,
-                                  outer_exit,
-                                  out_storage_node,
-                                  memlet = new_memlet_out,
-                                  src_conn = "out",
-                                  dst_conn = None)
-
+            # fill map scope connectors
+            graph.fill_scope_connectors()
             graph._clear_scopedict_cache()
             # wcr is already removed
 
-        # TODO: replace inner map by a reduction
+        # finally, replace the inner loop by an appropriate reduction
+
+        # TODO: reschedule, not sure about this
+        if schedule == dtypes.ScheduleType.GPU_Device:
+            schedule = dtypes.ScheduleType.GPU_ThreadBlock
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
                                            axes = None,
                                            schedule = schedule,
                                            identity = identity)
-        #in_edge = graph.in_edges(inner_entry)[0]
-        #out_edge = graph.out_edges(inner_exit)[0]
-        #in_edge.dst = reduce_node_new
-        #out_edge.src = reduce_node_new
 
-
-        #nxutil.change_edge_dest(graph, inner_entry, reduce_node_new)
         edge_tmp = graph.in_edges(inner_entry)[0]
         graph.add_edge(edge_tmp.src, edge_tmp.src_conn, reduce_node_new, None, edge_tmp.data)
 
-        #nxutil.change_edge_src(graph, inner_exit, reduce_node_new)
         edge_tmp = graph.out_edges(inner_exit)[0]
         graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, edge_tmp.data)
 
@@ -267,13 +272,11 @@ class ReduceMap(pattern_matching.Transformation):
         graph.remove_node(identity_tasklet)
 
 
-
         # TODO: create setzero identities for other reductions than +
         sdfg.validate()
+        propagate_labels_sdfg(sdfg)
         return
-        # fuse again
-        if strict:
-            sdfg.apply_strict_transformations()
+
 
     def _expand_reduce(self, sdfg, state, node):
 

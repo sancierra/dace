@@ -24,7 +24,7 @@ def GEMM1(A: dace.float64[M, K], B: dace.float64[K, N],
         out >> tmp[i,j,k]
         out = in_A * in_B
 
-    dace.reduce(lambda a, b: a + b, tmp, C, axis=2, identity = 0)
+    dace.reduce(lambda a, b: a + b, tmp, C, axis=2)
 
 
 if __name__ == '__main__':
