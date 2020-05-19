@@ -42,6 +42,17 @@ class ReduceMap(pattern_matching.Transformation):
         ]
     @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict = False):
+        reduce_node = candidate[ReduceMap._reduce]
+        inedge = graph.in_edges(reduce_node)[0]
+        input_dims = len(inedge.data.subset)
+        axes = node.axes
+        if axes is None:
+            # axes = None -> full reduction, can't expand
+            return False
+        if len(axes) == input_dims:
+            # axes = all  -> full reduction, can't expand
+            return False
+
         return True
 
     @staticmethod
@@ -65,6 +76,10 @@ class ReduceMap(pattern_matching.Transformation):
 
         # assumption:
         # - there are accessNodes right before and after the reduce nodes
+
+        # First of all, we check whether we can extract a non-empty outer range
+        # If not, there is nothing to be done.
+        inedge = state.in_edg
 
         # remove the reduce identity
         # we will reassign it later after expanding
