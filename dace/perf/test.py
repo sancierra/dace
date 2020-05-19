@@ -43,8 +43,8 @@ if __name__ == '__main__':
     #GT = dace.transformation.interstate.gpu_transform_sdfg.GPUTransformSDFG(0,0,{},0)
     #GT.apply(sdfg)
 
-    sdfg.expand_library_nodes()
-    sdfg.apply_strict_transformations()
+    #sdfg.expand_library_nodes()
+    #sdfg.apply_strict_transformations()
 
     #dace.perf.sdfv_roofline.view(sdfg, roof)
 
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     #sdfg.apply_strict_transformations()
 
     #sdfg.view()
-    csdfg = sdfg.compile()
+    #csdfg = sdfg.compile()
     #csdfg(A=A, B=B, C=C, N=N, M=M, K=K)
     #print(np.linalg.norm(C))
     #print(np.linalg.norm(A@B))

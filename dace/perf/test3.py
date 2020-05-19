@@ -10,11 +10,21 @@ M = dace.symbol('M')
 
 # method 1
 @dace.program
-def TEST(A: dace.float64[M,N,K], B:dace.float64[1]):
+def TEST(A: dace.float64[N], B:dace.float64[N]):
     # Transient variables
     #dace.reduce(lambda a,b: a+b, A, B, axis = 2)
-    B[:] = 0
-    dace.reduce(lambda a,b: a+b, A, B)
+    tmp = np.ndarray([N], dtype = np.float64)
+    @dace.map
+    def add1(i: _[0:N]):
+        input << A[i]
+        out >> B[i]
+        out = input + 1
+
+    @dace.map
+    def add2(i: _[0:N]):
+        input << B[i]
+        out >> B[i]
+        out = input + 2
 
 if __name__ == '__main__':
     M.set(2)
@@ -31,13 +41,14 @@ if __name__ == '__main__':
     roof = roofline.Roofline(spec, symbols, debug = True)
 
     sdfg = TEST.to_sdfg()
+    #sdfg.view()
     #sdfg.expand_library_nodes()
     #sdfg.apply_strict_transformations()
     #dace.perf.sdfv_roofline.view(sdfg, roof)
 
     print("SDFGRooflineOptimizer")
-    #optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg, roof, inplace = False)
-    #optimizer.optimize()
+    optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg, roof, inplace = False)
+    optimizer.optimize()
 
 
 
