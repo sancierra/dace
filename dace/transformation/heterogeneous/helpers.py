@@ -17,7 +17,7 @@ import dace.libraries.standard as stdlib
 # ****************
 # Helper functions
 def find_max_permuted_outer(maps: List[nodes.Map]) \
-            -> Tuple[List[Ranges], Dict[nodes.Map, List[int]]]:
+            -> Tuple[List[subsets.Range], Dict[nodes.Map, List[int]]]:
     """ Finds maximum permuted map base
         Input: all maps in the subgraphs
         Output: For every map, returns an array
@@ -106,7 +106,7 @@ def path_from_to(node1, node2, graph):
         if current == node2:
             return True
         else:
-            queue.extend([edge.dst for edge in graph.out_edges(current))
+            queue.extend([edge.dst for edge in graph.out_edges(current)])
 
     return False
 

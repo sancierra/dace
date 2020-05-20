@@ -24,7 +24,9 @@ class MultiExpansion():
         self.debug = debug
         pass
 
-
+    sequential_innermaps = Property(dtype = bool,
+                                    desc = "Sequential innermaps",
+                                    default = False)
 
     def expand(self, sdfg, graph, subgraph = None):
         if not subgraph:
@@ -108,4 +110,64 @@ class MultiExpansion():
 
             map_exit = graph.exit_node(map_entry)
             # create two new maps, outer and inner
-            
+            params_outer = map_base_variables
+            ranges_outer = map_base_ranges
+            params_inner = dcpy(map.params)
+            ranges_inner = dcpy(map.range)
+            for param_outer, subset_outer in zip(params_outer, ranges_outer):
+                params_inner.remove(param_outer)
+                ranges_inner.remove(subset_outer)
+
+            inner_map = nodes.Map(label = map.label + '_inner',
+                                  params = params_inner,
+                                  ndrange = ranges_inner,
+                                  schedule = dtypes.ScheduleType.Sequential \
+                                             if MultiExpansion.sequential_innermaps \
+                                             else dtypes.ScheduleType.Default)
+
+            map.label = map.label + '_outer'
+            map.params = params_outer
+            map.ndrange = ranges_outer
+
+            # create new map entries and exits
+            map_entry_inner = nodes.MapEntry(inner_map)
+            map_exit_inner = nodes.MapExit(inner_map)
+
+            # analogously to Map_Expansion
+            for edge in graph.out_edges(map_entry):
+                graph.remove_edge(edge)
+                graph.add_memlet_path(map_entry,
+                                      map_entry_inner,
+                                      edge.dst,
+                                      src_conn = edge.src_conn,
+                                      memlet = edge.data,
+                                      dst_conn=edge.dst_conn)
+
+            dynamic_edges = dace.sdfg.dynamic_map_inputs(graph, map_entry)
+            for edge in dynamic_edges:
+                # Remove old edge and connector
+                graph.remove_edge(edge)
+                edge.dst._in_connectors.remove(edge.dst_conn)
+
+                # Propagate to each range it belongs to
+                path = []
+                for mapnode in [map_entry, map_entry_inner]:
+                    path.append(mapnode)
+                    if any(edge.dst_conn in map(str, symbolic.symlist(r))
+                           for r in mapnode.map.range):
+                        graph.add_memlet_path(edge.src,
+                                              *path,
+                                              memlet = edge.data,
+                                              src_conn = edge.src_conn,
+                                              dst_conn = edge.dst_conn)
+
+            for edge in graph.in_edges(map_exit):
+                graph.remove_edge(edge)
+                graph.add_memlet_path(edge.src,
+                                      map_exit_inner,
+                                      map_exit,
+                                      memlet = edge.data,
+                                      src_conn = edge.src_conn,
+                                      dst_conn = edge.dst_conn)
+
+        return
