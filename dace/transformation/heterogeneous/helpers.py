@@ -26,29 +26,40 @@ def find_max_permuted_outer(maps: List[nodes.Map]) \
         FORNOW: Individual Ranges have to be equal
     """
 
+def common_map_base_ranges(maps: List[nodes.Map]) -> List:
+    """ Finds maximally extended common map base.
+    Map base = set of ranges that every map in the list has
+    """
+    if len(maps) == 0:
+        return None
     # first pass: find maximal set
-
-    map_range = [rng for rng in map[0].range]
+    map_base = [rng for rng in map[0].range]
     for map in maps:
         tmp = [rng for rng in map.range]
 
-        map_range_new = []
+        map_base_new = []
         for element in tmp:
-            if element in map_range:
-                map_range_new.append(element)
-                map_range.remove(element)
+            if element in map_base:
+                map_base_new.append(element)
+                map_base.remove(element)
 
-        map_range = map_range_new
+        map_base = map_base_new
 
-    # second pass: assign permutation
-    # if range doesn't belong to outer indices,
-    # put "-1" as index
+
+    return map_base
+
+
+def find_reassignment(maps: List[nodes.Map], map_base_ranges) -> Dict[nodes.Map, List]:
+    """ Provided an outer map base,
+    finds a reassignment so that ranges get properly mapped to
+    a respective base index. If there is none, we put -1 as index
+    """
     result = {map: None for map in maps}
-    outer_ranges_dict = enumerate(map_range)
+    outer_ranges_dict = enumerate(map_base)
+    # 0: 0:N, 1: 0:N, 2: 0:M     |    0: 0:K, 1: 0:M, 2: 0:N, 3: 0:F, 4: 0:N
     for map in maps:
         result_map = []
         for i, current_range in enumerate(map.range):
-            map_range_copy = map_range.copy()
             found = False
             for j, outer_range in outer_ranges_dict:
                 if current_range == outer_range and j not in result_map:
@@ -59,7 +70,7 @@ def find_max_permuted_outer(maps: List[nodes.Map]) \
             result_map.append(-1)
         result[map] = result_map
 
-    return (map_range, result)
+    return result
 
 def dependency_dict(graph: SDFGState, maps: List[nodes.MapEntry]):
     """ from a list of top-level map entries
@@ -93,8 +104,35 @@ def path_from_to(node1, node2, graph):
     while len(queue) > 0:
         current = queue.pop(0)
         if current == node2:
-            return True 
+            return True
         else:
             queue.extend([edge.dst for edge in graph.out_edges(current))
 
     return False
+
+def toplevel_scope_subgraph(graph, subgraph, scope_dict = None):
+    """ returns the toplevel scope of the subgraph"""
+    if not scope_dict:
+        scope_dict = graph.scope_dict()
+    scopes = set()
+    for element in subgraph:
+        scopes.add(scope_dict[element])
+    for scope in scopes:
+        # search the one whose parent is not in scopes
+        # that must be the top level one
+        if scope_dict[scope] not in scopes:
+            return scope
+
+    raise RuntimeError("Subgraph is not sound (must be connected)")
+
+def toplevel_scope_maps(graph, maps, scope_dict = None):
+    if not scope_dict:
+        scope_dict = graph.scope_dict()
+    scopes = set()
+    for map in maps:
+        scopes.add(scope_dict[map])
+    for scope in scopes:
+        if scope_dict[scope] not in scopes:
+            return scope
+
+    raise RuntimeError("Map structure is not sound (underlying subgraph must be complete and connected")
