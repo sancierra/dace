@@ -184,6 +184,7 @@ _build/
 
 /*.sdfg
 
+tutorials/*
 MacOS
 
 .DS_STORE
