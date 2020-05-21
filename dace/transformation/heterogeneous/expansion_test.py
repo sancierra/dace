@@ -21,7 +21,7 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
             in1 << A[i]
             in2 << B[j]
             in3 << C[k]
-            out >> tmp1
+            out >> tmp1[i,j,k]
 
             out1 = in1 + in2 + in3
 
@@ -31,7 +31,7 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
             in1 << D[k]
             in2 << E[j]
             in3 << F[l]
-            out >> tmp2
+            out >> tmp2[j,k,l]
 
             out = in1 + in2 + in3
 
@@ -43,7 +43,7 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
             in3 << I[asdf3]
             in4 << J[asdf4]
 
-            out >> tmp3
+            out >> tmp3[asdf,asdf2,asdf3,asdf4]
 
             out = in1 + in2 + in3 + in4
 
@@ -53,7 +53,7 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
             in1 << X[i]
             in2 << Y[j]
             in3 << Z[k]
-            out >> tmp4
+            out >> tmp4[i,j,k]
 
             out = in1 + in2 + in3
 
