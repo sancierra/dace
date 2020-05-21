@@ -10,6 +10,9 @@ from dace.properties import make_properties, Property
 from dace.symbolic import symstr
 from dace.graph.labeling import propagate_labels_sdfg
 
+from dace.frontend.operations import detect_reduction_type
+
+
 from copy import deepcopy as dcpy
 from typing import List, Union
 
@@ -34,6 +37,19 @@ class ReduceMap(pattern_matching.Transformation):
         default = True,
         allow_none = False
     )
+
+    reduction_type_update = {
+        dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
+        dtypes.ReductionType.Min: 'out = min(reduction_in, array_in)',
+        dtypes.ReductionType.Sum: 'out = reduction_in + array_in',
+        dtypes.ReductionType.Product: 'out = reduction_in * array_in',
+        dtypes.ReductionType.Bitwise_And: 'out = reduction_in & array_in',
+        dtypes.ReductionType.Bitwise_Or: 'out = reduction_in | array_in',
+        dtypes.ReductionType.Bitwise_Xor: 'out = reduction_in ^ array_in',
+        dtypes.ReductionType.Logical_And: 'out = reduction_in and array_in',
+        dtypes.ReductionType.Logical_Or: 'out = reduction_in or array_in',
+        dtypes.ReductionType.Logical_Xor: 'out = reduction_in xor array_in'
+    }
 
     @staticmethod
     def expressions():
@@ -77,9 +93,6 @@ class ReduceMap(pattern_matching.Transformation):
         # assumption:
         # - there are accessNodes right before and after the reduce nodes
 
-        # First of all, we check whether we can extract a non-empty outer range
-        # If not, there is nothing to be done.
-        inedge = state.in_edg
 
         # remove the reduce identity
         # we will reassign it later after expanding
@@ -190,10 +203,17 @@ class ReduceMap(pattern_matching.Transformation):
 
         if not shortcut:
             # TODO: also for other types of reductions
+            deduction_type = detect_reduction_type(wcr)
+            if deduction_type in ReduceMap.reduction_type_update:
+                code = ReduceMap.reduction_type_update[deduction_type]
+            else:
+                raise RuntimeError("Not yet implemented for custom reduction")
+
+
             new_tasklet = graph.add_tasklet(name = "reduction_transient_update",
                                             inputs = {"reduction_in", "array_in"},
                                             outputs = {"out"},
-                                            code = "out = reduction_in + array_in")
+                                            code = code)
 
             edge_to_remove = graph.out_edges(transient_node_inner)[0]
 
@@ -278,6 +298,7 @@ class ReduceMap(pattern_matching.Transformation):
         graph.add_edge(edge_tmp.src, edge_tmp.src_conn, reduce_node_new, None, edge_tmp.data)
 
         edge_tmp = graph.out_edges(inner_exit)[0]
+        edge_tmp.data.wcr = None
         graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, edge_tmp.data)
 
         identity_tasklet = graph.out_edges(inner_entry)[0].dst

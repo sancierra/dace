@@ -24,7 +24,7 @@ def GEMM1(A: dace.float64[M, K], B: dace.float64[K, N],
         out >> tmp[i,j,k]
         out = in_A * in_B
 
-    dace.reduce(lambda a, b: a + b, tmp, C, axis=2)
+    dace.reduce(lambda a, b: a * b, tmp, C, axis=2)
 
 
 if __name__ == '__main__':
@@ -41,11 +41,17 @@ if __name__ == '__main__':
         if isinstance(node, stdlib.Reduce):
             reduce_node = node
 
+
+    
     transformation = ReduceMap(sdfg_id = sdfg.sdfg_list.index(sdfg),
                                state_id = 0,
                                subgraph = {ReduceMap._reduce: sdfg.nodes()[0].nodes().index(reduce_node)},
                                expr_index = 0)
 
-    print("Start Debug")
+
     transformation.apply(sdfg)
+
+
+
+
     sdfg.view()
