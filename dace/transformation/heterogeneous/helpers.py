@@ -16,15 +16,6 @@ import dace.libraries.standard as stdlib
 
 # ****************
 # Helper functions
-def find_max_permuted_outer(maps: List[nodes.Map]) \
-            -> Tuple[List[subsets.Range], Dict[nodes.Map, List[int]]]:
-    """ Finds maximum permuted map base
-        Input: all maps in the subgraphs
-        Output: For every map, returns an array
-        indicating which position
-
-        FORNOW: Individual Ranges have to be equal
-    """
 
 def common_map_base_ranges(maps: List[nodes.Map]) -> List:
     """ Finds maximally extended common map base.
@@ -33,7 +24,7 @@ def common_map_base_ranges(maps: List[nodes.Map]) -> List:
     if len(maps) == 0:
         return None
     # first pass: find maximal set
-    map_base = [rng for rng in map[0].range]
+    map_base = [rng for rng in maps[0].range]
     for map in maps:
         tmp = [rng for rng in map.range]
 
@@ -55,19 +46,19 @@ def find_reassignment(maps: List[nodes.Map], map_base_ranges) -> Dict[nodes.Map,
     a respective base index. If there is none, we put -1 as index
     """
     result = {map: None for map in maps}
-    outer_ranges_dict = enumerate(map_base)
+    outer_ranges_dict = dict(enumerate(map_base_ranges))
     # 0: 0:N, 1: 0:N, 2: 0:M     |    0: 0:K, 1: 0:M, 2: 0:N, 3: 0:F, 4: 0:N
     for map in maps:
         result_map = []
-        for i, current_range in enumerate(map.range):
+        for current_range in map.range:
             found = False
-            for j, outer_range in outer_ranges_dict:
+            for j, outer_range in outer_ranges_dict.items():
                 if current_range == outer_range and j not in result_map:
                     result_map.append(j)
                     found = True
                     break
-        if not found:
-            result_map.append(-1)
+            if not found:
+                result_map.append(-1)
         result[map] = result_map
 
     return result
@@ -81,7 +72,8 @@ def dependency_dict(graph: SDFGState, maps: List[nodes.MapEntry]):
         in order for this function to yields something useful
     """
     # TODO
-    # graph.source_nodes(), entry magic
+    # there should be already a function doing this
+    # topo sort in nxutil / helpers somewhere
 
 def non_connected_graph(*args):
     """ Generate non-connected graph part

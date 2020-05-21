@@ -4,7 +4,7 @@
 from dace import dtypes, registry, symbolic, subsets
 from dace.graph import nodes, nxutil
 from dace.memlet import Memlet
-from dace.sdfg import replace, SDFG
+from dace.sdfg import replace, SDFG, dynamic_map_inputs
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
@@ -20,15 +20,14 @@ import helpers
 
 @make_properties
 class MultiExpansion():
-    def __init__(self, debug = True):
-        self.debug = debug
-        pass
 
     sequential_innermaps = Property(dtype = bool,
                                     desc = "Sequential innermaps",
                                     default = False)
 
-    def expand(self, sdfg, graph, subgraph = None):
+    def expand(self, sdfg, graph, map_entries):
+
+        """
         if not subgraph:
             subgraph = graph
         maps = []
@@ -41,6 +40,10 @@ class MultiExpansion():
             and scope_dict[node] == toplevel_scope:
                     maps.append(node.map)
                     map_entries.append(node)
+        """
+        maps = [None]*len(map_entries)
+        for i in range(len(map_entries)):
+            maps[i] = map_entries[i].map
 
         map_base_ranges = helpers.common_map_base_ranges(maps)
         reassignments = helpers.find_reassignment(maps, map_base_ranges)
@@ -49,12 +52,14 @@ class MultiExpansion():
         # create params_dict for every map
         # first, let us define base variables, just take the first map for that
         map_base_variables = []
-        for i in range(len(map[0].params)):
-            if map[0].range[i] in map_base_ranges:
-                map_base_variables.append(map[0].params[i])
+        for i in range(len(maps[0].params)):
+            if maps[0].range[i] in map_base_ranges:
+                map_base_variables.append(maps[0].params[i])
         map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
         params_dict = {}
+        print("Map_base_variables", map_base_variables)
+        print("Map_base_ranges", map_base_ranges)
         for map in maps:
             # for each map create param dict, first assign identity
             params_dict_map = {param: param for param in map.params}
@@ -62,7 +67,6 @@ class MultiExpansion():
             # for every element neq -1, need to change param to map_base_variables[]
             # if param already appears in own dict, just do a swap
             # else we just replace it
-            # TODO
             for i, reassignment in enumerate(reassignments[map]):
                 # 0:-1, 1:-1, 2:1, 3:0, 4:-1
                 if reassignment == -1:
@@ -94,13 +98,21 @@ class MultiExpansion():
 
         for map, map_entry in zip(maps, map_entries):
             map_scope = graph.scope_subgraph(map_entry)
+            print(hex(id(map_entry)))
             params_dict_map = params_dict[map]
             for firstp, secondp in params_dict_map.items():
                 if firstp != secondp:
-                    replace(map_scope, secondp, '__' + secondp + '_fused')
+                    replace(map_scope, firstp, '__' + firstp + '_fused')
             for firstp, secondp in params_dict_map.items():
                 if firstp != secondp:
-                    replace(map_scope, '__' + secondp + '_fused', firstp)
+                    replace(map_scope, '__' + firstp + '_fused', secondp)
+
+            # now also replace the map variables inside maps
+            for i in range(len(map.params)):
+                map.params[i] = params_dict_map[map.params[i]]
+
+        print("PARAMS REPLACED")
+
 
         # then expand all the maps
         for map, map_entry in zip(maps, map_entries):
@@ -112,12 +124,18 @@ class MultiExpansion():
             # create two new maps, outer and inner
             params_outer = map_base_variables
             ranges_outer = map_base_ranges
-            params_inner = dcpy(map.params)
-            ranges_inner = dcpy(map.range)
-            for param_outer, subset_outer in zip(params_outer, ranges_outer):
-                params_inner.remove(param_outer)
-                ranges_inner.remove(subset_outer)
 
+            init_params_inner = []
+            init_ranges_inner = []
+            for param, rng in zip(map.params, map.range):
+                if param in map_base_variables:
+                    continue
+                else:
+                    init_params_inner.append(param)
+                    init_ranges_inner.append(rng)
+
+            params_inner = init_params_inner
+            ranges_inner = subsets.Range(init_ranges_inner)
             inner_map = nodes.Map(label = map.label + '_inner',
                                   params = params_inner,
                                   ndrange = ranges_inner,
@@ -127,7 +145,7 @@ class MultiExpansion():
 
             map.label = map.label + '_outer'
             map.params = params_outer
-            map.ndrange = ranges_outer
+            map.range = ranges_outer
 
             # create new map entries and exits
             map_entry_inner = nodes.MapEntry(inner_map)
@@ -143,7 +161,7 @@ class MultiExpansion():
                                       memlet = edge.data,
                                       dst_conn=edge.dst_conn)
 
-            dynamic_edges = dace.sdfg.dynamic_map_inputs(graph, map_entry)
+            dynamic_edges = dynamic_map_inputs(graph, map_entry)
             for edge in dynamic_edges:
                 # Remove old edge and connector
                 graph.remove_edge(edge)
