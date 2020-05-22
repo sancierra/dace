@@ -17,15 +17,13 @@ def TEST(A: dace.float64[N], B:dace.float64[N]):
     @dace.map
     def add1(i: _[0:N]):
         input << A[i]
-        out >> B[i]
-        out2 >> A[i]
+        out >> A[i]
         out = input + 1
-        out2 = input + 2
 
     @dace.map
     def add2(i: _[0:N]):
         input << A[i]
-        out >> B[i]
+        out >> A[i]
         out = input + 3
 
 if __name__ == '__main__':

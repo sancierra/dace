@@ -13,20 +13,19 @@ M = dace.symbol('M')
 def TEST(A: dace.float64[N], B:dace.float64[N]):
     # Transient variables
     #dace.reduce(lambda a,b: a+b, A, B, axis = 2)
-    tmp = np.ndarray([N], dtype = np.float64)
-    @dace.map
-    def add1(i: _[0:N]):
-        input << A[i]
-        out >> B[i]
-        out2 >> A[i]
-        out = input + 1
-        out2 = input + 2
+    tmp_glob = np.ndarray([N], dtype = np.float64)
+    for i in dace.map[0:N]:
+        tmp = np.ndarray([1], dtype = np.float64)
+        tmp2 = np.ndarray([1], dtype = np.float64)
+        with dace.tasklet:
+            input << A[i]
+            out >> tmp
+            out = input + 1
+        with dace.tasklet:
+            input << tmp
+            out >> tmp_glob[i]
+            out = input + 2
 
-    @dace.map
-    def add2(i: _[0:N]):
-        input << A[i]
-        out >> B[i]
-        out = input + 3
 
 if __name__ == '__main__':
     M.set(2)
