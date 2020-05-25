@@ -41,9 +41,8 @@ class MultiExpansion():
                     maps.append(node.map)
                     map_entries.append(node)
         """
-        maps = [None]*len(map_entries)
-        for i in range(len(map_entries)):
-            maps[i] = map_entries[i].map
+
+        maps = [entry.map for entry in map_entries]
 
         map_base_ranges = helpers.common_map_base_ranges(maps)
         reassignments = helpers.find_reassignment(maps, map_base_ranges)
@@ -52,12 +51,16 @@ class MultiExpansion():
         # create params_dict for every map
         # first, let us define base variables, just take the first map for that
         map_base_variables = []
-        for i in range(len(maps[0].params)):
-            if maps[0].range[i] in map_base_ranges:
-                map_base_variables.append(maps[0].params[i])
-        map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
+        for rng in map_base_ranges:
+            for i in range(len(maps[0].params)):
+                if maps[0].range[i] == rng and maps[0].params[i] not in map_base_variables:
+                    map_base_variables.append(maps[0].params[i])
+                    break
+
+        #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
         params_dict = {}
+        print("##################################")
         print("Map_base_variables", map_base_variables)
         print("Map_base_ranges", map_base_ranges)
         for map in maps:
