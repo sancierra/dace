@@ -55,8 +55,20 @@ class SubgraphFusion():
 
         return True
 
+    def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
+                                         new_dst = None, new_dst_conn = None, new_data = None ):
+        if not(new_src or new_dst) or new_src and new_dst:
+            raise RuntimeError("Redirect Edge has been used wrongly")
+        data = new_data if new_data else edge.data
+        if new_src:
+            graph.add_edge(new_src, new_src_conn, edge.dst, edge.dst_conn, data)
+            graph.remove_edge(edge)
+        if new_dst:
+            graph.add_edge(edge.src, edge.src_conn, new_dst, new_dst_conn, data)
+            graph.remove_edge(edge)
 
-    def _create_transients(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, do_not_delete = None):
+
+    def _create_transients(self, sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = None):
         # handles arrays that are
         # and connect
 
@@ -64,30 +76,34 @@ class SubgraphFusion():
             # redirect all traffic to original node to redirect node
             # and then create a path from redirect to original
             nxutil.change_edge_dest(graph, original_node, redirect_node)
-            graph.add_edge(src = redirect_node,
-                           src_conn = None,
-                           dst = original_node,
-                           dst_conn = None,
-                           memlet = EmptyMemlet())
+            graph.add_edge(redirect_node,
+                           None,
+                           original_node,
+                           None,
+                           EmptyMemlet())
+            for edge in graph.out_edges(original_node):
+                if edge.dst in map_entries:
+                    #edge.src = redirect_node
+                    self.redirect_edge(graph, edge, new_src = redirect_node)
 
 
         transient_dict = {}
         for node in (intermediate_nodes & out_nodes):
-            data_ref = sdfg.data(node)
-            trans_data_name = data_ref.name + '_tmp'
+            data_ref = sdfg.data(node.data)
+            trans_data_name = node.data + '_tmp'
 
             data_trans = sdfg.add_transient(name=trans_data_name,
                                             shape= data_ref.shape,
                                             dtype= data_ref.dtype,
                                             storage= data_ref.storage,
                                             offset= data_ref.offset)
-            out_node_trans = graph.add_access()
-            redirect(out_node_trans, out_node)
-            transient_dict[out_node_trans] = out_node
+            node_trans = graph.add_access(trans_data_name)
+            redirect(node_trans, node)
+            transient_dict[node_trans] = node
 
         return transient_dict
 
-    def _create_transients_NOTRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, do_not_delete = None):
+    def _create_transients_NOTRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = None):
         # better preprocessing which allows for non-transient in between nodes
         # handles arrays that are
         # and connect
@@ -95,12 +111,17 @@ class SubgraphFusion():
         def redirect(redirect_node, original_node):
             # redirect all traffic to original node to redirect node
             # and then create a path from redirect to original
+            # outgoing edges to other maps in our subset should be originated from the clone
             nxutil.change_edge_dest(graph, original_node, redirect_node)
             graph.add_edge(src = redirect_node,
                            src_conn = None,
                            dst = original_node,
                            dst_conn = None,
                            memlet = EmptyMemlet())
+            for edge in graph.out_edges(original_node):
+                if edge.dst in map_entries:
+                    #edge.src = redirect_node
+                    self.redirect_edge(graph, edge, new_src = redirect_node)
 
 
         transient_dict = {}
@@ -109,7 +130,7 @@ class SubgraphFusion():
                or node in do_not_delete \
                or sdfg.data(node.data).is_transient == False:
 
-                data_ref = sdfg.data(node)
+                data_ref = sdfg.data(node.data)
                 trans_data_name = data_ref.name + '_tmp'
 
                 data_trans = sdfg.add_transient(name=trans_data_name,
@@ -117,7 +138,7 @@ class SubgraphFusion():
                                                 dtype= data_ref.dtype,
                                                 storage= data_ref.storage,
                                                 offset= data_ref.offset)
-                out_node_trans = graph.add_access()
+                out_node_trans = graph.add_access(data_trans)
                 redirect(out_node_trans, out_node)
                 transient_dict[out_node_trans] = out_node
 
@@ -126,7 +147,7 @@ class SubgraphFusion():
     def fuse(self, sdfg, graph, map_entries, **kwargs):
         # WORK IN PROGRESS
         maps = [map_entry.map for map_entry in map_entries]
-        map_exits = [map_entry.map for map_entry in map_entries]
+        map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
 
         # Nodes that flow into one or several maps but no data is flowed to them from any map
         in_nodes = set()
@@ -139,10 +160,12 @@ class SubgraphFusion():
         intermediate_nodes = set()
 
         """ NOTE:
-        -in_nodes and out_nodes are trivially disjoint
-        -Intermediate_nodes and out_nodes are not necessarily disjoint
-        -Intermediate_nodes and in_nodes SHOULD be disjoint in a valid sdfg.
-         Else there could always be a race condition....
+        - in_nodes, out_nodes, intermediate_nodes refer to the configuration of
+          the final fused map
+        - in_nodes and out_nodes are trivially disjoint
+        - Intermediate_nodes and out_nodes are not necessarily disjoint
+        - Intermediate_nodes and in_nodes SHOULD be disjoint in a valid sdfg.
+          Else there could always be a race condition....
         """
 
         for map_entry, map_exit in zip(map_entries, map_exits):
@@ -150,12 +173,23 @@ class SubgraphFusion():
                 in_nodes.add(edge.src)
             for edge in graph.out_edges(map_exit):
                 current_node = edge.dst
-                for dst_edge in graph.out_edges(current_node):
-                    if isinstance(dst_edge.dst, nodes.MapEntry):
-                        if dst_edge.dst in map_entries:
-                            intermediate_nodes.add(current_node)
-                    else:
-                        out_nodes.add(current_node)
+                if len(graph.out_edges(current_node)) == 0:
+                    out_nodes.add(current_node)
+                else:
+                    for dst_edge in graph.out_edges(current_node):
+                        if isinstance(dst_edge.dst, nodes.MapEntry):
+                            if dst_edge.dst in map_entries:
+                                intermediate_nodes.add(current_node)
+                        else:
+                            out_nodes.add(current_node)
+
+        # any intermediate_nodes currently in in_nodes shouldnt be there
+        in_nodes -= intermediate_nodes
+
+
+        print("In_nodes", in_nodes)
+        print("Out_nodes", out_nodes)
+        print("intermediate_nodes", intermediate_nodes)
 
         # all maps are assumed to have the same params and range in order
         global_map = nodes.Map(label = "outer_fused",
@@ -169,14 +203,20 @@ class SubgraphFusion():
 
         try:
             # in-between transients that should be duplicated nevertheless
-            do_not_delete = kwargs[do_not_delete]
+            do_not_delete = kwargs['do_not_delete']
         except KeyError:
             do_not_delete = None
-        transient_dict = self._create_transients(sdfg, in_nodes, out_nodes, intermediate_nodes, do_not_delete)
+
+        transient_dict = self._create_transients(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete)
         inconnectors_dict = {}
         # {access_node: (edge, in_conn, out_conn)}
+        print("Transient_dict", transient_dict)
+
+        graph.add_node(global_map_entry)
+        graph.add_node(global_map_exit)
 
         for map_entry, map_exit in zip(map, map_entries, map_exits):
+            print("Current map:" map_entry)
             # handle inputs
             # TODO: dynamic map range -- this is fairly unrealistic in such a setting
             for edge in graph.in_edges(map_entry):
@@ -189,7 +229,6 @@ class SubgraphFusion():
                     in_conn = None; out_conn = None
 
                     if src in inconnectors_dict:
-                        # TODO: Fix inconnectors_dict
                         if not subsets.covers(inconnectors_dict[src][0].data.subset, edge.data.subset):
                             print("Extend range")
                             inconnectors_dict[edge.data.data][0].subset = edge.data.subset
@@ -223,7 +262,7 @@ class SubgraphFusion():
 
                     graph.remove_edge(edge)
 
-
+            
             for edge in graph.in_edges(exit_node):
                 mmt = graph.memlet_tree(edge)
                 out_edges = [child.edge for child in mmt.root.traverse_children()]
@@ -256,13 +295,15 @@ class SubgraphFusion():
                                        outer_edge.data)
 
                         # additionally, change the shape of the transient data
+                        memlet_subset = edge.data.subset
+                        sizes = edge.data.subset
+                        new_data_size = [s for (sz, s) in zip(sizes, memlet_subset) if sz > 1]
                         underlying_data = sdfg.data(dst.data)
-                        target_data = sdfg.data(edge.src.data)
-                        underlying_data.shape = dcpy(target_data.shape)
-                        underlying_data.storage = target_data.storage
-                        underlying_data.strides = dcpy(target_data.strides)
-                        underlying_data.offset = target_data.offset
-                        underlying_data.total_size = target_data.total_size
+                        underlying_data.shape = new_data_size
+                        total_size = 1
+                        for s in new_data_size:
+                            total_size *= s
+                        underlying_data.total_size = total_size
 
 
                     # handle separately: intermediate_nodes and pure out nodes
