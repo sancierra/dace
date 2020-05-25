@@ -60,7 +60,6 @@ class MultiExpansion():
         #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
         params_dict = {}
-        print("##################################")
         print("Map_base_variables", map_base_variables)
         print("Map_base_ranges", map_base_ranges)
         for map in maps:
