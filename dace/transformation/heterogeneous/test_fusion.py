@@ -120,8 +120,6 @@ if __name__ == "__main__":
     sdfg1 = TEST.to_sdfg()
     sdfg2 = TEST2.to_sdfg()
     sdfg3 = TEST3.to_sdfg()
-    sdfg3.view()
-    exit()
 
 
     # first, let us test the helper functions
@@ -131,11 +129,12 @@ if __name__ == "__main__":
     #optimizer.optimize()
 
 
-    for sdfg in [sdfg2]:
+    for sdfg in [sdfg1]:
         print("################################################")
         state = sdfg.nodes()[0]
         map_entries = [node for node in state.nodes() if isinstance(node, nodes.MapEntry)]
         maps = [node.map for node in state.nodes() if isinstance(node, nodes.MapEntry)]
+
 
         common_base_ranges = common_map_base_ranges(maps)
         print("COMMON BASE RANGES")
@@ -152,7 +151,9 @@ if __name__ == "__main__":
 
         print("################################################")
         print("SubgraphFusion Test")
-        # test subgraphFusion
+        print("MapEntries")
+        print(map_entries)
+        # test SubgraphFusion
         transformation = SubgraphFusion()
         sdfg.view()
         transformation.fuse(sdfg, state, map_entries)

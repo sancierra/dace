@@ -215,57 +215,63 @@ class SubgraphFusion():
         graph.add_node(global_map_entry)
         graph.add_node(global_map_exit)
 
-        for map_entry, map_exit in zip(map, map_entries, map_exits):
-            print("Current map:" map_entry)
+        for map_entry, map_exit in zip(map_entries, map_exits):
+            print("Current map:", map_entry)
             # handle inputs
             # TODO: dynamic map range -- this is fairly unrealistic in such a setting
             for edge in graph.in_edges(map_entry):
                 src = edge.src
                 mmt = graph.memlet_tree(edge)
-                out_edges = [child.edge for child in mmt.root.traverse_children()]
+                out_edges = [child.edge for child in mmt.root().children]
 
                 if src in in_nodes:
 
                     in_conn = None; out_conn = None
 
                     if src in inconnectors_dict:
-                        if not subsets.covers(inconnectors_dict[src][0].data.subset, edge.data.subset):
+                        if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
                             print("Extend range")
                             inconnectors_dict[edge.data.data][0].subset = edge.data.subset
 
                         in_conn = inconnectors_dict[src][1]
                         out_conn = inconnectors_dict[src][2]
+                        graph.remove_edge(edge)
 
                     else:
-                        next_conn = global_map.next_connector()
+                        next_conn = global_map_entry.next_connector()
                         in_conn = 'IN_' + next_conn
                         out_conn = 'OUT_' + next_conn
-                        global_map.add_in_connector(in_conn)
-                        global_map.add_out_connector(out_conn)
+                        global_map_entry.add_in_connector(in_conn)
+                        global_map_entry.add_out_connector(out_conn)
 
-                        inconnectors_dict[src] = (src, in_conn, out_conn)
+                        inconnectors_dict[src] = (edge, in_conn, out_conn)
 
                         # reroute in edge via global_map_entry
-                        edge.dst = global_map_entry
-                        edge.dst_conn = in_conn
+                        self.redirect_edge(graph, edge, new_dst = global_map_entry, \
+                                                        new_dst_conn = in_conn)
+                        #edge.dst = global_map_entry
+                        #edge.dst_conn = in_conn
 
                     # map out edges to new map
                     for out_edge in out_edges:
-                        out_edge.src = global_map_entry
-                        out_edge.src_conn = out_conn
+                        self.redirect_edge(graph, out_edge, new_src = global_map_entry, \
+                                                            new_src_conn = out_conn)
+                        #out_edge.src = global_map_entry
+                        #out_edge.src_conn = out_conn
 
                 else:
 
                     # connect directly
                     for out_edge in out_edges:
-                        out_edge.src = src
+                        self.redirect_edge(graph, out_edge, new_src = src)
+                        #out_edge.src = src
 
                     graph.remove_edge(edge)
 
-            
-            for edge in graph.in_edges(exit_node):
+
+            for edge in graph.in_edges(map_exit):
                 mmt = graph.memlet_tree(edge)
-                out_edges = [child.edge for child in mmt.root.traverse_children()]
+                out_edges = [child.edge for child in mmt.root().children]
 
                 for out_edge in out_edges:
                     dst = out_edge.dst
@@ -281,11 +287,11 @@ class SubgraphFusion():
                     if transient_created:
                         # transients only get created for itntermediate_nodes
                         # that are either in out_nodes or non-transient
-                        next_conn = global_map.next_connector()
+                        next_conn = global_map_exit.next_connector()
                         in_conn= 'IN_' + next_conn
                         out_conn = 'OUT_' + next_conn
-                        global_map.add_in_connector(in_conn)
-                        global_map.add_out_connector(out_conn)
+                        global_map_exit.add_in_connector(in_conn)
+                        global_map_exit.add_out_connector(out_conn)
 
                         graph.add_edge(dst, None,
                                        global_map_exit, in_conn,
@@ -308,20 +314,26 @@ class SubgraphFusion():
 
                     # handle separately: intermediate_nodes and pure out nodes
                     if dst_original in intermediate_nodes:
-                        out_edge.src = edge.src
-                        out_edge.src_conn = edge.src_conn
-                        out_edge.data = edge.data
+                        self.redirect_edge(graph, out_edge, new_src = edge.src,
+                                                            new_src_conn = edge.src_conn,
+                                                            new_data = edge.data)
+
+                        #out_edge.src = edge.src
+                        #out_edge.src_conn = edge.src_conn
+                        #out_edge.data = edge.data
 
                     if dst_original in (out_nodes - intermediate_nodes):
 
                         if edge.dst != global_map_exit:
-                            next_conn = global_map.next_connector()
+                            next_conn = global_map_exit.next_connector()
                             in_conn= 'IN_' + next_conn
                             out_conn = 'OUT_' + next_conn
-                            global_map.add_in_connector(in_conn)
-                            global_map.add_out_connector(out_conn)
-                            edge.dst = global_map_exit
-                            edge.dst_conn = in_conn
+                            global_map_exit.add_in_connector(in_conn)
+                            global_map_exit.add_out_connector(out_conn)
+                            self.redirect_edge(graph, edge, new_dst = global_map_exit,
+                                                            new_dst_conn = in_conn)
+                            #edge.dst = global_map_exit
+                            #edge.dst_conn = in_conn
 
                         else:
                             conn_nr = edge.dst_conn[3:]
@@ -330,10 +342,16 @@ class SubgraphFusion():
 
 
                         # map
-                        out_edge.src = global_map_exit
-                        out_edge.src_conn = out_conn
-                        out_edge.dst = dst
-                        out_edge.dst_conn = None
+                        graph.add_edge(global_map_exit,
+                                       out_conn,
+                                       dst,
+                                       None,
+                                       out_edge.data)
+                        graph.remove_edge(out_edge)
+                        #out_edge.src = global_map_exit
+                        #out_edge.src_conn = out_conn
+                        #out_edge.dst = dst
+                        #out_edge.dst_conn = None
 
 
                 # remove the edge if it has not been used by any pure out node
@@ -341,5 +359,5 @@ class SubgraphFusion():
                     graph.remove_edge(edge)
 
 
-            graph.remove_node(map_entry)
-            graph.remove_node(map_exit)
+            #graph.remove_node(map_entry)
+            #graph.remove_node(map_exit)
