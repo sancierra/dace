@@ -1,5 +1,6 @@
 import dace
 from expansion import MultiExpansion
+from subgraph_fusion import SubgraphFusion
 from helpers import *
 import dace.graph.nodes as nodes
 import numpy as np
@@ -33,8 +34,6 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
 
             out = in1 + in2 + in3
 
-
-# test multiple entries of same
 @dace.program
 def TEST2(A: dace.float64[N], B:dace.float64[M],
           C: dace.float64[N], D:dace.float64[M]):
@@ -61,6 +60,53 @@ def TEST2(A: dace.float64[N], B:dace.float64[M],
 
             out = in1[0]*in2*in3
 
+@dace.program
+def TEST3(A: dace.float64[N], B:dace.float64[M],
+          C: dace.float64[N], D:dace.float64[M]):
+
+    tmp = np.ndarray([1], dtype = dace.float64)
+    tmp1 = np.ndarray([N,M,N], dtype = dace.float64)
+    tmp2 = np.ndarray([N,M,N], dtype = dace.float64)
+    tmp3 = np.ndarray([N,M,N], dtype = dace.float64)
+    tmp4 = np.ndarray([N,M,N,M], dtype = dace.float64)
+    tmp5 = np.ndarray([N,M,N,M], dtype = dace.float64)
+
+
+    for i,j,k in dace.map[0:N, 0:M, 0:N]:
+        with dace.tasklet:
+            in1 << A[i]
+            in2 << B[j]
+            in3 << C[k]
+
+            out1 >> tmp1[i,j,k]
+            out2 >> tmp2[i,j,k]
+            out3 >> tmp3[i,j,k]
+
+            out1 = in1+in2+in3
+            out2 = in1*in2+in3
+            out3 = in1*in2*in3
+
+    for i,j,k,l in dace.map[0:N, 0:M, 0:N, 0:M]:
+        with dace.tasklet:
+            in1 << tmp1[i,j,k]
+            in2 << D[l]
+            out >> tmp4[i,j,k,l]
+
+            out = in1*in2
+
+    for q,r,s,t in dace.map[0:N, 0:M, 0:N, 0:M]:
+        with dace.tasklet:
+            in1 << B[t]
+            in2 << tmp2[q,r,s]
+
+            out >> tmp5[q,r,s,t]
+
+            out = in1 + in2 - 42
+
+
+    dace.reduce('lambda a,b: a+2*b', tmp1, tmp)
+
+
 
 if __name__ == "__main__":
     N.set(50)
@@ -73,6 +119,9 @@ if __name__ == "__main__":
 
     sdfg1 = TEST.to_sdfg()
     sdfg2 = TEST2.to_sdfg()
+    sdfg3 = TEST3.to_sdfg()
+    sdfg3.view()
+    exit()
 
 
     # first, let us test the helper functions
@@ -82,9 +131,8 @@ if __name__ == "__main__":
     #optimizer.optimize()
 
 
-    for sdfg in [sdfg1, sdfg2]:
+    for sdfg in [sdfg2]:
         print("################################################")
-        sdfg.view()
         state = sdfg.nodes()[0]
         map_entries = [node for node in state.nodes() if isinstance(node, nodes.MapEntry)]
         maps = [node.map for node in state.nodes() if isinstance(node, nodes.MapEntry)]
@@ -102,8 +150,10 @@ if __name__ == "__main__":
         transformation = MultiExpansion()
         transformation.expand(sdfg, state, map_entries)
 
+        print("################################################")
+        print("SubgraphFusion Test")
         # test subgraphFusion
         transformation = SubgraphFusion()
+        sdfg.view()
         transformation.fuse(sdfg, state, map_entries)
-
         sdfg.view()
