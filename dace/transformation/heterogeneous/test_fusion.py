@@ -129,7 +129,7 @@ if __name__ == "__main__":
     #optimizer.optimize()
 
 
-    for sdfg in [sdfg1]:
+    for sdfg in [sdfg3]:
         print("################################################")
         state = sdfg.nodes()[0]
         map_entries = [node for node in state.nodes() if isinstance(node, nodes.MapEntry)]
@@ -157,4 +157,5 @@ if __name__ == "__main__":
         transformation = SubgraphFusion()
         sdfg.view()
         transformation.fuse(sdfg, state, map_entries)
+        #sdfg.validate()
         sdfg.view()

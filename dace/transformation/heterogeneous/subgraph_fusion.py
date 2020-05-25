@@ -91,7 +91,7 @@ class SubgraphFusion():
         transient_dict = {}
         for node in (intermediate_nodes & out_nodes):
             data_ref = sdfg.data(node.data)
-            trans_data_name = node.data + '_tmp'
+            trans_data_name = node.data + '__trans'
 
             data_trans = sdfg.add_transient(name=trans_data_name,
                                             shape= data_ref.shape,
@@ -132,7 +132,7 @@ class SubgraphFusion():
                or sdfg.data(node.data).is_transient == False:
 
                 data_ref = sdfg.data(node.data)
-                trans_data_name = data_ref.name + '_tmp'
+                trans_data_name = data_ref.name + '__trans'
 
                 data_trans = sdfg.add_transient(name=trans_data_name,
                                                 shape= data_ref.shape,
@@ -217,7 +217,6 @@ class SubgraphFusion():
         graph.add_node(global_map_exit)
 
         for map_entry, map_exit in zip(map_entries, map_exits):
-            print("Current map:", map_entry)
             # handle inputs
             # TODO: dynamic map range -- this is fairly unrealistic in such a setting
             for edge in graph.in_edges(map_entry):
@@ -269,12 +268,12 @@ class SubgraphFusion():
 
                     graph.remove_edge(edge)
 
-
+            #TODO: Change memlet data at transient
+            #TODO: Transient shape change does not work correctly yet
             for edge in graph.in_edges(map_exit):
                 # find corresponding out_edges for current edge, cannot use mmt anymore
                 out_edges = [oedge for oedge in graph.out_edges(map_exit)
                                       if oedge.src_conn[3:] == edge.dst_conn[2:]]
-                print("Len second out edges:", len(out_edges))
                 port_created = None
 
                 for out_edge in out_edges:
@@ -302,11 +301,21 @@ class SubgraphFusion():
                                        edge.data)
                         graph.add_edge(global_map_exit, out_conn,
                                        dst_original, None,
-                                       outer_edge.data)
+                                       out_edge.data)
 
-                        # additionally, change the shape of the transient data
+                        edge_to_remove = None
+                        for e in graph.out_edges(dst):
+                            if e.dst == dst_original:
+                                edge_to_remove = e
+                                break
+                        if edge_to_remove:
+                            graph.remove_edge(edge_to_remove)
+                        else:
+                            print("ERROR: Transient support edge should be removable, not found")
+
+                        # TODO: FIX | additionally, change the shape of the transient data
                         memlet_subset = edge.data.subset
-                        sizes = edge.data.subset
+                        sizes = edge.data.subset.size()
                         new_data_size = [s for (sz, s) in zip(sizes, memlet_subset) if sz > 1]
                         underlying_data = sdfg.data(dst.data)
                         underlying_data.shape = new_data_size
@@ -327,7 +336,6 @@ class SubgraphFusion():
                         #out_edge.data = edge.data
 
                     if dst_original in (out_nodes - intermediate_nodes):
-                        print("THIS SHOULD BE CALLED")
                         if edge.dst != global_map_exit:
                             next_conn = global_map_exit.next_connector()
                             in_conn= 'IN_' + next_conn
@@ -352,21 +360,12 @@ class SubgraphFusion():
                                        dst,
                                        None,
                                        out_edge.data)
-                        #TODO
                         graph.remove_edge(out_edge)
-
-
-                        #out_edge.src = global_map_exit
-                        #out_edge.src_conn = out_conn
-                        #out_edge.dst = dst
-                        #out_edge.dst_conn = None
-
 
                 # remove the edge if it has not been used by any pure out node
                 if not port_created:
-                    #pass
                     graph.remove_edge(edge)
 
 
-            #graph.remove_node(map_entry)
-            #graph.remove_node(map_exit)
+            graph.remove_node(map_entry)
+            graph.remove_node(map_exit)
