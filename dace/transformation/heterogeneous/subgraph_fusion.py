@@ -2,7 +2,7 @@
     subgraph fusion
 """
 
-from dace import dtypes, registry, symbolic, subsets
+from dace import dtypes, registry, symbolic, subsets, data
 from dace.graph import nodes, nxutil
 from dace.memlet import Memlet, EmptyMemlet
 from dace.sdfg import replace, SDFG
@@ -262,11 +262,38 @@ class SubgraphFusion():
                 else:
 
                     # connect directly
+                    # also make sure memlet data gets changed correctly
+                    old_name = edge.data.data
+                    if src in transient_dict:
+                        new_name = old_name + '__trans'
+                    else:
+                        new_name = old_name
+
+                    queue = []
                     for out_edge in out_edges:
-                        self.redirect_edge(graph, out_edge, new_src = src)
+                        mm = Memlet(data = new_name,
+                                    num_accesses = out_edge.data.num_accesses,
+                                    subset = out_edge.data.subset,
+                                    vector_length = out_edge.data.veclen,
+                                    other_subset = out_edge.data.other_subset
+                                    )
+
+                        self.redirect_edge(graph, out_edge, new_src = src, new_data = mm)
+                        queue.append(out_edge.dst)
                         #out_edge.src = src
 
                     graph.remove_edge(edge)
+
+
+                    # TODO: change data of outgoing memlets as well
+                    while len(queue) > 0:
+                        current = queue.pop(0)
+                        if isinstance(current, nodes.MapEntry):
+                            for oedge in graph.out_edges(current):
+                                if oedge.data.data == old_name:
+                                    oedge.data.data = new_name
+                                    queue.append(oedge.dst)
+                    # TODO: change children memlet data
 
             #TODO: Change memlet data at transient
             #TODO: Transient shape change does not work correctly yet
@@ -298,10 +325,10 @@ class SubgraphFusion():
 
                         graph.add_edge(dst, None,
                                        global_map_exit, in_conn,
-                                       edge.data)
+                                       dcpy(edge.data))
                         graph.add_edge(global_map_exit, out_conn,
                                        dst_original, None,
-                                       out_edge.data)
+                                       dcpy(out_edge.data))
 
                         edge_to_remove = None
                         for e in graph.out_edges(dst):
@@ -313,27 +340,60 @@ class SubgraphFusion():
                         else:
                             print("ERROR: Transient support edge should be removable, not found")
 
-                        # TODO: FIX | additionally, change the shape of the transient data
-                        memlet_subset = edge.data.subset
-                        sizes = edge.data.subset.size()
-                        new_data_size = [s for (sz, s) in zip(sizes, memlet_subset) if sz > 1]
-                        underlying_data = sdfg.data(dst.data)
-                        underlying_data.shape = new_data_size
-                        total_size = 1
-                        for s in new_data_size:
-                            total_size *= s
-                        underlying_data.total_size = total_size
-
 
                     # handle separately: intermediate_nodes and pure out nodes
                     if dst_original in intermediate_nodes:
+
+                        print("DATA AUGMENTATION")
+                        sizes = edge.data.subset.bounding_box_size()
+                        print("Memlet subset", edge.data.subset)
+                        print("Sizes of it", sizes)
+                        new_data_shape = [sz for (sz, s) in zip(sizes, edge.data.subset)]
+                        # in case it is just a scalar
+                        new_data_strides = [data._prod(new_data_shape[i+1:])
+                                            for i in range(len(new_data_shape))]
+
+                        new_data_totalsize = data._prod(new_data_shape)
+                        new_data_offset = [0]*len(new_data_shape)
+
+                        transient_to_transform = sdfg.data(dst.data)
+                        transient_to_transform.shape   = new_data_shape
+                        transient_to_transform.strides = new_data_strides
+                        transient_to_transform.total_size = new_data_totalsize
+                        transient_to_transform.offset  = new_data_offset
+
+                        print("-------")
+                        print("Node", dst)
+                        print("Data shape", new_data_shape)
+                        print("Data size", new_data_totalsize)
+
+                        # next up, change memlet data to this data
+                        # change all parent memlet data to this data if they have the same content
+                        # DO NOT change children memlet data -- could be other subset accessed in next map
+                        new_name = dst.data
+                        old_name = dst_original.data
+
+                        mm = Memlet(data = new_name,
+                                    num_accesses = edge.data.num_accesses,
+                                    subset = edge.data.subset,
+                                    vector_length = edge.data.veclen,
+                                    other_subset = edge.data.other_subset)
+
                         self.redirect_edge(graph, out_edge, new_src = edge.src,
                                                             new_src_conn = edge.src_conn,
-                                                            new_data = edge.data)
+                                                            new_data = mm)
 
-                        #out_edge.src = edge.src
-                        #out_edge.src_conn = edge.src_conn
-                        #out_edge.data = edge.data
+
+                        queue = [edge.src]
+                        while len(queue) > 0:
+                            current = queue.pop(0)
+                            if isinstance(current, nodes.MapExit):
+                                for iedge in in_edges(current):
+                                    if iedge.data.data == old_name:
+                                        iedge.data.data = new_name
+                                        queue.append(iedge.src)
+
+
 
                     if dst_original in (out_nodes - intermediate_nodes):
                         if edge.dst != global_map_exit:
@@ -369,3 +429,30 @@ class SubgraphFusion():
 
             graph.remove_node(map_entry)
             graph.remove_node(map_exit)
+
+
+            # do one last pass to correct memlets between newly created transients
+            for transient_node in intermediate_nodes:
+                # for each dimension, determine base set
+                in_edge = graph.in_edges(transient_node)[0]
+                cont_edges = []
+                out_edges = []
+                for e in graph.out_edges(transient_node):
+                    if e.dst == global_map_exit:
+                        out_edges.append(e)
+                    else:
+                        cont_edges.append(e)
+
+                base_offset = in_edge.data.subset.min_element()
+                # offset everything
+                in_path = graph.memlet_path(in_edge)
+                for edge in in_path:
+                    edge.data.subset.offset(base_offset, True)
+
+                for cedge in cont_edges:
+                    cont_path = graph.memlet_path(cedge)
+                    for edge in cont_path:
+                        edge.data.subset.offset(base_offset, True)
+
+                for edge in out_edges:
+                    edge.data.other_subset = dcpy(in_path.data.subset)
