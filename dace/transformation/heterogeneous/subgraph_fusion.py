@@ -431,28 +431,40 @@ class SubgraphFusion():
             graph.remove_node(map_exit)
 
 
-            # do one last pass to correct memlets between newly created transients
-            for transient_node in intermediate_nodes:
-                # for each dimension, determine base set
-                in_edge = graph.in_edges(transient_node)[0]
-                cont_edges = []
-                out_edges = []
-                for e in graph.out_edges(transient_node):
-                    if e.dst == global_map_exit:
-                        out_edges.append(e)
-                    else:
-                        cont_edges.append(e)
+        # do one last pass to correct memlets between newly created transients
+        print("###################")
+        print("INTERMEDIATE:", intermediate_nodes)
+        # awkward_code
+        transient_dict_rev = {v:k for k,v in transient_dict.items()}
+        for transient_node in intermediate_nodes:
+            try:
+                # awkward code
+                transient_node = transient_dict_rev[transient_node]
+            except KeyError:
+                pass
+            # for each dimension, determine base set
+            in_edge = graph.in_edges(transient_node)[0]
+            cont_edges = []
+            out_edges = []
+            for e in graph.out_edges(transient_node):
+                if e.dst == global_map_exit:
+                    out_edges.append(e)
+                else:
+                    cont_edges.append(e)
 
-                base_offset = in_edge.data.subset.min_element()
-                # offset everything
-                in_path = graph.memlet_path(in_edge)
-                for edge in in_path:
+            base_offset = in_edge.data.subset.min_element()
+            print("NODE", transient_node)
+            print("BASE OFFSET", base_offset)
+            # offset everything
+            in_path = graph.memlet_path(in_edge)
+            for edge in in_path:
+                edge.data.subset.offset(base_offset, True)
+
+            for cedge in cont_edges:
+                cont_path = graph.memlet_path(cedge)
+                for edge in cont_path:
                     edge.data.subset.offset(base_offset, True)
 
-                for cedge in cont_edges:
-                    cont_path = graph.memlet_path(cedge)
-                    for edge in cont_path:
-                        edge.data.subset.offset(base_offset, True)
-
-                for edge in out_edges:
-                    edge.data.other_subset = dcpy(in_path.data.subset)
+            for edge in out_edges:
+                edge.data.other_subset = dcpy(in_edge.data.subset)
+                
