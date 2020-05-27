@@ -71,7 +71,7 @@ class SubgraphFusion():
 
         return ret
 
-    def _create_transients(self, sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = None):
+    def _create_transients(self, sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = []):
         # handles arrays that are
         # and connect
 
@@ -92,6 +92,9 @@ class SubgraphFusion():
 
         transient_dict = {}
         for node in (intermediate_nodes & out_nodes):
+
+
+
             data_ref = sdfg.data(node.data)
             trans_data_name = node.data + '__trans'
 
@@ -106,7 +109,7 @@ class SubgraphFusion():
 
         return transient_dict
 
-    def _create_transients_NOTRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = None):
+    def _create_transients_TRANS(self,sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = []):
         # better preprocessing which allows for non-transient in between nodes
         # handles arrays that are
         # and connect
@@ -116,11 +119,11 @@ class SubgraphFusion():
             # and then create a path from redirect to original
             # outgoing edges to other maps in our subset should be originated from the clone
             nxutil.change_edge_dest(graph, original_node, redirect_node)
-            graph.add_edge(src = redirect_node,
-                           src_conn = None,
-                           dst = original_node,
-                           dst_conn = None,
-                           memlet = EmptyMemlet())
+            graph.add_edge(redirect_node,
+                           None,
+                           original_node,
+                           None,
+                           EmptyMemlet())
             for edge in graph.out_edges(original_node):
                 if edge.dst in map_entries:
                     #edge.src = redirect_node
@@ -131,19 +134,19 @@ class SubgraphFusion():
         for node in (intermediate_nodes):
             if node in out_nodes \
                or node in do_not_delete \
-               or sdfg.data(node.data).is_transient == False:
+               or not sdfg.data(node.data).transient:
 
                 data_ref = sdfg.data(node.data)
-                trans_data_name = data_ref.name + '__trans'
+                trans_data_name = node.data + '__trans'
 
                 data_trans = sdfg.add_transient(name=trans_data_name,
                                                 shape= data_ref.shape,
                                                 dtype= data_ref.dtype,
                                                 storage= data_ref.storage,
                                                 offset= data_ref.offset)
-                out_node_trans = graph.add_access(data_trans)
-                redirect(out_node_trans, out_node)
-                transient_dict[out_node_trans] = out_node
+                node_trans = graph.add_access(trans_data_name)
+                redirect(node_trans, node)
+                transient_dict[node_trans] = node
 
         return transient_dict
 
@@ -208,9 +211,9 @@ class SubgraphFusion():
             # in-between transients that should be duplicated nevertheless
             do_not_delete = kwargs['do_not_delete']
         except KeyError:
-            do_not_delete = None
+            do_not_delete = []
 
-        transient_dict = self._create_transients(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete)
+        transient_dict = self._create_transients_TRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete)
         inconnectors_dict = {}
         # {access_node: (edge, in_conn, out_conn)}
         print("Transient_dict", transient_dict)
@@ -287,7 +290,6 @@ class SubgraphFusion():
                     graph.remove_edge(edge)
 
 
-                    # TODO: change data of outgoing memlets as well
                     while len(queue) > 0:
                         current = queue.pop(0)
                         if isinstance(current, nodes.MapEntry):
@@ -295,10 +297,7 @@ class SubgraphFusion():
                                 if oedge.data.data == old_name:
                                     oedge.data.data = new_name
                                     queue.append(oedge.dst)
-                    # TODO: change children memlet data
 
-            #TODO: Change memlet data at transient
-            #TODO: Transient shape change does not work correctly yet
             for edge in graph.in_edges(map_exit):
                 # find corresponding out_edges for current edge, cannot use mmt anymore
                 out_edges = [oedge for oedge in graph.out_edges(map_exit)
