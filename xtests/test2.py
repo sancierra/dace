@@ -26,18 +26,18 @@ if __name__ == '__main__':
     peak_bandwidth = 1.867 * 64 * 2 / 8
     peak_performance = 2.7 * 4 * 2 * 4
 
-    symbols = {N: 30}
+    symbols = {N: 4, M:2, K:6}
     spec = roofline.PerformanceSpec(peak_bandwidth, peak_performance, dace.float64)
     roof = roofline.Roofline(spec, symbols, debug = True)
 
     sdfg = TEST.to_sdfg()
-    #sdfg.expand_library_nodes()
+    sdfg.expand_library_nodes()
     #sdfg.apply_strict_transformations()
     #dace.perf.sdfv_roofline.view(sdfg, roof)
 
     print("SDFGRooflineOptimizer")
-    #optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg, roof, inplace = False)
-    #optimizer.optimize()
+    optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg, roof, inplace = False)
+    optimizer.optimize()
 
 
 
