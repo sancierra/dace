@@ -15,7 +15,7 @@ from typing import List, Union
 
 import dace.libraries.standard as stdlib
 
-import helpers
+import .helpers
 
 
 @make_properties
