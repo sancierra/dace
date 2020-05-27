@@ -74,17 +74,45 @@ def TEST2(A: dace.float64[N], AA:dace.float64[N], B:dace.float64[M], BB:dace.flo
             out = in1+in2+in3
 
     tmp2 = np.ndarray([M,M,N,N], dtype = dace.float64)
-    for n,m,o,p in dace.map[0:M, 0:M, 0:N, 0:N]:
+    for m,n,o,p in dace.map[0:M, 0:M, 0:N, 0:N]:
         with dace.tasklet:
-            in1 << D[n]
-            in2 << DD[m]
+            in1 << D[m]
+            in2 << DD[n]
             in3 << C[o]
             in4 << CC[p]
 
-            out >> tmp2[n,m,o,p]
+            out >> tmp2[m,n,o,p]
 
             out = in1+in2+in3+in4
 
+
+# test base_variable feature
+@dace.program
+def TEST3(A: dace.float64[N], AA:dace.float64[N], B:dace.float64[M], BB:dace.float64[M],
+          C: dace.float64[N], CC:dace.float64[N], D:dace.float64[M], DD:dace.float64[M]):
+
+    tmp1 = np.ndarray([N,N,M], dtype = dace.float64)
+    for i,j,k in dace.map[0:N, 0:N, 0:M]:
+        with dace.tasklet:
+            in1 << A[i]
+            in2 << AA[j]
+            in3 << B[k]
+
+            out >> tmp1[i,j,k]
+
+            out = in1+in2+in3
+
+    tmp2 = np.ndarray([M,M,N,N], dtype = dace.float64)
+    for k,p,i,j in dace.map[0:M, 0:M, 0:N, 0:N]:
+        with dace.tasklet:
+            in1 << D[k]
+            in2 << DD[p]
+            in3 << C[i]
+            in4 << CC[j]
+
+            out >> tmp2[k,p,i,j]
+
+            out = in1+in2+in3+in4
 
 if __name__ == "__main__":
     N.set(50)
@@ -97,6 +125,7 @@ if __name__ == "__main__":
 
     sdfg1 = TEST.to_sdfg()
     sdfg2 = TEST2.to_sdfg()
+    sdfg3 = TEST3.to_sdfg()
 
 
     # first, let us test the helper functions
@@ -106,7 +135,7 @@ if __name__ == "__main__":
     #optimizer.optimize()
 
 
-    for sdfg in [sdfg1, sdfg2]:
+    for sdfg in [sdfg1,sdfg2,sdfg3]:
         print("################################################")
         sdfg.view()
         state = sdfg.nodes()[0]
@@ -125,8 +154,8 @@ if __name__ == "__main__":
         # next up, test transformation
         transformation = MultiExpansion()
 
-
-        transformation.expand(sdfg, state, map_entries)
+        map_base_variables = None if sdfg == sdfg1 else ['i','j','k']
+        transformation.expand(sdfg, state, map_entries, map_base_variables = map_base_variables)
 
 
 
