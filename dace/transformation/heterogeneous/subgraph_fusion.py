@@ -46,12 +46,14 @@ class SubgraphFusion():
         # 1. Maps have the same access sets and ranges in order
         # 2. Any nodes in between are AccessNodes only without WCR
         #    There is at least one AccessNode only between two maps
-        # 3a Every array that is in between two maps must never appear
+        # 3. Any outcoming memlet's subset to an intermediate edge must cover
+        #    the respective incoming memlets subset into the next map
+        # 4a Every array that is in between two maps must never appear
         #    in another write/read (practically write) node in the entire sdfg.
         #    The array has to be transient and transient only in this state
-        # 3b Every array that is in between two maps can only appear once
+        # 4b Every array that is in between two maps can only appear once
         #    in a write node within the maps subgraph
-        # 3c No restrictions
+        # 4c No restrictions
 
         return True
 
@@ -388,7 +390,7 @@ class SubgraphFusion():
                         while len(queue) > 0:
                             current = queue.pop(0)
                             if isinstance(current, nodes.MapExit):
-                                for iedge in in_edges(current):
+                                for iedge in graph.in_edges(current):
                                     if iedge.data.data == old_name:
                                         iedge.data.data = new_name
                                         queue.append(iedge.src)
@@ -467,4 +469,3 @@ class SubgraphFusion():
 
             for edge in out_edges:
                 edge.data.other_subset = dcpy(in_edge.data.subset)
-                

@@ -52,7 +52,7 @@ def TEST2(A: dace.float64[N], B:dace.float64[M],
     tmp2 = np.ndarray([M,N], dtype = dace.float64)
     for n,m in dace.map[0:N, 0:M]:
         with dace.tasklet:
-            in1 << tmp1[:,m,n]
+            in1 << tmp1[n,m,:]
             in2 << B[m]
             in3 << D[m]
 
@@ -86,7 +86,8 @@ def TEST3(A: dace.float64[N], B:dace.float64[M],
             out2 = in1*in2+in3
             out3 = in1*in2*in3
 
-    for i,j,k,l in dace.map[0:N, 0:M, 0:N, 0:M]:
+    #for i,j,k,l in dace.map[0:N, 0:M, 0:N, 0:M]:
+    for l,k,j,i in dace.map[0:M, 0:N, 0:M, 0:N]:
         with dace.tasklet:
             in1 << tmp1[i,j,k]
             in2 << D[l]
@@ -94,12 +95,12 @@ def TEST3(A: dace.float64[N], B:dace.float64[M],
 
             out = in1*in2
 
-    for q,r,s,t in dace.map[0:N, 0:M, 0:N, 0:M]:
+    for i,j,k,l in dace.map[0:N, 0:M, 0:N, 0:M]:
         with dace.tasklet:
-            in1 << B[t]
-            in2 << tmp2[q,r,s]
+            in1 << B[l]
+            in2 << tmp2[i,j,k]
 
-            out >> tmp5[q,r,s,t]
+            out >> tmp5[i,j,k,l]
 
             out = in1 + in2 - 42
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     sdfg1 = TEST.to_sdfg()
     sdfg2 = TEST2.to_sdfg()
     sdfg3 = TEST3.to_sdfg()
-
+    map_base_variables = [None, None, ['i','j','k'], None]
 
     # first, let us test the helper functions
 
@@ -128,8 +129,9 @@ if __name__ == "__main__":
     #optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg1, roof, inplace = False)
     #optimizer.optimize()
 
-
-    for sdfg in [sdfg3]:
+    map_base_vars_iter = iter(map_base_variables)
+    for test_number in [1]:
+        sdfg = locals()[f'sdfg{test_number}']
         print("################################################")
         state = sdfg.nodes()[0]
         map_entries = [node for node in state.nodes() if isinstance(node, nodes.MapEntry)]
@@ -147,7 +149,9 @@ if __name__ == "__main__":
 
         # test transformation
         transformation = MultiExpansion()
-        transformation.expand(sdfg, state, map_entries)
+        #transformation.expand(sdfg, state, map_entries)
+        transformation.expand(sdfg, state, map_entries, map_base_variables[test_number-1])
+
 
         print("################################################")
         print("SubgraphFusion Test")
@@ -157,5 +161,7 @@ if __name__ == "__main__":
         transformation = SubgraphFusion()
         sdfg.view()
         transformation.fuse(sdfg, state, map_entries)
-        #sdfg.validate()
+        print("VALDIATION:")
+        sdfg.validate()
+        print("PASS")
         sdfg.view()
