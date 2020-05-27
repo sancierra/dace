@@ -21,11 +21,14 @@ import helpers
 @make_properties
 class MultiExpansion():
 
+    debug = Property(dtype = bool,
+                     desc = "Debug Mode",
+                     default = True)
     sequential_innermaps = Property(dtype = bool,
                                     desc = "Sequential innermaps",
                                     default = False)
 
-    def expand(self, sdfg, graph, map_entries):
+    def expand(self, sdfg, graph, map_entries, map_base_variables = None):
 
         """
         if not subgraph:
@@ -44,76 +47,92 @@ class MultiExpansion():
 
         maps = [entry.map for entry in map_entries]
 
-        map_base_ranges = helpers.common_map_base_ranges(maps)
-        reassignments = helpers.find_reassignment(maps, map_base_ranges)
+        if not map_base_variables:
+            map_base_ranges = helpers.common_map_base_ranges(maps)
+            reassignments = helpers.find_reassignment(maps, map_base_ranges)
 
-        ##### first, regroup and reassign
-        # create params_dict for every map
-        # first, let us define base variables, just take the first map for that
-        map_base_variables = []
-        for rng in map_base_ranges:
-            for i in range(len(maps[0].params)):
-                if maps[0].range[i] == rng and maps[0].params[i] not in map_base_variables:
-                    map_base_variables.append(maps[0].params[i])
-                    break
+            ##### first, regroup and reassign
+            # create params_dict for every map
+            # first, let us define base variables, just take the first map for that
+            map_base_variables = []
+            for rng in map_base_ranges:
+                for i in range(len(maps[0].params)):
+                    if maps[0].range[i] == rng and maps[0].params[i] not in map_base_variables:
+                        map_base_variables.append(maps[0].params[i])
+                        break
 
-        #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
+            #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
-        params_dict = {}
-        print("Map_base_variables", map_base_variables)
-        print("Map_base_ranges", map_base_ranges)
-        for map in maps:
-            # for each map create param dict, first assign identity
-            params_dict_map = {param: param for param in map.params}
-            # now look for the correct reassignment
-            # for every element neq -1, need to change param to map_base_variables[]
-            # if param already appears in own dict, just do a swap
-            # else we just replace it
-            for i, reassignment in enumerate(reassignments[map]):
-                # 0:-1, 1:-1, 2:1, 3:0, 4:-1
-                if reassignment == -1:
-                    # nothing to do
-                    pass
-                else:
-                    current_var = map.params[i]
-                    current_assignment = params_dict_map[current_var]
-                    target_assignment = map_base_variables[reassignment]
-                    if current_assignment != target_assignment:
-                        if target_assignment in params_dict_map.values():
-                            # do a swap
-                            key1 = current_var
-                            # get the corresponding key, cumbersome
-                            for key, value in params_dict_map.items():
-                                if value == target_assignment:
-                                    key2 = key
+            params_dict = {}
+            print("Map_base_variables", map_base_variables)
+            print("Map_base_ranges", map_base_ranges)
+            for map in maps:
+                # for each map create param dict, first assign identity
+                params_dict_map = {param: param for param in map.params}
+                # now look for the correct reassignment
+                # for every element neq -1, need to change param to map_base_variables[]
+                # if param already appears in own dict, just do a swap
+                # else we just replace it
+                for i, reassignment in enumerate(reassignments[map]):
+                    # 0:-1, 1:-1, 2:1, 3:0, 4:-1
+                    if reassignment == -1:
+                        # nothing to do
+                        pass
+                    else:
+                        current_var = map.params[i]
+                        current_assignment = params_dict_map[current_var]
+                        target_assignment = map_base_variables[reassignment]
+                        if current_assignment != target_assignment:
+                            if target_assignment in params_dict_map.values():
+                                # do a swap
+                                key1 = current_var
+                                # get the corresponding key, cumbersome
+                                for key, value in params_dict_map.items():
+                                    if value == target_assignment:
+                                        key2 = key
 
-                            value1 = params_dict_map[key1]
-                            value2 = params_dict_map[key2]
-                            params_dict_map[key1] = key2
-                            params_dict_map[key2] = key1
-                        else:
-                            # just reassign - noone cares
-                            params_dict_map[current_var] = target_assignment
+                                value1 = params_dict_map[key1]
+                                value2 = params_dict_map[key2]
+                                params_dict_map[key1] = key2
+                                params_dict_map[key2] = key1
+                            else:
+                                # just reassign - noone cares
+                                params_dict_map[current_var] = target_assignment
 
-            # done, assign params_dict_map to the global one
-            params_dict[map] = params_dict_map
+                # done, assign params_dict_map to the global one
+                params_dict[map] = params_dict_map
 
-        for map, map_entry in zip(maps, map_entries):
-            map_scope = graph.scope_subgraph(map_entry)
-            print(hex(id(map_entry)))
-            params_dict_map = params_dict[map]
-            for firstp, secondp in params_dict_map.items():
-                if firstp != secondp:
-                    replace(map_scope, firstp, '__' + firstp + '_fused')
-            for firstp, secondp in params_dict_map.items():
-                if firstp != secondp:
-                    replace(map_scope, '__' + firstp + '_fused', secondp)
+            for map, map_entry in zip(maps, map_entries):
+                map_scope = graph.scope_subgraph(map_entry)
+                print(hex(id(map_entry)))
+                params_dict_map = params_dict[map]
+                for firstp, secondp in params_dict_map.items():
+                    if firstp != secondp:
+                        replace(map_scope, firstp, '__' + firstp + '_fused')
+                for firstp, secondp in params_dict_map.items():
+                    if firstp != secondp:
+                        replace(map_scope, '__' + firstp + '_fused', secondp)
 
-            # now also replace the map variables inside maps
-            for i in range(len(map.params)):
-                map.params[i] = params_dict_map[map.params[i]]
+                # now also replace the map variables inside maps
+                for i in range(len(map.params)):
+                    map.params[i] = params_dict_map[map.params[i]]
 
-        print("PARAMS REPLACED")
+            print("PARAMS REPLACED")
+
+        else:
+            # just calculate map_base_ranges
+            # do a check whether all maps correct
+            map_base_ranges = []
+
+            map0 = maps[0]
+            for var in map_base_variables:
+                index = map0.params.index(var)
+                map_base_ranges.append(map0.range[index])
+
+            if MultiExpansion.debug:
+                for map in maps:
+                    for var, rng in zip(map_base_variables, map_base_ranges):
+                        assert map.range[map.params.index(var)] == rng
 
 
         # then expand all the maps
