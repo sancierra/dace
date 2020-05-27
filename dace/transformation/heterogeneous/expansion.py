@@ -9,13 +9,13 @@ from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
 from dace.graph.labeling import propagate_labels_sdfg
+from dace.transformation.heterogeneous import helpers
 
 from copy import deepcopy as dcpy
 from typing import List, Union
 
 import dace.libraries.standard as stdlib
 
-import .helpers
 
 
 @make_properties
@@ -64,8 +64,8 @@ class MultiExpansion():
             #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
             params_dict = {}
-            print("Map_base_variables", map_base_variables)
-            print("Map_base_ranges", map_base_ranges)
+            print("MultiExpansion::Map_base_variables", map_base_variables)
+            print("MultiExpansion::Map_base_ranges", map_base_ranges)
             for map in maps:
                 # for each map create param dict, first assign identity
                 params_dict_map = {param: param for param in map.params}
@@ -104,7 +104,6 @@ class MultiExpansion():
 
             for map, map_entry in zip(maps, map_entries):
                 map_scope = graph.scope_subgraph(map_entry)
-                print(hex(id(map_entry)))
                 params_dict_map = params_dict[map]
                 for firstp, secondp in params_dict_map.items():
                     if firstp != secondp:
@@ -117,7 +116,7 @@ class MultiExpansion():
                 for i in range(len(map.params)):
                     map.params[i] = params_dict_map[map.params[i]]
 
-            print("PARAMS REPLACED")
+            print("MultiExpansion::Params replaced")
 
         else:
             # just calculate map_base_ranges

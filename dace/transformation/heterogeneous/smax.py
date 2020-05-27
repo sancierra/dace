@@ -11,6 +11,8 @@ from dace.transformation.heterogeneous import MultiExpansion
 
 import dace.libraries.standard as stdlib
 
+import timeit
+
 dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
@@ -53,12 +55,15 @@ if __name__ == '__main__':
         if isinstance(node, stdlib.Reduce):
             reduce_nodes.append(node)
 
+    start = timeit.timeit()
     for reduce_node in reduce_nodes:
         trafo_reduce = ReduceMap(sdfg_id = sdfg.sdfg_list.index(sdfg),
                                  state_id = 0,
                                  subgraph = {ReduceMap._reduce: graph.nodes().index(reduce_node)},
                                  expr_index = 0)
         trafo_reduce.apply(sdfg)
+    end = timeit.timeit()
+    print("***** Reduction timer =",end-start,"s")
     sdfg.view()
 
     ############### second, do MultiExpansion
@@ -67,12 +72,21 @@ if __name__ == '__main__':
     for node in graph.nodes():
         if isinstance(node, dace.nodes.MapEntry):
             map_entries.append(node)
+    start = timeit.timeit()
     trafo_expansion.expand(sdfg, graph, map_entries)
+    end = timeit.timeit()
+    print("***** Expansion timer =",end-start,"s")
+
     sdfg.view()
 
 
     ############ third, do MapFusion
     map_fusion = SubgraphFusion()
+    start = timeit.timeit()
     map_fusion.fuse(sdfg, graph, map_entries)
+    end = timeit.timeit()
+    print("***** MapFusion timer =",end-start,"s")
+
+    sdfg.apply_strict_transformations()
     sdfg.view()
     sdfg.validate()

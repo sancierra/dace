@@ -92,9 +92,6 @@ class SubgraphFusion():
 
         transient_dict = {}
         for node in (intermediate_nodes & out_nodes):
-
-
-
             data_ref = sdfg.data(node.data)
             trans_data_name = node.data + '__trans'
 
@@ -173,6 +170,7 @@ class SubgraphFusion():
         - Intermediate_nodes and in_nodes SHOULD be disjoint in a valid sdfg.
           Else there could always be a race condition....
         """
+        # TODO: Last point into specifications, there could be very rare subset case where not race cond.
 
         for map_entry, map_exit in zip(map_entries, map_exits):
             for edge in graph.in_edges(map_entry):
@@ -193,9 +191,9 @@ class SubgraphFusion():
         in_nodes -= intermediate_nodes
 
 
-        print("In_nodes", in_nodes)
-        print("Out_nodes", out_nodes)
-        print("intermediate_nodes", intermediate_nodes)
+        print("SubgraphFusion::In_nodes", in_nodes)
+        print("SubgraphFusion::Out_nodes", out_nodes)
+        print("SubgraphFusion::Intermediate_nodes", intermediate_nodes)
 
         # all maps are assumed to have the same params and range in order
         global_map = nodes.Map(label = "outer_fused",
@@ -216,7 +214,6 @@ class SubgraphFusion():
         transient_dict = self._create_transients_TRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete)
         inconnectors_dict = {}
         # {access_node: (edge, in_conn, out_conn)}
-        print("Transient_dict", transient_dict)
 
         graph.add_node(global_map_entry)
         graph.add_node(global_map_exit)
@@ -235,7 +232,7 @@ class SubgraphFusion():
 
                     if src in inconnectors_dict:
                         if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
-                            print("Extend range")
+                            print("SubgraphFusion::Extend range")
                             inconnectors_dict[edge.data.data][0].subset = edge.data.subset
 
                         in_conn = inconnectors_dict[src][1]
@@ -345,10 +342,7 @@ class SubgraphFusion():
                     # handle separately: intermediate_nodes and pure out nodes
                     if dst_original in intermediate_nodes:
 
-                        print("DATA AUGMENTATION")
                         sizes = edge.data.subset.bounding_box_size()
-                        print("Memlet subset", edge.data.subset)
-                        print("Sizes of it", sizes)
                         new_data_shape = [sz for (sz, s) in zip(sizes, edge.data.subset)]
                         # in case it is just a scalar
                         new_data_strides = [data._prod(new_data_shape[i+1:])
@@ -362,11 +356,6 @@ class SubgraphFusion():
                         transient_to_transform.strides = new_data_strides
                         transient_to_transform.total_size = new_data_totalsize
                         transient_to_transform.offset  = new_data_offset
-
-                        print("-------")
-                        print("Node", dst)
-                        print("Data shape", new_data_shape)
-                        print("Data size", new_data_totalsize)
 
                         # next up, change memlet data to this data
                         # change all parent memlet data to this data if they have the same content
@@ -433,8 +422,7 @@ class SubgraphFusion():
 
 
         # do one last pass to correct memlets between newly created transients
-        print("###################")
-        print("INTERMEDIATE:", intermediate_nodes)
+
         # awkward_code
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
@@ -454,8 +442,7 @@ class SubgraphFusion():
                     cont_edges.append(e)
 
             base_offset = in_edge.data.subset.min_element()
-            print("NODE", transient_node)
-            print("BASE OFFSET", base_offset)
+
             # offset everything
             in_path = graph.memlet_path(in_edge)
             for edge in in_path:

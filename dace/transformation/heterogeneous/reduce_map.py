@@ -107,8 +107,6 @@ class ReduceMap(pattern_matching.Transformation):
 
         # find the new nested sdfg
 
-        print(nsdfg)
-        print(type(nsdfg))
 
         nstate = nsdfg.sdfg.nodes()[0]
         for node, scope in nstate.scope_dict().items():
@@ -147,8 +145,6 @@ class ReduceMap(pattern_matching.Transformation):
 
         queue = [nsdfg]
         array_closest_ancestor = None
-        print("Data name of array onto which we reduce:")
-        print(out_storage_node)
         while len(queue) > 0:
             current = queue.pop(0)
             if isinstance(current, nodes.AccessNode):
@@ -160,16 +156,14 @@ class ReduceMap(pattern_matching.Transformation):
                     break
             queue.extend([in_edge.src for in_edge in graph.in_edges(current)])
 
-        print("array_closest_ancestor:", array_closest_ancestor)
         # if it doesnt exist:
         #           if non-transient: create data node accessing it
         #           if transient: ancestor_node = none, set_zero on outer node
 
         shortcut = False
-        print("identity", identity)
         if (not array_closest_ancestor and sdfg.data(out_storage_node.data).transient) \
                                         or identity is not None:
-            print("SHORTCUT")
+            print("ReduceMap::Shortcut applied")
             # we are lucky
             shortcut = True
             nstate.out_edges(transient_node_inner)[0].data.wcr = None
@@ -178,6 +172,7 @@ class ReduceMap(pattern_matching.Transformation):
 
 
         else:
+            print("ReduceMap::No shortcut, operating with ancestor", array_closest_ancestor)
             array_closest_ancestor = nodes.AccessNode(out_storage_node.data,
                                         access = dtypes.AccessType.ReadOnly)
             graph.add_node(array_closest_ancestor)
