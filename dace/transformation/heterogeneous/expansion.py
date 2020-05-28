@@ -79,6 +79,7 @@ class MultiExpansion():
                         # nothing to do
                         pass
                     else:
+                        # TODO: this part is a bit ugly, beautify
                         current_var = map.params[i]
                         current_assignment = params_dict_map[current_var]
                         target_assignment = map_base_variables[reassignment]

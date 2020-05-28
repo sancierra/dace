@@ -9,7 +9,7 @@ from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
-from dace.graph.labeling import propagate_labels_sdfg
+from dace.graph.labeling import propagate_labels_sdfg, propagate_memlet
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -409,12 +409,13 @@ class SubgraphFusion():
                                        out_conn,
                                        dst,
                                        None,
-                                       out_edge.data)
+                                       dcpy(out_edge.data))
                         graph.remove_edge(out_edge)
 
                 # remove the edge if it has not been used by any pure out node
                 if not port_created:
                     graph.remove_edge(edge)
+
 
 
             graph.remove_node(map_entry)
@@ -455,3 +456,24 @@ class SubgraphFusion():
 
             for edge in out_edges:
                 edge.data.other_subset = dcpy(in_edge.data.subset)
+
+
+        # do one last pass to correct volume size for memlets connecting to global_map_entry
+
+        for out_connector in global_map_entry.out_connectors:
+            # find corresponding in_connector
+            in_connector = 'IN' + out_connector[3:]
+            for iedge in graph.in_edges(global_map_entry):
+                if iedge.dst_conn == in_connector:
+                    in_edge = iedge
+            for oedge in graph.out_edges(global_map_entry):
+                if oedge.src_conn == out_connector:
+                    out_edge = oedge
+            # do memlet propagation
+            memlet_out = propagate_memlet(dfg_state = graph,
+                                          memlet = out_edge.data,
+                                          scope_node = global_map_entry,
+                                          union_inner_edges = True)
+
+            # override number of accesses
+            in_edge.data.num_accesses = memlet_out.num_accesses
