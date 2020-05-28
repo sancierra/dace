@@ -18,6 +18,8 @@ from typing import List, Union
 
 import dace.libraries.standard as stdlib
 
+import timeit
+
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
@@ -84,6 +86,10 @@ class ReduceMap(pattern_matching.Transformation):
         """
         graph = sdfg.nodes()[self.state_id]
         reduce_node = graph.nodes()[self.subgraph[ReduceMap._reduce]]
+        self.expand(sdfg, graph, reduce_node)
+
+    def expand(self, sdfg, graph, reduce_node):
+        # API that is at least somewhat consistent with the rest in this module
         out_storage_node = graph.out_edges(reduce_node)[0].dst
         in_storage_node = graph.in_edges(reduce_node)[0].src
         wcr = reduce_node.wcr
@@ -106,7 +112,6 @@ class ReduceMap(pattern_matching.Transformation):
             raise TypeError("EXPANSION_ABORT")
 
         # find the new nested sdfg
-
 
         nstate = nsdfg.sdfg.nodes()[0]
         for node, scope in nstate.scope_dict().items():
@@ -309,6 +314,10 @@ class ReduceMap(pattern_matching.Transformation):
             # set transient_inner to set_zero = True
             # TODO: create identities for other reductions
             transient_node_inner.setzero = True
+
+        # create variables for outside access
+        self._new_reduce = reduce_node_new
+        self._outer_entry = outer_entry
         return
 
 
@@ -392,6 +401,7 @@ class ReduceMap(pattern_matching.Transformation):
         # Connect everything
         r = nstate.add_read('_in')
         w = nstate.add_read('_out')
+
         if ome:
             nstate.add_memlet_path(r, ome, ime, t, dst_conn='inp', memlet=inmm)
             nstate.add_memlet_path(t, imx, omx, w, src_conn='out', memlet=outm)
