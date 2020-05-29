@@ -1,10 +1,10 @@
 import ast
 import astunparse
 import dace
-from dace.graph.graph import SubgraphView
-from dace.graph.nodes import CodeNode, LibraryNode
+from dace.sdfg.graph import SubgraphView
+from dace.sdfg.nodes import CodeNode, LibraryNode
 from dace.libraries.standard.nodes.reduce import Reduce
-from dace.sdfg import Scope
+from dace.sdfg.scope import ScopeTree as Scope
 from dace.symbolic import pystr_to_symbolic
 from dace.libraries.blas import MatMul, Transpose
 import sympy

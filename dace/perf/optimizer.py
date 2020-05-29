@@ -7,12 +7,12 @@ import re
 import time
 
 from dace.config import Config
-from dace.graph import labeling
-from dace.graph.graph import SubgraphView
+from dace.sdfg import propagation
+from dace.sdfg.graph import SubgraphView
 from dace.transformation import pattern_matching
 
 # register all the transformations
-from dace.transformation import dataflow, interstate, heterogeneous
+from dace.transformation import dataflow, interstate #, heterogeneous
 from dace.transformation.optimizer import SDFGOptimizer
 
 # perf stuff
@@ -129,7 +129,7 @@ class SDFGRooflineOptimizer(SDFGOptimizer):
                 self.sdfg.save(os.path.join('_dacegraphs', filename + '.sdfg'))
 
             if not pattern_match.annotates_memlets():
-                labeling.propagate_labels_sdfg(self.sdfg)
+                propagation.propagate_memlets_sdfg(self.sdfg)
 
             self.roofline.evaluate(cumulated_pattern_name, self.sdfg)
 

@@ -1,8 +1,8 @@
 import ast
 import astunparse
 import dace
-from dace.graph.graph import SubgraphView
-from dace.sdfg import Scope
+from dace.sdfg.graph import SubgraphView
+from dace.sdfg.scope import ScopeTree as Scope
 from dace.symbolic import pystr_to_symbolic
 from dace.libraries.blas import MatMul, Transpose
 import sympy
