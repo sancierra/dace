@@ -3,13 +3,13 @@
 """
 
 from dace import dtypes, registry, symbolic, subsets, data
-from dace.graph import nodes, nxutil
+from dace.sdfg import nodes, utils
 from dace.memlet import Memlet, EmptyMemlet
 from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
-from dace.graph.labeling import propagate_labels_sdfg, propagate_memlet
+from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -78,7 +78,7 @@ class SubgraphFusion():
         def redirect(redirect_node, original_node):
             # redirect all traffic to original node to redirect node
             # and then create a path from redirect to original
-            nxutil.change_edge_dest(graph, original_node, redirect_node)
+            utils.change_edge_dest(graph, original_node, redirect_node)
             graph.add_edge(redirect_node,
                            None,
                            original_node,
@@ -115,7 +115,7 @@ class SubgraphFusion():
             # redirect all traffic to original node to redirect node
             # and then create a path from redirect to original
             # outgoing edges to other maps in our subset should be originated from the clone
-            nxutil.change_edge_dest(graph, original_node, redirect_node)
+            utils.change_edge_dest(graph, original_node, redirect_node)
             graph.add_edge(redirect_node,
                            None,
                            original_node,

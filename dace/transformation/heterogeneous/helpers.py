@@ -1,11 +1,11 @@
 from dace import dtypes, registry, symbolic, subsets
-from dace.graph import nodes, nxutil
+from dace.sdfg import nodes, utils
 from dace.memlet import Memlet
 from dace.sdfg import replace, SDFG, SDFGState
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
-from dace.graph.labeling import propagate_labels_sdfg
+from dace.sdfg.propagation import propagate_memlets_sdfg
 
 from copy import deepcopy as dcpy
 from typing import List, Union, Dict, Tuple

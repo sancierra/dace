@@ -3,10 +3,8 @@ from expansion import MultiExpansion
 from subgraph_fusion import SubgraphFusion
 from reduce_map import ReduceMap
 from helpers import *
-import dace.graph.nodes as nodes
+import dace.sdfg.nodes as nodes
 import numpy as np
-
-from dace.sdfg import replace
 
 
 N, M, O, P, Q, R = [dace.symbol(s) for s in ['N', 'M', 'O', 'P', 'Q', 'R']]

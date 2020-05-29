@@ -2,13 +2,13 @@
 """
 
 from dace import dtypes, registry, symbolic, subsets
-from dace.graph import nodes, nxutil
+from dace.sdfg import nodes, utils
 from dace.memlet import Memlet
 from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
-from dace.graph.labeling import propagate_labels_sdfg
+from dace.sdfg.propagation import propagate_memlets_sdfg
 
 from dace.frontend.operations import detect_reduction_type
 
@@ -56,7 +56,7 @@ class ReduceMap(pattern_matching.Transformation):
     @staticmethod
     def expressions():
         return[
-            nxutil.node_path_graph(ReduceMap._reduce)
+            utils.node_path_graph(ReduceMap._reduce)
         ]
     @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict = False):
@@ -428,8 +428,8 @@ class ReduceMap(pattern_matching.Transformation):
                                       node.out_connectors,
                                       name = node.name)
 
-        nxutil.change_edge_dest(state,node,nsdfg)
-        nxutil.change_edge_src(state,node,nsdfg)
+        utils.change_edge_dest(state,node,nsdfg)
+        utils.change_edge_src(state,node,nsdfg)
         state.remove_node(node)
 
         return nsdfg

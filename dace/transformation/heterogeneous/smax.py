@@ -49,6 +49,7 @@ if __name__ == '__main__':
     roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:30, B:30, SN:300, SM:300})
     graph = sdfg.nodes()[0]
 
+    sdfg.save("softmax0")
     ################ first, expand the reduce node
     reduce_nodes = []
     for node in graph.nodes():
@@ -65,6 +66,9 @@ if __name__ == '__main__':
     print("***** Reduction timer =",end-start,"s")
     sdfg.view()
 
+    sdfg.save("softmax1")
+
+
     ############### second, do MultiExpansion
     trafo_expansion = MultiExpansion()
     map_entries = []
@@ -78,6 +82,7 @@ if __name__ == '__main__':
 
     sdfg.view()
 
+    sdfg.save("softmax2")
 
     ############ third, do MapFusion
     map_fusion = SubgraphFusion()
@@ -88,4 +93,7 @@ if __name__ == '__main__':
 
     sdfg.apply_strict_transformations()
     sdfg.view()
+
+    sdfg.save("softmax3")
+
     sdfg.validate()

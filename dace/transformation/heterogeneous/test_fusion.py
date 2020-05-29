@@ -2,10 +2,9 @@ import dace
 from expansion import MultiExpansion
 from subgraph_fusion import SubgraphFusion
 from helpers import *
-import dace.graph.nodes as nodes
+import dace.sdfg.nodes as nodes
 import numpy as np
 
-from dace.sdfg import replace
 
 
 N, M, O, P, Q, R = [dace.symbol(s) for s in ['N', 'M', 'O', 'P', 'Q', 'R']]
@@ -163,6 +162,7 @@ if __name__ == "__main__":
 
         reassignment_dict = find_reassignment(maps, common_base_ranges)
         print(reassignment_dict)
+        sdfg.view()
 
 
         # test transformation
@@ -174,7 +174,6 @@ if __name__ == "__main__":
 
         print("**** SubgraphFusion Test")
         transformation = SubgraphFusion()
-        sdfg.view()
         #exit()
         transformation.fuse(sdfg, state, map_entries)
         print("VALDIATION:")
