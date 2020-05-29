@@ -148,7 +148,7 @@ if __name__ == "__main__":
     #optimizer.optimize()
 
     map_base_vars_iter = iter(map_base_variables)
-    for test_number in [4]:
+    for test_number in [2,3,4]:
         sdfg = locals()[f'sdfg{test_number}']
         print(f"############ TEST {test_number}")
         state = sdfg.nodes()[0]

@@ -45,7 +45,7 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
 
 if __name__ == '__main__':
     sdfg = softmax.to_sdfg()
-    #sdfg.view()
+    sdfg.view()
     roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:30, B:30, SN:300, SM:300})
     graph = sdfg.nodes()[0]
 
@@ -56,13 +56,14 @@ if __name__ == '__main__':
             reduce_nodes.append(node)
 
 
+    sdfg.view()
     trafo_reduce = ReduceMap(0,0,{},0)
     start = timeit.default_timer()
     for reduce_node in reduce_nodes:
         trafo_reduce.expand(sdfg,graph,reduce_node)
     end = timeit.default_timer()
     print("***** Reduction timer =",end-start,"s")
-    #sdfg.view()
+    sdfg.view()
 
     ############### second, do MultiExpansion
     trafo_expansion = MultiExpansion()
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     end = timeit.default_timer()
     print("***** Expansion timer =",end-start,"s")
 
-    #sdfg.view()
+    sdfg.view()
 
 
     ############ third, do MapFusion
@@ -86,5 +87,5 @@ if __name__ == '__main__':
     print("***** MapFusion timer =",end-start,"s")
 
     sdfg.apply_strict_transformations()
-    #sdfg.view()
+    sdfg.view()
     sdfg.validate()

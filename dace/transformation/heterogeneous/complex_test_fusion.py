@@ -26,6 +26,8 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], Z1: dace.fl
     tmp2 = np.ndarray([N,M,O], dtype = dace.float64)
     tmp3 = np.ndarray([N,M,O], dtype = dace.float64)
     tmp4 = np.ndarray([N,M,O], dtype = dace.float64)
+    tmp5 = np.ndarray([N,M,O], dtype = dace.float64)
+
 
     t1 = np.ndarray([N,M], dtype = dace.float64)
     t2 = np.ndarray([N,M], dtype = dace.float64)
@@ -81,6 +83,12 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], Z1: dace.fl
 
             out = in1 + in2
 
+    @dace.tasklet
+    def fun():
+        in1 << tmp3[:,:,:]
+        out >> tmp5[:,:,:]
+
+        out[:,:,:] = in1[:,:,:]
 
 
 
@@ -93,11 +101,6 @@ if __name__ == "__main__":
     sdfg.apply_strict_transformations()
     sdfg.view()
 
-    # first, let us test the helper functions
-
-    #roof = dace.perf.roofline.Roofline(dace.perf.specs.PERF_CPU_DAVINCI, symbols, debug = True)
-    #optimizer = dace.perf.optimizer.SDFGRooflineOptimizer(sdfg1, roof, inplace = False)
-    #optimizer.optimize()
 
     graph = sdfg.nodes()[0]
     map_entries = [node for node in graph.nodes() if isinstance(node, nodes.MapEntry)]
@@ -125,5 +128,6 @@ if __name__ == "__main__":
     transformation.fuse(sdfg, graph, map_entries)
     print("Done")
     sdfg.view()
+    print("VALIDATION")
     sdfg.validate()
-    print("VALIDATION PASS")
+    print("PASSED")
