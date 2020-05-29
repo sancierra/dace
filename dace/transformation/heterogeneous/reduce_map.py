@@ -290,16 +290,21 @@ class ReduceMap(pattern_matching.Transformation):
             schedule = dtypes.ScheduleType.GPU_ThreadBlock
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
-                                           axes = None,
+                                           axes = reduce_node.axes,
                                            schedule = schedule,
                                            identity = identity)
 
         edge_tmp = graph.in_edges(inner_entry)[0]
-        graph.add_edge(edge_tmp.src, edge_tmp.src_conn, reduce_node_new, None, edge_tmp.data)
+        memlet_src_reduce = dcpy(edge_tmp.data)
+        graph.add_edge(edge_tmp.src, edge_tmp.src_conn, reduce_node_new, None, memlet_src_reduce)
 
         edge_tmp = graph.out_edges(inner_exit)[0]
-        edge_tmp.data.wcr = None
-        graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, edge_tmp.data)
+        memlet_reduce_dst = Memlet(data = edge_tmp.data.data,
+                                   num_accesses = 1,
+                                   subset = edge_tmp.data.subset,
+                                   vector_length = edge_tmp.data.veclen)
+
+        graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, memlet_reduce_dst)
 
         identity_tasklet = graph.out_edges(inner_entry)[0].dst
         graph.remove_node(inner_entry)
