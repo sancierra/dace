@@ -71,7 +71,7 @@ def expand_maps(sdfg, graph):
 def subgraph_fusion(sdfg, graph, map_entries):
     map_fusion = SubgraphFusion()
     start = timeit.default_timer()
-    map_fusion.fuse(sdfg, graph, map_entries)
+    map_fusion.fusion(sdfg, graph, map_entries)
     end = timeit.default_timer()
     print("***** MapFusion timer =",end-start,"s")
 
