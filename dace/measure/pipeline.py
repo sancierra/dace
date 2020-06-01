@@ -29,7 +29,8 @@ def expand_reduce(sdfg, graph, subgraph = None):
     for reduce_node in reduce_nodes:
         trafo_reduce.expand(sdfg,graph,reduce_node)
     end = timeit.default_timer()
-    print("**** Pipeline::Reduction timer =",end-start,"s")
+    if TRANSFORMATION_TIMER:
+        print("**** Pipeline::Reduction timer =",end-start,"s")
 
 def expand_maps(sdfg, graph, subgraph = None):
     subgraph = graph if not subgraph else subgraph
@@ -39,7 +40,8 @@ def expand_maps(sdfg, graph, subgraph = None):
     start = timeit.default_timer()
     trafo_expansion.expand(sdfg, graph, map_entries)
     end = timeit.default_timer()
-    print("***** Pipeline::Expansion timer =",end-start,"s")
+    if TRANSFORMATION_TIMER:
+        print("***** Pipeline::Expansion timer =",end-start,"s")
 
 def fusion(sdfg, graph, subgraph = None):
     subgraph = graph if not subgraph else subgraph
@@ -50,14 +52,15 @@ def fusion(sdfg, graph, subgraph = None):
     start = timeit.default_timer()
     map_fusion.fuse(sdfg, graph, map_entries)
     end = timeit.default_timer()
-    print("***** Pipeline::MapFusion timer =",end-start,"s")
+    if TRANSFORMATION_TIMER:
+        print("***** Pipeline::MapFusion timer =",end-start,"s")
 
 
 def combo_fuse(sdfg, graph, subgraph = None):
     # does everything at once
-    # no need to recombine maps
-    # TODO
-    pass
+    expand_reduce(sdfg, graph, subgraph)
+    expand_maps(sdfg, graph, subgraph)
+    fusion(sdfg, graph, subgraph)
 
 def get_highest_scope_maps(sdfg, graph, subgraph = None):
     subgraph = graph if not subgraph else subgraph

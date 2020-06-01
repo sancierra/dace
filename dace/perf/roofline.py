@@ -112,7 +112,8 @@ class Roofline:
 
     def evaluate(self, name: str,
                    graph: Graph,
-                   symbols_replacement: Dict[str, Any] = None):
+                   symbols_replacement: Dict[str, Any] = None,
+                   running_time = None):
 
         if isinstance(graph, SubgraphView):
             name = f"Subgraph_{name}"
@@ -132,7 +133,7 @@ class Roofline:
                     break
                 index += 1
 
-        self.data[name] = None
+        self.data[name] = (None,None)
         self.data_symbolic[name] = None
         memory_count = 0
         flop_count = 0
@@ -163,13 +164,15 @@ class Roofline:
 
         self.data_symbolic[name] = operational_intensity
         try:
-            self.data[name] = sym.evaluate(operational_intensity, self.symbols)
-            self.data[name] = float(self.data[name])
+            self.data[name][0] = sym.evaluate(operational_intensity, self.symbols)
+            self.data[name][0] = float(self.data[name])
         except TypeError:
             print("Not all the variables are defined in Symbols")
             print("Data after tried evaluation:")
-            print(self.data[name])
+            print(self.data[name][0])
 
+        if running_time:
+            self.data[name][1] = running_time
         if self.debug:
             print(f"Determined OI {operational_intensity} on {graph}")
             print(f"Evaluated to {self.data[name]}")
@@ -183,15 +186,15 @@ class Roofline:
         base_y = 10
 
         x_0 = 0
-        x_2 = max(list(self.data.values()) + [10**3])
+        x_2 = max([val[0] for val in self.data.values()] + [10**3])
         y_0 = 0
         y_2 = self.specs.peak_performance
 
         plot.loglog([x_0,x_ridge,x_2],[y_0,y_ridge,y_2],
                      basex = base_x, basey = base_y, linewidth = 3.0)
 
-        x_min = min(list(self.data.values()) + [0.5])*base_x**(-1.0)
-        x_max = max(list(self.data.values()) + [20]) *base_x**(+2.0)
+        x_min = min([val[0] for val in self.data.values()] + [0.5])*base_x**(-1.0)
+        x_max = max([val[0] for val in self.data.values()] + [20]) *base_x**(+2.0)
         y_min = 1       * base_y**(-1.5)
         y_max = y_ridge *(base_y**(+1.5))
 

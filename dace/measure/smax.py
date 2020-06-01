@@ -101,11 +101,12 @@ def test_graph():
 
     sdfg.validate()
 
-def test_result():
+def test_result(debug = False):
     X_in = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
 
-    print("X_in")
-    print(X_in)
+    if debug:
+        print("X_in")
+        print(X_in)
 
     TEST = np.zeros([H.get(), B.get(), SN.get()], dtype = np.float32)
 
@@ -116,11 +117,9 @@ def test_result():
 
     csdfg = sdfg.compile_directly()
     X_out_baseline = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
-    print("X_out_baseline")
-    print(X_out_baseline)
-    print("TEST")
-    print(TEST)
-    #sdfg.view()
+
+    if debug:
+        sdfg.view()
 
 
     pipeline.expand_reduce(sdfg, graph)
