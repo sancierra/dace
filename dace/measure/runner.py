@@ -105,6 +105,14 @@ class Runner():
             else:
                 print(result)
 
+
+    @staticmethod
+    def build_symbols_dict(*args):
+        symbols_dict = {}
+        for arg in args:
+            symbols_dict[str(arg)] = arg.get()
+        return symbols_dict
+
     @staticmethod
     def generate_arguments(sdfg,
                            symbols_dict,
@@ -118,7 +126,10 @@ class Runner():
                         instead of a random value
         :param outputs_setzero: Set arguments contained in outputs to zero
 
-        :return: A dictionary mapping of argument to constructed array
+        :return: Two dictionaries, input_dict and output_dict
+                 pointing to the created arrays
+                 output_dict contains all args in output plus a possbile return
+                 array, in_dict all the input arguments found (except symbols)
         """
 
         arglist = sdfg.arglist()
@@ -127,31 +138,42 @@ class Runner():
             if symbol not in symbols_dict:
                 raise RuntimeError("Not all Symbols defined! \
                                     Need complete symbol dict for operation")
-        result = {}
+        result_input = {}
+        result_output = {}
         for (argument, array_reference) in arglist.items():
             if argument in symbols:
-                # do not care -- symbols have to be defined before
+                # do not care -- symbols have to be defined in andvance
                 continue
+            if argument == '__return':
+                result_output[argument] = None
+                continue
+
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
             array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol, sympy.symbol)) \
                                  else symbols_dict[e] \
                                  for e in array_reference.shape])
-            if argument in outputs and outputs_setzero:
-                result[argument] = np.zeros(shape, dtype=array_dtype)
+            if argument in outputs:
+                if outputs_setzero:
+                    new_array= np.zeros(shape=array_shape, dtype = array_dtype)
+                else:
+                    new_array = np.random.random(shape=array_shape, dtype=array_dtype)
+
+                result_output[argument] = new_array
+                result_input[argument] = new_array
             else:
 
-                result[argument] = np.random.random(shape=array_shape, dtype = array_dtype)
+                result_input[argument] = np.random.random(shape=array_shape, dtype = array_dtype)
 
-        return result
+        return (result_input, result_output)
 
-    def go(self,
-           sdfg, graph,
-           inputs, outputs,
-           subgraph = None,
-           roofline = None,
-           pipeline = [expand_reduce, expand_maps, fusion]):
+    def test_run(self,
+                 sdfg, graph,
+                 inputs, outputs, symbols
+                 subgraph = None,
+                 roofline = None,
+                 pipeline = [expand_reduce, expand_maps, fusion]):
 
         """ Test a pipeline specified as the argument 'pipeline'.
             :param sdfg: SDFG object
@@ -162,9 +184,8 @@ class Runner():
                             and their corresponding (output) name as a key.
                             Can specify any arbitrary input array as an output array
                             if one wants to assert its correctness.
-                            If the output is a return value, the corresponding value
-                            item should be set to None. There can only be one None
-                            value (multiple return types are not supported).
+                            Return values always get asserted
+            :param symbols: symbols given as caller argument, Dict
             :param subgraph: corresponding subgraph to be analyzed. Must be either
                              a SubgraphView instance or None. In the latter case,
                              the whole graph is just taken.
@@ -176,14 +197,10 @@ class Runner():
                              combined version to be found in pipeline.py
         """
 
-
-        none_counter = 0
-        for element in outputs:
-            if not outputs[element]:
-                none_counter += 1
-        if none_counter > 1:
-            raise RuntimeError('Multiple return types not supported')
-
+        # check whether the sdfg has a return value
+        # if so, add it to the outputs array with value = None
+        if '__return' in sdfg.arglist:
+            outputs['__return'] = None
 
         if self.view_init:
             sdfg.view()
@@ -198,7 +215,7 @@ class Runner():
         # establish a baseline
         self._setzero_outputs(outputs)
         csdfg = sdfg.compile_directly()
-        result = csdfg(**inputs)
+        result = csdfg(**inputs, **symbols)
 
         outputs_baseline = {}
         for element in outputs:
@@ -232,7 +249,7 @@ class Runner():
                 sdfg.view()
 
             csdfg = sdfg.compile_directly()
-            result = csdfg(**inputs)
+            result = csdfg(**inputs, **symbols)
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
@@ -318,3 +335,35 @@ class Runner():
                   'PASS' if all([v == 'PASS' for v in verdicts.values()]) else 'FAIL')
 
         print("##################################")
+
+    def go(self, sdfg, graph, subgraph, *symbols,
+        pipeline = [expand_reduce, expand_maps, fusion],
+        performance_spec = dace.perf.specs.PERF_GPU_DAVINCI,
+        output = [],
+        debug = True, name = "Runner::Go"):
+        """ Method that tests the underlying SDFG fully automatically
+        """
+
+        # build symbols dict
+        symbols_dict = self.build_symbols_dict(*symbols)
+
+        # TODO: auto infer floating point -> performance spec counter
+        # construct Roofline Object
+        if debug:
+            print("Runner::Go::Constructing Roofline")
+        roofline = dace.perf.Roofline(specs = performance_spec,
+                                      symbols = symbols_dict,
+                                      debug = debug,
+                                      name = name)
+        if debug:
+            print("Runner::Go::Constructing Roofline")
+
+        (input_dict, output_dict) = Runner.generate_arguments(sdfg = sdfg,
+                                                              symbols_dict = symbols_dict,
+                                                              output = output,
+                                                              outputs_setzero = True)
+
+        # call and go
+        self.test_run(sdfg=sdfg, graph=graph, subgraph = subgraph,
+                      inputs = input_dict, outputs = output_dict,
+                      roofline = roofline, pipeline = pipeline)
