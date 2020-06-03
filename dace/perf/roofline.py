@@ -217,11 +217,10 @@ class Roofline:
                     perc_50 = np.quantile(self.runtimes[key],0.5)
                     perc_25 = np.quantile(self.runtimes[key],0.25)
                     perc_0  = np.quantile(self.runtimes[key],0)
-                    plot.plot([oi, perc_100], '.', color = colors[i%10], mew=2, markersize = 20)
-                    #plot.plot([oi, perc_75], '_', color = colors[i%10], mew=1.5, markersize = 35)
-                    plot.plot([oi, oi],[perc_25 , perc_75], color = colors[i%10], linewidth = 35, alpha = 0.5)
-                    #plot.plot([oi, perc_25], '_', color = colors[i%10], mew=1.5, markersize = 35)
-                    plot.plot([oi, perc_0], '.', color = colors[i%10], mew=2, markersize = 5)
+                    plot.plot([oi, perc_100], '.', color = colors[i%10], mew=2, markersize = 5)
+                    plot.plot([oi, oi],[perc_25 , perc_75], solid_capstyle = 'butt', color = colors[i%10], linewidth = 35, alpha = 0.5)
+                    plot.plot([oi, perc_50], '_', color = colors[i%10], mew=0.5, markersize = 35)
+                    plot.plot([oi, perc_0]  , '.', color = colors[i%10], mew=2, markersize = 5)
 
 
         plot.title(f"{self.name}[{self.symbols}]")
