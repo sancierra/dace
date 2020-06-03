@@ -96,12 +96,12 @@ class Roofline:
                  specs: PerformanceSpec,
                  symbols: Union[Dict[str, int], Dict[dace.symbol, int]],
                  debug: bool = True,
-                 name: str = "roofline"
-):
+                 name: str = "roofline"):
 
         self.specs = specs
         self.data = {}
         self.data_symbolic = {}
+        self.runtimes = {}
         self.debug = debug
         self.name = name
         self.symbols = symbols
@@ -110,17 +110,7 @@ class Roofline:
     def evaluate(self, name: str,
                    graph: Graph,
                    symbols_replacement: Dict[str, Any] = None,
-                   running_time = None):
-
-        if isinstance(graph, SubgraphView):
-            name = f"Subgraph_{name}"
-            print(f"Performance counter on Subgraph {name}")
-        if isinstance(graph, dace.sdfg.SDFG):
-            name = f"SDFG_{name}"
-            print(f"Performance counter on SDFG {name}")
-        if isinstance(graph, dace.sdfg.SDFGState):
-            name = f"State_{name}"
-            print(f"Performance counter on State {name}")
+                   runtimes = None):
 
         if name in self.data:
             index = 1
@@ -130,7 +120,13 @@ class Roofline:
                     break
                 index += 1
 
-        self.data[name] = (None,None)
+        print(f"Performance counter on {name}")
+
+        # data format:
+        # [operational_intensity, runtime_sample]
+        self.data[name] = None
+        # data format:
+        # [operational_intensity_symbolic]
         self.data_symbolic[name] = None
         memory_count = 0
         flop_count = 0
@@ -145,9 +141,13 @@ class Roofline:
             flop_count = count_arithmetic_ops(graph, symbols_replacement)
         if isinstance(graph, dace.sdfg.SDFGState):
             memory_count = count_moved_data_state(graph, symbols_replacement)
-            flot_count = count_arithmetic_ops_state(graph, symbols_replacement)
+            flop_count = count_arithmetic_ops_state(graph, symbols_replacement)
+
+        print("memory_count", memory_count)
+        print("flop_count", flop_count)
 
         operational_intensity = flop_count / (memory_count * self.specs.bytes_per_datapoint)
+
         # evaluate remaining sym functions
         x, y = sympy.symbols('x y')
         sym_locals = {sympy.Function('int_floor') : sympy.Lambda((x,y), sympy.functions.elementary.integers.floor  (x/y)),
@@ -158,21 +158,23 @@ class Roofline:
         for fun, lam in sym_locals.items():
             operational_intensity.replace(fun, lam)
 
-
+        print("OPERATIONAL_INTENSITY", operational_intensity)
         self.data_symbolic[name] = operational_intensity
         try:
-            self.data[name][0] = sym.evaluate(operational_intensity, self.symbols)
-            self.data[name][0] = float(self.data[name])
+            self.data[name] = sym.evaluate(operational_intensity, self.symbols)
+            self.data[name] = float(self.data[name])
         except TypeError:
             print("Not all the variables are defined in Symbols")
             print("Data after evaluation attempt:")
-            print(self.data[name][0])
+            print(self.data[name])
 
-        if running_time:
-            self.data[name][1] = running_time
+        if runtimes:
+            self.runtimes[name] = runtimes
         if self.debug:
             print(f"Determined OI {operational_intensity} on {graph}")
             print(f"Evaluated to {self.data[name]}")
+
+        return name
 
     def plot(self, save_path = None, save_name = None, groups = None, show = False):
 
@@ -181,7 +183,7 @@ class Roofline:
 
         x_0 = 1e-9
         x_ridge = self.specs.peak_performance / self.specs.peak_bandwidth
-        x_2 = max([val[0] for val in self.data.values()] + [20]) *base_x**(+2.0)
+        x_2 = max([val for val in self.data.values()] + [20]) *base_x**(+2.0)
         y_0 = x_0*self.specs.peak_bandwidth
         y_ridge = self.specs.peak_performance
         y_2 = self.specs.peak_performance
@@ -191,11 +193,11 @@ class Roofline:
 
         # define plotting borders
         # adaptive to data
-        x_min = min([val[0] for val in self.data.values()] + [0.5])*base_x**(-1.0)
-        x_max = max([val[0] for val in self.data.values()] + [20]) *base_x**(+2.0)
+        x_min = min([val for val in self.data.values()] + [0.5])*base_x**(-1.0)
+        x_max = max([val for val in self.data.values()] + [20]) *base_x**(+2.0)
         y_min = min(1, \
-                    min([val[0] for val in self.data.values()])*y_ridge / x_ridge, \
-                    min([val[1] for val in self.data.values() if val[1]]+[1]) \
+                    min([val for val in self.data.values()])*y_ridge / x_ridge, \
+                    min([minrt for minrt in [min(rt) for rt in self.runtimes.values() if rt]]) \
                     )* base_y**(-0.5)
         y_max = y_ridge * (base_y**1.5)
         print("Y_MIN", y_min)

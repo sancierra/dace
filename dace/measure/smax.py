@@ -13,7 +13,9 @@ import dace.libraries.standard as stdlib
 
 import timeit
 
-import pipeline
+import dace.measure.pipeline as pipeline
+from dace.measure.runner import Runner
+
 
 dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
@@ -46,43 +48,11 @@ def softmax(X_in: dace_dtype[H, B, SN, SM], TEST: dace_dtype[H, B, SN]):
 
     return out
 
-def expand_reduce(sdfg, graph):
-    reduce_nodes = []
-    for node in graph.nodes():
-        if isinstance(node, stdlib.Reduce):
-            reduce_nodes.append(node)
-
-    trafo_reduce = ReduceMap(0,0,{},0)
-    start = timeit.default_timer()
-    for reduce_node in reduce_nodes:
-        trafo_reduce.expand(sdfg,graph,reduce_node)
-    end = timeit.default_timer()
-    print("***** Reduction timer =",end-start,"s")
-
-def expand_maps(sdfg, graph):
-    trafo_expansion = MultiExpansion()
-    map_entries = []
-    for node in graph.nodes():
-        if isinstance(node, dace.nodes.MapEntry):
-            map_entries.append(node)
-    start = timeit.default_timer()
-    trafo_expansion.expand(sdfg, graph, map_entries)
-    end = timeit.default_timer()
-    print("***** Expansion timer =",end-start,"s")
-
-def subgraph_fusion(sdfg, graph, map_entries):
-    map_fusion = SubgraphFusion()
-    start = timeit.default_timer()
-    map_fusion.fusion(sdfg, graph, map_entries)
-    end = timeit.default_timer()
-    print("***** MapFusion timer =",end-start,"s")
-
-
 
 sdfg = softmax.to_sdfg()
-roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:5, B:5, SN:100, SM:100})
+roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:3, B:3, SN:5, SM:5})
 graph = sdfg.nodes()[0]
-H.set(10); B.set(10); SN.set(40); SM.set(40)
+H.set(3); B.set(3); SN.set(5); SM.set(5)
 
 def test_graph():
     ################ first, expand the reduce node
@@ -101,12 +71,9 @@ def test_graph():
 
     sdfg.validate()
 
+
 def test_result(debug = False):
     X_in = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
-
-    if debug:
-        print("X_in")
-        print(X_in)
 
     TEST = np.zeros([H.get(), B.get(), SN.get()], dtype = np.float32)
 
@@ -115,11 +82,31 @@ def test_result(debug = False):
     X_out_2 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
     X_out_3 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
 
+    debugger = Runner(measure_mode = ['median', 'avg', 'std'],
+                      view_roofline = True)
+
+    # first test symbols dict build function
+    symbols = Runner.build_symbols_dict(H, B, SM, SN)
+    print(symbols)
+
+    # second, test test_run function
+    debugger.test_run(sdfg = sdfg, graph = graph,
+                      inputs = {'X_in': X_in, 'TEST': TEST},
+                      outputs = {'TEST': TEST},
+                      symbols = symbols,
+                      roofline = roofline)
+
+    return
+    # thrid, test automatic argument generation
+    input_args, output_args = \
+        Runner.generate_arguments(sdfg, symbols,
+                                  ouputs = ['TEST'])
+
+
+    #############
+    '''
     csdfg = sdfg.compile_directly()
     X_out_baseline = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
-
-    if debug:
-        sdfg.view()
 
 
     pipeline.expand_reduce(sdfg, graph)
@@ -172,6 +159,7 @@ def test_result(debug = False):
     #print(X_out_2)
     #print("O3")
     #print(X_out_3)
+    '''
 
 if __name__ == "__main__":
     test_result()

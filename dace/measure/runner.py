@@ -14,6 +14,7 @@ import dace.libraries.standard as stdlib
 import dace.sdfg.nodes as nodes
 
 import timeit
+from copy import deepcopy as dcpy
 
 from dace.measure.pipeline import expand_reduce, expand_maps, fusion
 
@@ -54,22 +55,24 @@ class Runner():
         self.debug = debug
         self.verbose = verbose
 
-        self.measure_time = measure_time
         self.measure_mode = measure_mode
 
         self.view = view
-        self.view_init = view_init
-        self.view_final = view_final
         self.view_all = view_all
+        self.view_roofline = view_roofline
 
         self.error_abs = error_abs
         self.error_rel = error_rel
 
     def _setzero_outputs(self, outputs):
         for element in outputs:
-            if isinstance(outputs[element], (np.ndarray, dace.ndarray)):
+            print("INSTANCE=", type(outputs[element]))
+            if isinstance(outputs[element], (np.ndarray, dace.dtypes.typeclass)):
                 # generic vector -> set zero
                 outputs[element][:] = 0
+            elif isinstance(outputs[element], type(None)):
+                # this must be the return value
+                pass
             else:
                 print("WARNING: Non-vector type in outputs -> SetZero failed.")
 
@@ -78,33 +81,28 @@ class Runner():
         runtimes = []
         with open('results.log','r') as file:
             for line in file.readlines():
-                runtimes.append(float(line.split(" ")[3]))
+                runtimes.append(float(line.split("\t")[3]))
+
         return runtimes
 
     def _get_runtime_stats(self, runtimes):
         stats = []
-        for measure in measure_mode:
-            stats.append(Runner.measures[measure](current_runtimes))
+        for measure in self.measure_mode:
+            stats.append(Runner.measures[measure](runtimes))
         return stats
 
     def _print_norms(self, outputs, result):
-        print(f"{fun_name} norms:")
         for element in outputs:
-            if isinstance(element, (np.ndarray, dace.ndarray)):
-                if outputs[element]:
-                    print(np.linalg.norm(outputs[element]))
-                else:
-                    print(np.linalg.norm(result))
-
+            print(f"Array {element}:",end=' ')
+            try:
+                print(np.linalg.norm(outputs[element] if outputs[element] is not None else result))
+            except ValueError:
+                print("Error: Could not print norm -- np.linalg.norm does not work on this type")
 
     def _print_arrays(self, outputs, result):
         for element in outputs:
-            print(element)
-            if outputs[element]:
-                print(outputs[element])
-            else:
-                print(result)
-
+            print(f"Array {element}:", end = ' ')
+            print(outputs[element] if outputs[element] else result)
 
     @staticmethod
     def build_symbols_dict(*args):
@@ -170,7 +168,7 @@ class Runner():
 
     def test_run(self,
                  sdfg, graph,
-                 inputs, outputs, symbols
+                 inputs, outputs, symbols,
                  subgraph = None,
                  roofline = None,
                  pipeline = [expand_reduce, expand_maps, fusion]):
@@ -198,15 +196,14 @@ class Runner():
         """
 
         # check whether the sdfg has a return value
-        # if so, add it to the outputs array with value = None
-        if '__return' in sdfg.arglist:
+        # if so, add it to the outputs array with value
+        if '__return' in sdfg.arglist():
             outputs['__return'] = None
 
-        if self.view_init:
+        if self.view or self.view_all:
             sdfg.view()
 
         # name and lists used for storing all the results
-        name = sdfg.name
         runtimes = []
         diffs_abs = []
         diffs_rel = []
@@ -219,50 +216,53 @@ class Runner():
 
         outputs_baseline = {}
         for element in outputs:
-            if outputs[element]:
-                outputs_baseline[element] = dcpy(outputs[element])
-            else:
-                outputs_baseline[element] = result
+            outputs_baseline[element] = dcpy(outputs[element]) if outputs[element] is not None \
+                                        else result
 
         # get runtimes:
         current_runtimes = self._get_runtimes()
         runtimes.append(self._get_runtime_stats(current_runtimes))
 
         if roofline:
-            roofline.evaluate(name, runtimes[-1])
-
-        if debug:
+            # just pass the first runtime measure into
+            roofline.evaluate('baseline', graph, runtimes = current_runtimes)
+        if self.debug:
+            print(f"Baseline Norms:")
             self._print_norms(outputs_baseline, result)
-            if verbose:
+            if self.verbose:
+                print(f"Baseline Arrays:")
                 self._print_arrays(outputs_baseline, result)
 
         # NaN check
-        for output in outputs:
-            if any(np.isnan(output)):
+        for element in outputs:
+            current = outputs[element] if outputs[element] is not None else result
+            if np.isnan(current).any():
                 print(f"WARNING: NaN detected in output {output} in Baseline")
 
         for fun in pipeline:
             # apply transformation
-            fun_name = name + fun.__name__
             fun(sdfg, graph, subgraph)
-            if self.view:
+            if self.view_all:
                 sdfg.view()
 
+            self._setzero_outputs(outputs)
             csdfg = sdfg.compile_directly()
             result = csdfg(**inputs, **symbols)
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
 
-            if self.roofline:
-                self.roofline.evaluate(sdfg,
-                                       subgraph if subgraph else graph,
-                                       running_time = current_runtime)
+            if roofline:
+                roofline.evaluate(fun.__name__,
+                                  subgraph if subgraph else graph,
+                                  runtimes = current_runtimes)
 
             # process outputs
-            if debug:
+            if self.debug:
+                print(f"{fun.__name__} Norms:")
                 self._print_norms(outputs, result)
-                if verbose:
+                if self.verbose:
+                    print(f"{fun.__name__} Arrays:")
                     self._print_arrays(outputs, result)
 
             # see whether equality with baseline holds
@@ -270,20 +270,23 @@ class Runner():
             difference_dict_rel = {}
             verdicts_dict = {}
             for element in outputs:
-                if outputs[element]:
-                    current = outputs[element]
-                else:
-                    current = result
+                current = outputs[element] if outputs[element] is not None else result
                 # NaN check
-                if any(np.isnan(current)):
-                    print(f"WARNING: NaN detected in output {element} in {fun_name}")
+                if np.isnan(current).any():
+                    print(f"WARNING: NaN detected in output {element} in {fun.__name__}")
 
-                difference_dict_abs[element] = np.linalg.norm(current - outputs_baseline[element])
-                difference_dict_rel[element] = np.linalg.norm(current - outputs_baseline[element]) / np.linalg.norm(current)
-                verdicts_dict[element] = 'PASS' if difference_dict_abs[element] < self.error_abs and \
-                                                   difference_dict_rel[element] < self.error_rel \
-                                          else 'FAIL'
+                try:
+                    difference_dict_abs[element] = np.linalg.norm(current - outputs_baseline[element])
+                    difference_dict_rel[element] = np.linalg.norm(current - outputs_baseline[element]) / np.linalg.norm(current)
 
+                    verdicts_dict[element] = 'PASS' if difference_dict_abs[element] < self.error_abs and \
+                                                       difference_dict_rel[element] < self.error_rel \
+                                              else 'FAIL'
+                except ValueError:
+                    print(f"Runner::Test::ValueError: \
+                            Could not apply np.linalg.norm onto {element} \
+                            of type {type(outputs[element])}")
+                    raise ValueError()
 
             diffs_abs.append(difference_dict_abs)
             diffs_rel.append(difference_dict_rel)
@@ -293,54 +296,72 @@ class Runner():
         ###################### Print Results ##########################
         ###############################################################
 
-        print("### Transformation Correctness ###")
-        print("Transformation".rjust(15,' '),
-              "Output".rjust(8,' '),
-              "Diff Abs".rjust(10,' '),
-              "Diff Rel".rjust(10,' '),
-              "Vertict")
+        print("################################################################")
+        print("################## TRANSFORMATION CORRECTNESS ##################")
+        print("Transformation".ljust(15,' '),
+              "Output".ljust(15,' '),
+              "Diff Abs".ljust(12,' '),
+              "Diff Rel".ljust(12,' '),
+              "Verdict")
         for transformation, diff_abs_dict, diff_rel_dict, verdicts_dict \
-                        in zip(pipeline, diff_abs, diff_rel, verdicts):
+                        in zip(pipeline, diffs_abs, diffs_rel, verdicts):
 
             arrays = sorted(list(diff_abs_dict.keys()))
             for array in arrays:
-                print(transformation.__name__.rjust(15,' '),
-                      array.rjust(8,' '),
-                      diff_abs_dict[array].rjust(10,' '),
-                      diff_rel_dict[array].rjust(10,' '),
+                print(transformation.__name__.ljust(15,' '),
+                      array.ljust(15,' '),
+                      str(diff_abs_dict[array]).ljust(12,' '),
+                      str(diff_rel_dict[array]).ljust(12,' '),
                       verdicts_dict[array])
 
-        print("##################################")
-        print("########### Runtimes #############")
-        print("Transformation".rjust(15,' '), end='')
+        print("################################################################")
+        print("########################## RUNTIMES ############################")
+        print(f"*Using a batch size of {dace.config.Config.get('treps')}*")
+        print("Transformation".ljust(15,' '), end='')
         for measure in self.measure_mode:
-            print(measure.rjust(8,' '), end='')
+            print(measure.ljust(12,' '), end='')
         print('\n')
 
-        for transformation, runtime_list in zip(pipeline, runtimes):
-            print(transformation.rjust(15,' '), end='')
+        for transformation, runtime_list in zip(['baseline'] + pipeline, runtimes):
+            transformation_name = transformation.__name__ if not isinstance(transformation, str) \
+                                  else transformation
+            print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
-                print(runtime.rjust(8,' '), end='')
+                print(str(runtime).ljust(12,' '), end='')
             print('\n')
 
-        print("############ Summary #############")
 
-        print("Transformation".rjust(15,' '),
-              f"Runtime {self.measure_mode[0]}".rjust(15, ' '),
+        print("################################################################")
+        print("########################### SUMMARY ############################")
+
+        print("Transformation".ljust(15,' '),
+              "Op. Intensity".ljust(15,' ') if roofline else '',
+              f"Runtime {self.measure_mode[0]}".ljust(20, ' '),
               "Diff Verdict")
 
-        for transformation, runtime_list, verdicts_dict in zip(pipeline, runtimes, verdicts):
-            print(transformation.rjust(15,' '),
-                  runtimes[0].rjust(15,' '),
-                  'PASS' if all([v == 'PASS' for v in verdicts.values()]) else 'FAIL')
+        for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
+            if isinstance(transformation, str):
+                print(transformation.ljust(15,' '),
+                      str(roofline.data[transformation]).ljust(15,' ') if roofline else '',
+                      str(runtime_list[0]).ljust(20,' '),
+                      '----')
+            else:
+                print(transformation.__name__.ljust(15,' '),
+                      str(roofline.data[transformation.__name__]).ljust(15,' ') if roofline else '',
+                      str(runtime_list[0]).ljust(20,' '),
+                      'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
-        print("##################################")
+        print("################################################################")
+
+
+        if self.view or self.view_all:
+            sdfg.view()
 
     def go(self, sdfg, graph, subgraph, *symbols,
         pipeline = [expand_reduce, expand_maps, fusion],
         performance_spec = dace.perf.specs.PERF_GPU_DAVINCI,
         output = [],
-        debug = True, name = "Runner::Go"):
+        name = "Runner::Go"):
         """ Method that tests the underlying SDFG fully automatically
         """
 
@@ -349,13 +370,13 @@ class Runner():
 
         # TODO: auto infer floating point -> performance spec counter
         # construct Roofline Object
-        if debug:
+        if self.debug:
             print("Runner::Go::Constructing Roofline")
         roofline = dace.perf.Roofline(specs = performance_spec,
                                       symbols = symbols_dict,
-                                      debug = debug,
+                                      debug = self.debug,
                                       name = name)
-        if debug:
+        if self.debug:
             print("Runner::Go::Constructing Roofline")
 
         (input_dict, output_dict) = Runner.generate_arguments(sdfg = sdfg,
