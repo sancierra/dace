@@ -23,6 +23,7 @@ from matplotlib.cm import get_cmap
 
 import math
 import sympy
+import numpy as np
 
 class PerformanceSpec:
     ''' PerformanceSpec Struct
@@ -171,8 +172,7 @@ class Roofline:
         if runtimes:
             self.runtimes[name] = runtimes
         if self.debug:
-            print(f"Determined OI {operational_intensity} on {graph}")
-            print(f"Evaluated to {self.data[name]}")
+            print(f"Determined OI {operational_intensity}={self.data[name]} on {graph}")
 
         return name
 
@@ -191,27 +191,38 @@ class Roofline:
         plot.loglog([x_0,x_ridge,x_2],[y_0,y_ridge,y_2],
                      basex = base_x, basey = base_y, linewidth = 3.0, color = "grey")
 
-        # define plotting borders
-        # adaptive to data
+        # define plotting borders, adaptive to data
+        # hacky but does the job
         x_min = min([val for val in self.data.values()] + [0.5])*base_x**(-1.0)
         x_max = max([val for val in self.data.values()] + [20]) *base_x**(+2.0)
-        y_min = min(1, \
-                    min([val for val in self.data.values()])*y_ridge / x_ridge, \
-                    min([minrt for minrt in [min(rt) for rt in self.runtimes.values() if rt]]) \
-                    )* base_y**(-0.5)
+        y_min = min( min([val for val in self.data.values()])*y_ridge / x_ridge, \
+                     min([1]+[minrt for minrt in [min(rt) for rt in self.runtimes.values() if rt]]) \
+                     )* base_y**(-0.5)
         y_max = y_ridge * (base_y**1.5)
-        print("Y_MIN", y_min)
-        ## old values:
-        ##y_min = 1       * base_y**(-1.5)
-        ##y_max = y_ridge *(base_y**(+1.5))
 
         # define a color scheme and cycle through it
         # see https://stackoverflow.com/questions/4971269/how-to-pick-a-new-color-for-each-plotted-line-within-a-figure-in-matplotlib
         colors = get_cmap("tab10").colors
-        for i, (dname, (oi,rt)) in enumerate(self.data.items()):
-            plot.loglog([oi, oi], [y_0,y_max],label=dname, basex = base_x, basey = base_y, color=colors[i%10], linewidth = 1.5)
-            if rt:
-                plot.plot([oi],[rt], marker='x',markersize=15,color=colors[i%10], mew=1.5)
+        for i, (key,oi) in enumerate(self.data.items()):
+            plot.loglog([oi, oi], [y_0, y_max],label=key, basex = base_x, basey = base_y, color=colors[i%10], linewidth = 1.5)
+            if key in self.runtimes:
+                if len(self.runtimes[key]) < 10:
+                    # just plot everything
+                    for rt in self.runtimes[key]:
+                        plot.plot([oi],[rt], marker='o',markersize=10,color=colors[i%10], mew=1.5, mfc = 'none')
+                else:
+                    # boxplot
+                    perc_100 = np.quantile(self.runtimes[key],1)
+                    perc_75 = np.quantile(self.runtimes[key],0.75)
+                    perc_50 = np.quantile(self.runtimes[key],0.5)
+                    perc_25 = np.quantile(self.runtimes[key],0.25)
+                    perc_0  = np.quantile(self.runtimes[key],0)
+                    plot.plot([oi, perc_100], '.', color = colors[i%10], mew=2, markersize = 20)
+                    #plot.plot([oi, perc_75], '_', color = colors[i%10], mew=1.5, markersize = 35)
+                    plot.plot([oi, oi],[perc_25 , perc_75], color = colors[i%10], linewidth = 35, alpha = 0.5)
+                    #plot.plot([oi, perc_25], '_', color = colors[i%10], mew=1.5, markersize = 35)
+                    plot.plot([oi, perc_0], '.', color = colors[i%10], mew=2, markersize = 5)
+
 
         plot.title(f"{self.name}[{self.symbols}]")
         plot.xlabel(f"Operational Intensity (FLOP/byte)")
@@ -277,10 +288,12 @@ if __name__ == '__main__':
 
     spec = PerformanceSpec(peak_bandwidth, peak_performance, dace.float64)
     roofline = Roofline(spec, {'N':30}, name = "test")
-    roofline.data["test1"] = (1,1)
-    roofline.data["test2"] = (0.5,None)
-    roofline.data["test3"] = (0.25,None)
-    roofline.data["test4"] = (0.125,None)
-    roofline.data["test5"] = (2.5,None)
-    roofline.data["test6"] = (300,None)
+    roofline.data["test1"] = 1
+    roofline.data["test2"] = 0.5
+    roofline.data["test3"] = 0.25
+    roofline.data["test4"] = 0.125
+    roofline.data["test5"] = 2.5
+    roofline.data["test6"] = 30
+    roofline.runtimes["test1"] = [1,2,1.5,1.25,1.75,1.6,1.4,1.4,1.3,1.2,1.9,1.8,1.1,0.9,2,1.5]
+    roofline.runtimes["test2"] = [0.5]
     roofline.plot(show = True, save_path = '')

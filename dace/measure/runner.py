@@ -310,8 +310,8 @@ class Runner():
             for array in arrays:
                 print(transformation.__name__.ljust(15,' '),
                       array.ljust(15,' '),
-                      str(diff_abs_dict[array]).ljust(12,' '),
-                      str(diff_rel_dict[array]).ljust(12,' '),
+                      f"{diff_abs_dict[array]:.9f}".ljust(12,' '),
+                      f"{diff_rel_dict[array]:.9f}".ljust(12,' '),
                       verdicts_dict[array])
 
         print("################################################################")
@@ -327,7 +327,7 @@ class Runner():
                                   else transformation
             print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
-                print(str(runtime).ljust(12,' '), end='')
+                print(f"{runtime:.9f}".ljust(12,' '), end='')
             print('\n')
 
 
@@ -337,22 +337,25 @@ class Runner():
         print("Transformation".ljust(15,' '),
               "Op. Intensity".ljust(15,' ') if roofline else '',
               f"Runtime {self.measure_mode[0]}".ljust(20, ' '),
-              "Diff Verdict")
+              "Verdict")
 
         for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
             if isinstance(transformation, str):
                 print(transformation.ljust(15,' '),
-                      str(roofline.data[transformation]).ljust(15,' ') if roofline else '',
-                      str(runtime_list[0]).ljust(20,' '),
+                      f"{roofline.data[transformation]:.9f}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.9f}".ljust(20,' '),
                       '----')
             else:
                 print(transformation.__name__.ljust(15,' '),
-                      str(roofline.data[transformation.__name__]).ljust(15,' ') if roofline else '',
-                      str(runtime_list[0]).ljust(20,' '),
+                      f"{roofline.data[transformation.__name__]:.9f}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.9f}".ljust(20,' '),
                       'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
 
+        if self.view_roofline:
+            if roofline:
+                roofline.plot(show = True)
 
         if self.view or self.view_all:
             sdfg.view()
