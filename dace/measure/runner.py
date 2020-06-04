@@ -37,7 +37,8 @@ class Runner():
                  measure_mode = ['median', 'avg', 'max', 'std'],
                  view = False, view_all = False,
                  view_roofline = True,
-                 error_tol_abs = 1e-6, error_tol_rel = 1e-7):
+                 error_tol_abs = 1e-6, error_tol_rel = 1e-7,
+                 sequential = True):
 
         """ A runner wrapper for DaCe programs for testing runtimes and
             correctness of heterogeneous transformations.
@@ -48,11 +49,12 @@ class Runner():
                                  The first element of the vector will also go into the general
                                  summary at the end.
             :param view: view graph at the beginning and at the end
-            :param view_all: view graph at every transformation step
+            :param view_all: view graph at every transformation
             :param view_roofline: view graph at end with roofline plot
             :param error_tol_abs: absolut error tolerance for array checks
             :param error_tol_rel: relative error tolerance for array checks
-
+            :param sequential: if True, transformations are executed sequentially on top of each other,
+                
         """
 
         self.debug = debug
@@ -66,6 +68,8 @@ class Runner():
 
         self.error_tol_abs = error_tol_abs
         self.error_tol_rel = error_tol_rel
+
+        self.sequential = True
 
     def _setzero_outputs(self, outputs):
         for element in outputs:
@@ -206,11 +210,15 @@ class Runner():
         if self.view or self.view_all:
             sdfg.view()
 
+        if not self.sequential:
+            sdfg_base = dcpy(sdfg)
+
         # name and lists used for storing all the results
         runtimes = []
         diffs_abs = []
         diffs_rel = []
         verdicts = []
+        nan_detected = False
 
         # establish a baseline
         self._setzero_outputs(outputs)
@@ -240,12 +248,13 @@ class Runner():
             current = outputs[element] if outputs[element] is not None else result
             if np.isnan(current).any():
                 print(f"WARNING: NaN detected in output {output} in Baseline")
+                nan_detected = True
 
         for fun in pipeline:
+            if not self.sequential:
+                sdfg = dcpy(sdfg_base)
             # apply transformation
             fun(sdfg, graph, subgraph)
-            if self.view_all:
-                sdfg.view()
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
@@ -275,13 +284,15 @@ class Runner():
                 # NaN check
                 if np.isnan(current).any():
                     print(f"WARNING: NaN detected in output {element} in {fun.__name__}")
+                    nan_detected = True
 
                 try:
                     difference_dict_abs[element] = np.linalg.norm(current - outputs_baseline[element])
                     difference_dict_rel[element] = np.linalg.norm(current - outputs_baseline[element]) / np.linalg.norm(current)
 
-                    verdicts_dict[element] = 'PASS' if difference_dict_abs[element] < self.error_tol_abs and \
-                                                       difference_dict_rel[element] < self.error_tol_rel \
+                    verdicts_dict[element] = 'PASS' if np.allclose(current, outputs_baseline[element], \
+                                                                   atol = self.error_tol_abs, \
+                                                                   rtol = self.error_tol_rel)
                                               else 'FAIL'
                 except ValueError:
                     print(f"Runner::Test::ValueError: \
@@ -292,6 +303,10 @@ class Runner():
             diffs_abs.append(difference_dict_abs)
             diffs_rel.append(difference_dict_rel)
             verdicts.append(verdicts_dict)
+
+            if self.view_all:
+                sdfg.view()
+
 
         ###############################################################
         ###################### Print Results ##########################
@@ -336,6 +351,8 @@ class Runner():
 
         print("################################################################")
         print("########################### SUMMARY ############################")
+        if nan_detected:
+            print("WARNING: NaN detected. See debug log for further information")
 
         print("Transformation".ljust(15,' '),
               "Op. Intensity".ljust(15,' ') if roofline else '',
@@ -360,8 +377,14 @@ class Runner():
             if roofline:
                 roofline.plot(show = True)
 
-        if self.view or self.view_all:
+        if self.view and self.sequential or self.view_all:
             sdfg.view()
+
+        for transformation in ['baseline']+pipeline:
+            if not all([v == 'PASS' vor v in verdicts_dict.values()]):
+                return False
+
+        return True
 
     def go(self, sdfg, graph, subgraph, *symbols,
         pipeline = [expand_reduce, expand_maps, fusion],
