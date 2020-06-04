@@ -10,10 +10,10 @@ from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
 
 import dace.libraries.standard as stdlib
-
 import dace.sdfg.nodes as nodes
 
 import timeit
+import sympy
 from copy import deepcopy as dcpy
 
 from dace.measure.pipeline import expand_reduce, expand_maps, fusion
@@ -34,7 +34,7 @@ class Runner():
                  measure_mode = ['median', 'std'],
                  view = False, view_all = False,
                  view_roofline = True,
-                 error_abs = 1e-7, error_rel = 1e-7):
+                 error_tol_abs = 1e-6, error_tol_rel = 1e-7):
 
         """ A runner wrapper for DaCe programs for testing runtimes and
             correctness of heterogeneous transformations.
@@ -47,8 +47,8 @@ class Runner():
             :param view: view graph at the beginning and at the end
             :param view_all: view graph at every transformation step
             :param view_roofline: view graph at end with roofline plot
-            :param error_abs: absolut error tolerance for array checks
-            :param error_rel: relative error tolerance for array checks
+            :param error_tol_abs: absolut error tolerance for array checks
+            :param error_tol_rel: relative error tolerance for array checks
 
         """
 
@@ -61,12 +61,11 @@ class Runner():
         self.view_all = view_all
         self.view_roofline = view_roofline
 
-        self.error_abs = error_abs
-        self.error_rel = error_rel
+        self.error_tol_abs = error_tol_abs
+        self.error_tol_rel = error_tol_rel
 
     def _setzero_outputs(self, outputs):
         for element in outputs:
-            print("INSTANCE=", type(outputs[element]))
             if isinstance(outputs[element], (np.ndarray, dace.dtypes.typeclass)):
                 # generic vector -> set zero
                 outputs[element][:] = 0
@@ -111,6 +110,10 @@ class Runner():
             symbols_dict[str(arg)] = arg.get()
         return symbols_dict
 
+    def _run(self, sdfg, **args):
+        csdfg = sdfg.compile_directly()
+        return csdfg(**args)
+
     @staticmethod
     def generate_arguments(sdfg,
                            symbols_dict,
@@ -139,13 +142,10 @@ class Runner():
         result_input = {}
         result_output = {}
         for (argument, array_reference) in arglist.items():
-            if argument in symbols:
+            if argument in symbols_dict or argument == '__return':
                 # do not care -- symbols have to be defined in andvance
+                # we don't need to initialize return value
                 continue
-            if argument == '__return':
-                result_output[argument] = None
-                continue
-
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
@@ -156,13 +156,13 @@ class Runner():
                 if outputs_setzero:
                     new_array= np.zeros(shape=array_shape, dtype = array_dtype)
                 else:
-                    new_array = np.random.random(shape=array_shape, dtype=array_dtype)
+                    new_array = np.random.random(size=array_shape).astype(array_dtype)
 
                 result_output[argument] = new_array
                 result_input[argument] = new_array
             else:
 
-                result_input[argument] = np.random.random(shape=array_shape, dtype = array_dtype)
+                result_input[argument] = np.random.random(size=array_shape).astype(array_dtype)
 
         return (result_input, result_output)
 
@@ -211,8 +211,7 @@ class Runner():
 
         # establish a baseline
         self._setzero_outputs(outputs)
-        csdfg = sdfg.compile_directly()
-        result = csdfg(**inputs, **symbols)
+        result = self._run(sdfg, **inputs, **symbols)
 
         outputs_baseline = {}
         for element in outputs:
@@ -246,8 +245,7 @@ class Runner():
                 sdfg.view()
 
             self._setzero_outputs(outputs)
-            csdfg = sdfg.compile_directly()
-            result = csdfg(**inputs, **symbols)
+            result = self._run(sdfg, **inputs, **symbols)
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
@@ -279,8 +277,8 @@ class Runner():
                     difference_dict_abs[element] = np.linalg.norm(current - outputs_baseline[element])
                     difference_dict_rel[element] = np.linalg.norm(current - outputs_baseline[element]) / np.linalg.norm(current)
 
-                    verdicts_dict[element] = 'PASS' if difference_dict_abs[element] < self.error_abs and \
-                                                       difference_dict_rel[element] < self.error_rel \
+                    verdicts_dict[element] = 'PASS' if difference_dict_abs[element] < self.error_tol_abs and \
+                                                       difference_dict_rel[element] < self.error_tol_rel \
                                               else 'FAIL'
                 except ValueError:
                     print(f"Runner::Test::ValueError: \
@@ -384,10 +382,11 @@ class Runner():
 
         (input_dict, output_dict) = Runner.generate_arguments(sdfg = sdfg,
                                                               symbols_dict = symbols_dict,
-                                                              output = output,
+                                                              outputs = output,
                                                               outputs_setzero = True)
 
         # call and go
         self.test_run(sdfg=sdfg, graph=graph, subgraph = subgraph,
+                      symbols = symbols_dict,
                       inputs = input_dict, outputs = output_dict,
                       roofline = roofline, pipeline = pipeline)

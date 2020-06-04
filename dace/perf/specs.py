@@ -5,7 +5,7 @@ from dace.perf.roofline import PerformanceSpec as Spec
 # dual channel
 PERF_CPU_CRAPBOOK = Spec(peak_bandwidth = 1.8667 * 64 * 2 / 8,
                          peak_performance = 2.7 * 4 * 2 * 4,
-                         data_type = dace.float64, debug = False )
+                         data_type = dace.float32, debug = False )
 
 ###################################
 
@@ -13,7 +13,7 @@ PERF_CPU_CRAPBOOK = Spec(peak_bandwidth = 1.8667 * 64 * 2 / 8,
 # TODO: FMA / AVX same?
 PERF_CPU_DAVINCI = Spec(peak_bandwidth = 2.000 * 64 * 4 / 8,     # ????
                         peak_performance = 3.2 * 4 * 2 * 8,
-                        data_type = dace.float64, debug = False )
+                        data_type = dace.float32, debug = False )
 
 # Davinci GPU
 # 2080 Ti

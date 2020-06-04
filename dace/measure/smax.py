@@ -50,9 +50,9 @@ def softmax(X_in: dace_dtype[H, B, SN, SM], TEST: dace_dtype[H, B, SN]):
 
 
 sdfg = softmax.to_sdfg()
-roofline = Roofline(PERF_GPU_DAVINCI, symbols = {H:3, B:3, SN:5, SM:5})
+roofline = Roofline(PERF_CPU_CRAPBOOK, symbols = {H:3, B:3, SN:5, SM:5})
 graph = sdfg.nodes()[0]
-H.set(3); B.set(3); SN.set(5); SM.set(5)
+H.set(10); B.set(10); SN.set(50); SM.set(50)
 
 def test_graph():
     ################ first, expand the reduce node
@@ -73,6 +73,7 @@ def test_graph():
 
 
 def test_result(debug = False):
+    '''
     X_in = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
 
     TEST = np.zeros([H.get(), B.get(), SN.get()], dtype = np.float32)
@@ -81,7 +82,7 @@ def test_result(debug = False):
     X_out_1 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
     X_out_2 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
     X_out_3 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
-
+    '''
     debugger = Runner(measure_mode = ['median', 'avg', 'std'],
                       view_roofline = True)
 
@@ -90,76 +91,33 @@ def test_result(debug = False):
     print(symbols)
 
     # second, test test_run function
+    '''
     debugger.test_run(sdfg = sdfg, graph = graph,
                       inputs = {'X_in': X_in, 'TEST': TEST},
                       outputs = {'TEST': TEST},
                       symbols = symbols,
                       roofline = roofline)
 
-    return
     # thrid, test automatic argument generation
     input_args, output_args = \
         Runner.generate_arguments(sdfg, symbols,
-                                  ouputs = ['TEST'])
+                                  outputs = ['TEST'])
+
+    print("Input_args")
+    print("Output_args")
+    print(input_args)
+    print(output_args)
+
+    '''
+    debugger.go(sdfg, graph, None, H, B, SN, SM,
+                performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK,
+                output=['TEST'])
 
 
     #############
-    '''
-    csdfg = sdfg.compile_directly()
-    X_out_baseline = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
 
 
-    pipeline.expand_reduce(sdfg, graph)
-    #sdfg.view()
 
-    csdfg = sdfg.compile_directly()
-    X_out_1 = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
-    print("X_out_1")
-    print(X_out_1)
-    print("TEST")
-    print(TEST)
-
-    pipeline.expand_maps(sdfg, graph)
-    #sdfg.view()
-
-    csdfg = sdfg.compile_directly()
-    X_out_2 = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
-    print("X_out_2")
-    print(X_out_2)
-    print("TEST")
-    print(TEST)
-
-    pipeline.fusion(sdfg, graph)
-    #sdfg.view()
-
-    csdfg = sdfg.compile_directly()
-    X_out_3 = csdfg(X_in = X_in, TEST=TEST, H=H, B=B, SN=SN, SM=SM)
-    print("X_out_3")
-    print(X_out_3)
-    print("TEST")
-    print(TEST)
-
-    sdfg.apply_strict_transformations()
-    #sdfg.view()
-
-    print("Diff1", np.linalg.norm(X_out_baseline - X_out_1))
-    print("Diff2", np.linalg.norm(X_out_baseline - X_out_2))
-    print("Diff3", np.linalg.norm(X_out_baseline - X_out_3))
-    print(np.linalg.norm(X_out_baseline))
-    print("#######")
-    print(np.linalg.norm(X_out_1))
-    print(np.linalg.norm(X_out_2))
-    print(np.linalg.norm(X_out_3))
-    print("#######")
-    #print("BASELINE:")
-    #print(X_out_baseline)
-    #print("O1")
-    #print(X_out_1)
-    #print("O2")
-    #print(X_out_2)
-    #print("O3")
-    #print(X_out_3)
-    '''
 
 if __name__ == "__main__":
     test_result()

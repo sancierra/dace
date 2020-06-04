@@ -159,7 +159,7 @@ class Roofline:
         for fun, lam in sym_locals.items():
             operational_intensity.replace(fun, lam)
 
-        print("OPERATIONAL_INTENSITY", operational_intensity)
+
         self.data_symbolic[name] = operational_intensity
         try:
             self.data[name] = sym.evaluate(operational_intensity, self.symbols)
@@ -170,7 +170,9 @@ class Roofline:
             print(self.data[name])
 
         if runtimes:
-            self.runtimes[name] = runtimes
+            # TODO: convert runtime into GFLOPS
+            gflop = float(sym.evaluate(flop_count, self.symbols) * 10**(-9))
+            self.runtimes[name] = list(map(lambda rt: gflop / rt, runtimes))
         if self.debug:
             print(f"Determined OI {operational_intensity}={self.data[name]} on {graph}")
 
@@ -197,7 +199,7 @@ class Roofline:
         x_max = max([val for val in self.data.values()] + [20]) *base_x**(+2.0)
         y_min = min( min([val for val in self.data.values()])*y_ridge / x_ridge, \
                      min([1]+[minrt for minrt in [min(rt) for rt in self.runtimes.values() if rt]]) \
-                     )* base_y**(-0.5)
+                     ) * base_y**(-0.5)
         y_max = y_ridge * (base_y**1.5)
 
         # define a color scheme and cycle through it
@@ -212,15 +214,17 @@ class Roofline:
                         plot.plot([oi],[rt], marker='o',markersize=10,color=colors[i%10], mew=1.5, mfc = 'none')
                 else:
                     # boxplot
+                    boxplot_width = min(40, max(20, np.log2(min(np.divide(sorted(list(dict.fromkeys(self.data.values())))[1:],
+                                                                          sorted(list(dict.fromkeys(self.data.values())))[:-1] )))*20))
                     perc_100 = np.quantile(self.runtimes[key],1)
-                    perc_75 = np.quantile(self.runtimes[key],0.75)
-                    perc_50 = np.quantile(self.runtimes[key],0.5)
-                    perc_25 = np.quantile(self.runtimes[key],0.25)
-                    perc_0  = np.quantile(self.runtimes[key],0)
-                    plot.plot([oi, perc_100], '.', color = colors[i%10], mew=2, markersize = 5)
-                    plot.plot([oi, oi],[perc_25 , perc_75], solid_capstyle = 'butt', color = colors[i%10], linewidth = 35, alpha = 0.5)
-                    plot.plot([oi, perc_50], '_', color = colors[i%10], mew=0.5, markersize = 35)
-                    plot.plot([oi, perc_0]  , '.', color = colors[i%10], mew=2, markersize = 5)
+                    perc_75 =  np.quantile(self.runtimes[key],0.75)
+                    perc_50 =  np.quantile(self.runtimes[key],0.5)
+                    perc_25 =  np.quantile(self.runtimes[key],0.25)
+                    perc_0  =  np.quantile(self.runtimes[key],0)
+                    plot.plot([oi],[perc_100], '.', color = colors[i%10], mew=2, markersize = 5)
+                    plot.plot([oi, oi],[perc_25 , perc_75], solid_capstyle = 'butt', color = colors[i%10], linewidth = boxplot_width, alpha = 0.5)
+                    plot.plot([oi],[perc_50], '_', color = colors[i%10], mew=0.5, markersize = boxplot_width)
+                    plot.plot([oi],[perc_0], '.', color = colors[i%10], mew=2, markersize = 5)
 
 
         plot.title(f"{self.name}[{self.symbols}]")
