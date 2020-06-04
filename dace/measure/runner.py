@@ -25,13 +25,16 @@ class Runner():
     # with different transformation pipelines
 
     measures = {'max': lambda x : max(x),
+                'min': lambda x : min(x),
                 'median': lambda x : np.median(x),
                 'avg': lambda x: np.mean(x),
-                'std': lambda x: np.std(x)}
+                'std': lambda x: np.std(x),
+                'q75': lambda x: np.quantile(x, 0.75),
+                'q25': lambda x: np.quantile(x, 0.25)}
 
     def __init__(self,
                  debug = True, verbose = False,
-                 measure_mode = ['median', 'std'],
+                 measure_mode = ['median', 'avg', 'max', 'std'],
                  view = False, view_all = False,
                  view_roofline = True,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7):
@@ -301,6 +304,8 @@ class Runner():
               "Diff Abs".ljust(12,' '),
               "Diff Rel".ljust(12,' '),
               "Verdict")
+        if len(outputs) == 0:
+            print("                      No Outputs specified                      " )
         for transformation, diff_abs_dict, diff_rel_dict, verdicts_dict \
                         in zip(pipeline, diffs_abs, diffs_rel, verdicts):
 

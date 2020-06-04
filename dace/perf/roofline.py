@@ -214,8 +214,12 @@ class Roofline:
                         plot.plot([oi],[rt], marker='o',markersize=10,color=colors[i%10], mew=1.5, mfc = 'none')
                 else:
                     # boxplot
-                    boxplot_width = min(40, max(20, np.log2(min(np.divide(sorted(list(dict.fromkeys(self.data.values())))[1:],
-                                                                          sorted(list(dict.fromkeys(self.data.values())))[:-1] )))*20))
+                    if len(sorted(list(dict.fromkeys(self.data.values())))) >= 2:
+                        boxplot_width = min(40, max(20, np.log2(min(np.divide(sorted(list(dict.fromkeys(self.data.values())))[1:],
+                                                                              sorted(list(dict.fromkeys(self.data.values())))[:-1] )))*20))
+                    else:
+                        boxplot_width = 40
+
                     perc_100 = np.quantile(self.runtimes[key],1)
                     perc_75 =  np.quantile(self.runtimes[key],0.75)
                     perc_50 =  np.quantile(self.runtimes[key],0.5)
@@ -223,7 +227,7 @@ class Roofline:
                     perc_0  =  np.quantile(self.runtimes[key],0)
                     plot.plot([oi],[perc_100], '.', color = colors[i%10], mew=2, markersize = 5)
                     plot.plot([oi, oi],[perc_25 , perc_75], solid_capstyle = 'butt', color = colors[i%10], linewidth = boxplot_width, alpha = 0.5)
-                    plot.plot([oi],[perc_50], '_', color = colors[i%10], mew=0.5, markersize = boxplot_width)
+                    plot.plot([oi],[perc_50], '_', color = colors[i%10], mew=0.85, markersize = boxplot_width)
                     plot.plot([oi],[perc_0], '.', color = colors[i%10], mew=2, markersize = 5)
 
 
