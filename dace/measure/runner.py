@@ -54,7 +54,7 @@ class Runner():
             :param error_tol_abs: absolut error tolerance for array checks
             :param error_tol_rel: relative error tolerance for array checks
             :param sequential: if True, transformations are executed sequentially on top of each other,
-                
+
         """
 
         self.debug = debug
@@ -69,7 +69,7 @@ class Runner():
         self.error_tol_abs = error_tol_abs
         self.error_tol_rel = error_tol_rel
 
-        self.sequential = True
+        self.sequential = sequential
 
     def _setzero_outputs(self, outputs):
         for element in outputs:
@@ -212,6 +212,9 @@ class Runner():
 
         if not self.sequential:
             sdfg_base = dcpy(sdfg)
+            graph_index = sdfg.nodes().index(graph)
+            if subgraph:
+                subgraph_index = [graph.nodes().index(e) for e in subgraph.nodes()]
 
         # name and lists used for storing all the results
         runtimes = []
@@ -253,8 +256,13 @@ class Runner():
         for fun in pipeline:
             if not self.sequential:
                 sdfg = dcpy(sdfg_base)
+                graph = sdfg.nodes()[graph_index]
+                if subgraph:
+                    subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
             # apply transformation
+            sdfg.view()
             fun(sdfg, graph, subgraph)
+            sdfg.view()
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
@@ -292,8 +300,8 @@ class Runner():
 
                     verdicts_dict[element] = 'PASS' if np.allclose(current, outputs_baseline[element], \
                                                                    atol = self.error_tol_abs, \
-                                                                   rtol = self.error_tol_rel)
-                                              else 'FAIL'
+                                                                   rtol = self.error_tol_rel) \
+                                                    else 'FAIL'
                 except ValueError:
                     print(f"Runner::Test::ValueError: \
                             Could not apply np.linalg.norm onto {element} \
@@ -331,6 +339,12 @@ class Runner():
                       f"{diff_abs_dict[array]:.9f}".ljust(12,' '),
                       f"{diff_rel_dict[array]:.9f}".ljust(12,' '),
                       verdicts_dict[array])
+        '''
+        print("################################################################")
+        print("########################### CONFIG #############################")
+        print("Operation Mode".ljust(30, ' '), self.sequential)
+        print("Number of Runs per Call".ljust(30, ' '), dace.config.Config.get('treps'))
+        '''
 
         print("################################################################")
         print("########################## RUNTIMES ############################")
@@ -381,7 +395,7 @@ class Runner():
             sdfg.view()
 
         for transformation in ['baseline']+pipeline:
-            if not all([v == 'PASS' vor v in verdicts_dict.values()]):
+            if not all([v == 'PASS' for v in verdicts_dict.values()]):
                 return False
 
         return True
