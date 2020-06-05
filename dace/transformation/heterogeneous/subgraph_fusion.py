@@ -294,8 +294,15 @@ class SubgraphFusion():
                                 if oedge.data.data == old_name:
                                     oedge.data.data = new_name
                                     queue.append(oedge.dst)
-
+            for edge in graph.out_edges(map_entry):
+                # special case: for nodes that have no data connections
+                if not edge.src_conn:
+                    self.redirect_edge(graph, edge, new_src = global_map_entry)
             for edge in graph.in_edges(map_exit):
+                if not edge.dst_conn:
+                    # no destination connector, path ends here.
+                    self.redirect_edge(graph, edge, new_dst = global_map_exit)
+                    continue
                 # find corresponding out_edges for current edge, cannot use mmt anymore
                 out_edges = [oedge for oedge in graph.out_edges(map_exit)
                                       if oedge.src_conn[3:] == edge.dst_conn[2:]]
