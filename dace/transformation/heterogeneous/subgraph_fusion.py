@@ -36,6 +36,10 @@ class SubgraphFusion():
 
     """
 
+    register_trans = Property(desc="Make all connecting transients inside"
+                                    "the global map registers",
+                              dtype = bool,
+                              default = False)
 
     @staticmethod
     def can_be_applied(sdfg, graph, maps):
@@ -363,7 +367,11 @@ class SubgraphFusion():
                         transient_to_transform.strides = new_data_strides
                         transient_to_transform.total_size = new_data_totalsize
                         transient_to_transform.offset  = new_data_offset
-                        transient_to_transform.storage = dtypes.StorageType.Default 
+
+                        if self.register_trans:
+                            transient_to_transform.storage = dtypes.StorageType.Register
+                        else:
+                            transient_to_transform.storage = dtypes.StorageType.Default
 
                         # next up, change memlet data to this data
                         # change all parent memlet data to this data if they have the same content
@@ -391,7 +399,11 @@ class SubgraphFusion():
                                         iedge.data.data = new_name
                                         queue.append(iedge.src)
 
-
+                        # TODO
+                        # remove data node if size is 1 and only 1 in_edge
+                        # can just do a direct flow
+                        #if new_data_totalsize == 1 and len(graph.in_edges(dst)) == 1:
+                        #......
 
                     if dst_original in (out_nodes - intermediate_nodes):
                         if edge.dst != global_map_exit:
@@ -436,7 +448,6 @@ class SubgraphFusion():
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
             try:
-                # awkward code
                 transient_node = transient_dict_rev[transient_node]
             except KeyError:
                 pass
@@ -462,11 +473,13 @@ class SubgraphFusion():
                 for edge in cont_path:
                     edge.data.subset.offset(base_offset, True)
 
-            for edge in out_edges:
-                edge.data.other_subset = dcpy(in_edge.data.subset)
+            # TODO: other_subset handling
+            # TODO: Waiting for Tal's API
+            #for edge in out_edges:
+            #    edge.data.other_subset = dcpy(in_edge.data.subset)
 
 
-        # do one last pass to correct volume size for memlets connecting to global_map_entry
+        # do one last pass to correct outside memlets adjacent to global map
 
         for out_connector in global_map_entry.out_connectors:
             # find corresponding in_connector
@@ -485,3 +498,19 @@ class SubgraphFusion():
 
             # override number of accesses
             in_edge.data.num_accesses = memlet_out.num_accesses
+
+        # TODO: Check whether have to do the same for out_connectors...
+        # It doesn't really make sense
+        '''
+        for in_connector in global_map_exit.in_connectors:
+            # find corresponding out_connector
+            out_connector = 'OUT' + in_connector[2:]
+            for iedge in graph.in_edges(global_map_exit):
+                if iedge.dst_conn == in_connector:
+                    in_edge = iedge
+            for oedge in graph.out_edges(global_map_exit):
+                if oedge.src_conn == out_connector:
+                    out_edge = oedge
+            # do memlet propagation
+            # ...
+        '''
