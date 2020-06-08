@@ -1,7 +1,7 @@
 import dace
-from expansion import MultiExpansion
-from subgraph_fusion import SubgraphFusion
-from helpers import *
+from dace.transformation.heterogeneous import MultiExpansion
+from dace.transformation.heterogeneous import SubgraphFusion
+from dace.transformation.heterogeneous.helpers import *
 import dace.sdfg.nodes as nodes
 import numpy as np
 
@@ -138,6 +138,11 @@ if __name__ == "__main__":
     sdfg2 = TEST2.to_sdfg()
     sdfg3 = TEST3.to_sdfg()
     sdfg4 = TEST4.to_sdfg()
+    sdfg1.apply_gpu_transformations()
+    sdfg2.apply_gpu_transformations()
+    sdfg3.apply_gpu_transformations()
+    sdfg4.apply_gpu_transformations()
+    
     map_base_variables = [None, None, ['i','j','k'], None]
 
     # first, let us test the helper functions

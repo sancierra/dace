@@ -1,11 +1,15 @@
 import dace
-from expansion import MultiExpansion
-from subgraph_fusion import SubgraphFusion
-from reduce_map import ReduceMap
-from helpers import *
+from dace.transformation.heterogeneous import MultiExpansion
+from dace.transformation.heterogeneous import SubgraphFusion
+from dace.transformation.heterogeneous import ReduceMap
+from dace.transformation.heterogeneous.helpers import *
 import dace.sdfg.nodes as nodes
 import numpy as np
 
+from dace.measure.pipeline import expand_reduce, expand_maps, fusion
+
+
+import sys
 
 N, M, O, P, Q, R = [dace.symbol(s) for s in ['N', 'M', 'O', 'P', 'Q', 'R']]
 N.set(50)
@@ -17,8 +21,8 @@ R.set(100)
 
 
 @dace.program
-def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], Z1: dace.float64[N,M],
-         D: dace.float64[N], E: dace.float64[M], F: dace.float64[O], Z2: dace.float64[N,M]):
+def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
+         OUT1: dace.float64[N,M], OUT2: dace.float64[1], OUT3: dace.float64[N,M,O]):
 
     tmp1 = np.ndarray([N,M,O], dtype = dace.float64)
     tmp2 = np.ndarray([N,M,O], dtype = dace.float64)
@@ -60,7 +64,7 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], Z1: dace.fl
         with dace.tasklet:
             in1 << t2[i,j]
             in2 << A[i]
-            out >> t3[i,j]
+            out >> OUT1[i,j]
 
             out = in1*in1*in2 + in2
 
@@ -77,55 +81,42 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], Z1: dace.fl
         with dace.tasklet:
             in1 << tmp3[i,j,k]
             in2 << tmp1[i,j,k]
-            out >> tmp4[i,j,k]
+            out >> OUT3[i,j,k]
 
             out = in1 + in2
 
     @dace.tasklet
     def fun():
-        in1 << tmp3[:,:,:]
-        out >> tmp5[:,:,:]
+        in1 << tmp3[0,0,0]
+        out >> OUT2
 
-        out[:,:,:] = in1[:,:,:]
+        out = in1 * 42
+
+def test_qualitatively(sdfg, graph):
+    expand_reduce(sdfg, graph)
+    sdfg.view()
+    expand_maps(sdfg, graph)
+    sdfg.view()
+    fusion(sdfg, graph)
+    sdfg.view()
+    print("PASS")
+
+def test_quantitatively(sdfg, graph):
+    runner = dace.measure.Runner()
+    runner.go(sdfg, graph, None,
+              M, N, O,
+              output = ["OUT1", "OUT2", "OUT3"],
+              performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK
+              )
 
 
 
 if __name__ == "__main__":
 
-    symbols = {str(var):var.get() for var in [N,M,O,P,Q,R]}
-
     sdfg = TEST.to_sdfg()
-
-    sdfg.apply_strict_transformations()
+    #sdfg.apply_strict_transformations()
+    #sdfg.apply_gpu_transformations()
     sdfg.view()
 
-
-    graph = sdfg.nodes()[0]
-    map_entries = [node for node in graph.nodes() if isinstance(node, nodes.MapEntry)]
-    maps = [node.map for node in map_entries]
-    reduce_nodes = [node for node in graph.nodes() if isinstance(node, dace.libraries.standard.Reduce)]
-
-    print("**** ReduceMap Test")
-    transformation = ReduceMap(0,0,{},0)
-    for reduce_node in reduce_nodes:
-        transformation.expand(sdfg, graph, reduce_node)
-        map_entries.append(transformation._outer_entry)
-
-
-    # test transformation
-    print("**** MultiExpansion Test")
-    transformation = MultiExpansion()
-    #transformation.expand(sdfg, graph, map_entries)
-    transformation.expand(sdfg, graph, map_entries)
-    print("Done.")
-    sdfg.view()
-
-    print("**** SubgraphFusion Test")
-    transformation = SubgraphFusion()
-    #exit()
-    transformation.fuse(sdfg, graph, map_entries)
-    print("Done")
-    sdfg.view()
-    print("VALIDATION")
-    sdfg.validate()
-    print("PASSED")
+    #test_qualitatively(sdfg, sdfg.nodes()[0])
+    test_quantitatively(sdfg, sdfg.nodes()[0])
