@@ -161,9 +161,9 @@ class MultiExpansion():
                                   params = params_inner,
                                   ndrange = ranges_inner,
                                   schedule = dtypes.ScheduleType.Sequential \
-                                             if MultiExpansion.sequential_innermaps \
+                                             if self.sequential_innermaps \
                                              else dtypes.ScheduleType.Default)
-
+                                  #schedule = dtypes.ScheduleType.Default)
             map.label = map.label + '_outer'
             map.params = params_outer
             map.range = ranges_outer
