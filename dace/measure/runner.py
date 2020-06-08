@@ -35,7 +35,7 @@ class Runner():
     def __init__(self,
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
-                 view = False, view_all = False,
+                 view = True, view_all = False,
                  view_roofline = True,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
                  sequential = True):
@@ -232,7 +232,10 @@ class Runner():
                                         else result
 
         # get runtimes:
-        current_runtimes = self._get_runtimes()
+        try:
+            current_runtimes = self._get_runtimes()
+        except FileNotFoundError:
+            print("ERROR in runner.py: Please enable profiling in .dace.conf!")
         runtimes.append(self._get_runtime_stats(current_runtimes))
 
         if roofline:
@@ -262,8 +265,7 @@ class Runner():
             fun(sdfg, graph, subgraph)
 
             self._setzero_outputs(outputs)
-            if fun.__name__=='expand_reduce':
-                result = self._run(sdfg, **inputs, **symbols)
+            result = self._run(sdfg, **inputs, **symbols)
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
