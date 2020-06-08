@@ -22,9 +22,8 @@ H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 
 @dace.program
-def softmax(X_in: dace_dtype[H, B, SN, SM], TEST: dace_dtype[H, B, SN]):
+def softmax(X_in: dace_dtype[H, B, SN, SM]):
     tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3, identity = 0)
-    TEST[:] = tmp_max[:]
 
     tmp_out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
     out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
@@ -51,20 +50,25 @@ def softmax(X_in: dace_dtype[H, B, SN, SM], TEST: dace_dtype[H, B, SN]):
 
 sdfg = softmax.to_sdfg()
 roofline = Roofline(PERF_CPU_CRAPBOOK, symbols = {H:3, B:3, SN:5, SM:5})
-graph = sdfg.nodes()[0]
 H.set(10); B.set(10); SN.set(50); SM.set(50)
+
 
 def test_graph():
     ################ first, expand the reduce node
-    pipeline.expand_reduce(sdfg, graph)
+    print(sdfg.nodes()[0])
+    sdfg.view()
+    sdfg.apply_gpu_transformations()
+    print(sdfg.nodes()[0])
+    sdfg.view()
+    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
     sdfg.view()
 
     ############### second, do MultiExpansion
-    pipeline.expand_maps(sdfg, graph)
+    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
     sdfg.view()
 
     ############ third, do MapFusion
-    pipeline.fusion(sdfg, graph)
+    pipeline.fusion(sdfg, sdfg.nodes()[0])
 
     sdfg.apply_strict_transformations()
     sdfg.view()
@@ -73,51 +77,21 @@ def test_graph():
 
 
 def test_result(debug = False):
-    '''
-    X_in = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
 
-    TEST = np.zeros([H.get(), B.get(), SN.get()], dtype = np.float32)
-
-    X_out_baseline = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
-    X_out_1 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
-    X_out_2 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
-    X_out_3 = np.zeros([H.get(), B.get(), SN.get(), SM.get()], dtype = np.float32)
-    '''
     debugger = Runner(measure_mode = ['median', 'avg', 'std'],
-                      view_roofline = True)
+                      view_roofline = True, device = 'GPU')
 
-    # first test symbols dict build function
-    symbols = Runner.build_symbols_dict(H, B, SM, SN)
-    print(symbols)
-
-    # second, test test_run function
-    '''
-    debugger.test_run(sdfg = sdfg, graph = graph,
-                      inputs = {'X_in': X_in, 'TEST': TEST},
-                      outputs = {'TEST': TEST},
-                      symbols = symbols,
-                      roofline = roofline)
-
-    # thrid, test automatic argument generation
-    input_args, output_args = \
-        Runner.generate_arguments(sdfg, symbols,
-                                  outputs = ['TEST'])
-
-    print("Input_args")
-    print("Output_args")
-    print(input_args)
-    print(output_args)
-
-    '''
-    debugger.go(sdfg, graph, None, H, B, SN, SM,
+    debugger.go(sdfg, sdfg.nodes()[0], None, H, B, SN, SM,
                 performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK,
-                output=['TEST'])
-
+                output=[])
 
     #############
 
 
-
-
 if __name__ == "__main__":
-    test_result()
+    #test_result()
+    #sdfg.apply_gpu_transformations()
+    #graph2 = sdfg.nodes()[0]
+    #print(graph2)
+    #sdfg.view()
+    test_graph()

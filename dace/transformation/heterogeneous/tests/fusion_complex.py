@@ -115,8 +115,7 @@ if __name__ == "__main__":
 
     sdfg = TEST.to_sdfg()
     #sdfg.apply_strict_transformations()
-    #sdfg.apply_gpu_transformations()
-    sdfg.view()
+    sdfg.apply_gpu_transformations()
 
-    #test_qualitatively(sdfg, sdfg.nodes()[0])
-    test_quantitatively(sdfg, sdfg.nodes()[0])
+    test_qualitatively(sdfg, sdfg.nodes()[0])
+    #test_quantitatively(sdfg, sdfg.nodes()[0])
