@@ -139,7 +139,6 @@ class Runner():
                  output_dict contains all args in output plus a possbile return
                  array, in_dict all the input arguments found (except symbols)
         """
-
         arglist = sdfg.arglist()
         free_symbols = sdfg.free_symbols
         for symbol in free_symbols:
@@ -156,8 +155,8 @@ class Runner():
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
-            array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol, sympy.symbol)) \
-                                 else symbols_dict[e] \
+            array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol)) \
+                                 else e \
                                  for e in array_reference.shape])
             if argument in outputs:
                 if outputs_setzero:
@@ -260,12 +259,11 @@ class Runner():
                 if subgraph:
                     subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
             # apply transformation
-            sdfg.view()
             fun(sdfg, graph, subgraph)
-            sdfg.view()
 
             self._setzero_outputs(outputs)
-            result = self._run(sdfg, **inputs, **symbols)
+            if fun.__name__=='expand_reduce':
+                result = self._run(sdfg, **inputs, **symbols)
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
@@ -336,8 +334,8 @@ class Runner():
             for array in arrays:
                 print(transformation.__name__.ljust(15,' '),
                       array.ljust(15,' '),
-                      f"{diff_abs_dict[array]:.9f}".ljust(12,' '),
-                      f"{diff_rel_dict[array]:.9f}".ljust(12,' '),
+                      f"{diff_abs_dict[array]:.9g}".ljust(12,' '),
+                      f"{diff_rel_dict[array]:.9g}".ljust(12,' '),
                       verdicts_dict[array])
         '''
         print("################################################################")
@@ -359,7 +357,7 @@ class Runner():
                                   else transformation
             print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
-                print(f"{runtime:.9f}".ljust(12,' '), end='')
+                print(f"{runtime:.9g}".ljust(12,' '), end='')
             print('\n')
 
 
@@ -376,13 +374,13 @@ class Runner():
         for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
             if isinstance(transformation, str):
                 print(transformation.ljust(15,' '),
-                      f"{roofline.data[transformation]:.9f}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.9f}".ljust(20,' '),
+                      f"{roofline.data[transformation]:.9g}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.9g}".ljust(20,' '),
                       '----')
             else:
                 print(transformation.__name__.ljust(15,' '),
-                      f"{roofline.data[transformation.__name__]:.9f}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.9f}".ljust(20,' '),
+                      f"{roofline.data[transformation.__name__]:.9g}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.9g}".ljust(20,' '),
                       'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
@@ -427,6 +425,7 @@ class Runner():
                                                               outputs = output,
                                                               outputs_setzero = True)
 
+        print("OUTPUT_DICT", len(output_dict))
         # call and go
         self.test_run(sdfg=sdfg, graph=graph, subgraph = subgraph,
                       symbols = symbols_dict,
