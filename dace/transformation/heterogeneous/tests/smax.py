@@ -79,7 +79,7 @@ def test_graph():
 def test_result(debug = False):
 
     debugger = Runner(measure_mode = ['median', 'avg', 'std'],
-                      view_roofline = True, device = 'GPU')
+                      view_roofline = True)
 
     debugger.go(sdfg, sdfg.nodes()[0], None, H, B, SN, SM,
                 performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK,
@@ -89,9 +89,9 @@ def test_result(debug = False):
 
 
 if __name__ == "__main__":
-    #test_result()
+    test_result()
     #sdfg.apply_gpu_transformations()
     #graph2 = sdfg.nodes()[0]
     #print(graph2)
     #sdfg.view()
-    test_graph()
+    #test_graph()
