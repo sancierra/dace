@@ -177,7 +177,8 @@ class Runner():
                  inputs, outputs, symbols,
                  subgraph = None,
                  roofline = None,
-                 pipeline = [expand_reduce, expand_maps, fusion]):
+                 pipeline = [expand_reduce, expand_maps, fusion],
+                 report = False):
 
         """ Test a pipeline specified as the argument 'pipeline'.
             :param sdfg: SDFG object
@@ -266,6 +267,7 @@ class Runner():
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
+            sdfg.apply_strict_transformations()
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
@@ -404,7 +406,8 @@ class Runner():
         pipeline = [expand_reduce, expand_maps, fusion],
         performance_spec = dace.perf.specs.PERF_GPU_DAVINCI,
         output = [],
-        name = "Runner::Go"):
+        name = "Runner::Go",
+        report = False):
         """ Method that tests the underlying SDFG fully automatically
         """
 
@@ -432,4 +435,5 @@ class Runner():
         self.test_run(sdfg=sdfg, graph=graph, subgraph = subgraph,
                       symbols = symbols_dict,
                       inputs = input_dict, outputs = output_dict,
-                      roofline = roofline, pipeline = pipeline)
+                      roofline = roofline, pipeline = pipeline,
+                      report = report)
