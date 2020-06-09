@@ -367,6 +367,7 @@ class SubgraphFusion():
                         transient_to_transform.strides = new_data_strides
                         transient_to_transform.total_size = new_data_totalsize
                         transient_to_transform.offset  = new_data_offset
+                        transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
 
                         if self.register_trans:
                             transient_to_transform.storage = dtypes.StorageType.Register
