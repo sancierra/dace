@@ -57,7 +57,7 @@ def test_graph():
     ################ first, expand the reduce node
     print(sdfg.nodes()[0])
     sdfg.view()
-    sdfg.apply_gpu_transformations()
+    #sdfg.apply_gpu_transformations()
     print(sdfg.nodes()[0])
     sdfg.view()
     pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
@@ -89,9 +89,9 @@ def test_result(debug = False):
 
 
 if __name__ == "__main__":
-    test_result()
+    #test_result()
     #sdfg.apply_gpu_transformations()
     #graph2 = sdfg.nodes()[0]
     #print(graph2)
     #sdfg.view()
-    #test_graph()
+    test_graph()

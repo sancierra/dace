@@ -40,6 +40,11 @@ class ReduceMap(pattern_matching.Transformation):
         allow_none = False
     )
 
+    register_trans = Property(desc="Make all connecting transients inside"
+                                    "the global map registers",
+                              dtype = bool,
+                              default = True)
+
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
         dtypes.ReductionType.Min: 'out = min(reduction_in, array_in)',
@@ -143,6 +148,13 @@ class ReduceMap(pattern_matching.Transformation):
         local_storage.array = array_out
         local_storage.apply(nsdfg.sdfg)
         transient_node_inner = local_storage._data_node
+        # take care of transient storage
+        #print("Transient_node_inner data", transient_node_inner.data)
+
+        if self.register_trans:
+            nsdfg.sdfg.data(transient_node_inner.data).storage = dtypes.StorageType.Register
+        else:
+            nsdfg.sdfg.data(transient_node_inner.data).storage = dtypes.StorageType.Default
 
         # find earliest parent read-write occurrence of array onto which
         # we perform the reduction:
