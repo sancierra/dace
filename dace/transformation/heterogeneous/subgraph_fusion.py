@@ -464,7 +464,7 @@ class SubgraphFusion():
                 # the rest should behave the same
                 raise NotImplementedError("Not implemented yet"
                                           "for transient node with multiple incoming connections")
-            in_edge = graph.in_edges(transient_node)[0]
+            in_edges = graph.in_edges(transient_node)
             cont_edges = []
             out_edges = []
             for e in graph.out_edges(transient_node):
@@ -474,6 +474,7 @@ class SubgraphFusion():
                     cont_edges.append(e)
             #######
             # TODO: change for general case
+            in_edge = in_edges[0]
             target_subset = dcpy(in_edge.data.subset)
             base_offset = in_edge.data.subset.min_element()
             #######
@@ -511,13 +512,13 @@ class SubgraphFusion():
                 dims_invalid.remove(0)
 
             # offset and crop in_path
-            mmt_inedge = graph.memlet_path(in_edge)
-            for edge in mmt_inedge:
-                edge.data.subset.offset(base_offset, True)
-                edge.data.subset.pop(dims_invalid)
+            for iedge in in_edges:
+                mmt_inedge = graph.memlet_tree(iedge)
+                for edge in mmt_inedge:
+                    edge.data.subset.offset(base_offset, True)
+                    edge.data.subset.pop(dims_invalid)
 
             for cedge in cont_edges:
-                # use memlet_tree here
                 mmt_cedge = graph.memlet_tree(cedge)
                 for edge in mmt_cedge:
                     edge.data.subset.offset(base_offset, True)
@@ -527,7 +528,6 @@ class SubgraphFusion():
                         new_indices = [index for (i, index) in enumerate(edge.data.subset.indices)
                                              if i not in dims_invalid]
                         edge.data.subset.indices = new_indices
-                        print("#######################################################")
 
             # TODO: other_subset handling
             # TODO: Waiting for Tal's API
