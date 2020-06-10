@@ -99,6 +99,9 @@ def test_qualitatively(sdfg, graph):
     sdfg.view()
     fusion(sdfg, graph)
     sdfg.view()
+    sdfg.apply_strict_transformations()
+    sdfg.view()
+    sdfg.validate()
     print("PASS")
 
 def test_quantitatively(sdfg, graph):
@@ -115,7 +118,9 @@ if __name__ == "__main__":
 
     sdfg = TEST.to_sdfg()
     #sdfg.apply_strict_transformations()
-    sdfg.apply_gpu_transformations()
+    #sdfg.apply_gpu_transformations()
 
     test_qualitatively(sdfg, sdfg.nodes()[0])
+    sdfg.apply_strict_transformations()
+    sdfg.view()
     #test_quantitatively(sdfg, sdfg.nodes()[0])
