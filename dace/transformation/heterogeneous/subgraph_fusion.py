@@ -353,6 +353,8 @@ class SubgraphFusion():
                     # handle separately: intermediate_nodes and pure out nodes
                     if dst_original in intermediate_nodes:
 
+                        ####################################################################
+                        '''
                         sizes = edge.data.subset.bounding_box_size()
                         new_data_shape = [sz for (sz, s) in zip(sizes, edge.data.subset)]
                         # in case it is just a scalar
@@ -373,8 +375,10 @@ class SubgraphFusion():
                             transient_to_transform.storage = dtypes.StorageType.Register
                         else:
                             transient_to_transform.storage = dtypes.StorageType.Default
+                        '''
+                        ######################################################################
 
-                        # next up, change memlet data to this data
+                        # change memlet data to this data
                         # change all parent memlet data to this data if they have the same content
                         # DO NOT change children memlet data -- could be other subset accessed in next map
                         new_name = dst.data
@@ -443,16 +447,23 @@ class SubgraphFusion():
             graph.remove_node(map_exit)
 
 
-        # do one last pass to correct memlets between newly created transients
 
-        # awkward_code
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
+        sdfg.view()
+        # do one pass to adjust in-transients and their corresponding memlets
         for transient_node in intermediate_nodes:
             try:
                 transient_node = transient_dict_rev[transient_node]
             except KeyError:
                 pass
+
             # for each dimension, determine base set
+            if len(graph.in_edges(transient_node)) > 1:
+                # TODO: Change implementation
+                # change target_subset and base_offset accordingly
+                # the rest should behave the same
+                raise NotImplementedError("Not implemented yet"
+                                          "for transient node with multiple incoming connections")
             in_edge = graph.in_edges(transient_node)[0]
             cont_edges = []
             out_edges = []
@@ -461,18 +472,59 @@ class SubgraphFusion():
                     out_edges.append(e)
                 else:
                     cont_edges.append(e)
-
+            #######
+            # TODO: change for general case
+            target_subset = dcpy(in_edge.data.subset)
             base_offset = in_edge.data.subset.min_element()
+            #######
 
-            # offset everything
-            in_path = graph.memlet_path(in_edge)
-            for edge in in_path:
+
+            # change transient array properties
+            sizes = target_subset.bounding_box_size()
+            new_data_shape = [sz for (sz, s) in zip(sizes, target_subset)
+                              if sz != 1]
+            if len(new_data_shape) == 0:
+                # for scalar case
+                new_data_shape = [1]
+            new_data_strides = [data._prod(new_data_shape[i+1:])
+                                for i in range(len(new_data_shape))]
+
+            new_data_totalsize = data._prod(new_data_shape)
+            new_data_offset = [0]*len(new_data_shape)
+
+            transient_to_transform = sdfg.data(transient_node.data)
+            transient_to_transform.shape   = new_data_shape
+            transient_to_transform.strides = new_data_strides
+            transient_to_transform.total_size = new_data_totalsize
+            transient_to_transform.offset  = new_data_offset
+            transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
+
+            if self.register_trans:
+                transient_to_transform.storage = dtypes.StorageType.Register
+            else:
+                transient_to_transform.storage = dtypes.StorageType.Default
+
+            print("Target subset", target_subset)
+            print("Target_subset size", target_subset.size())
+            dims_invalid = [i for (i,sz) in enumerate(target_subset.size())
+                            if sz == 1]
+            if new_data_shape == [1]:
+                # scalar case
+                dims_invalid.remove(0)
+            print("DIMS INVALID @",transient_node,":", dims_invalid)
+
+            # offset and crop in_path
+            mmt_inedge = graph.memlet_path(in_edge)
+            for edge in mmt_inedge:
                 edge.data.subset.offset(base_offset, True)
+                edge.data.subset.pop(dims_invalid)
 
             for cedge in cont_edges:
-                cont_path = graph.memlet_path(cedge)
-                for edge in cont_path:
+                # use memlet_tree here
+                mmt_cedge = graph.memlet_tree(cedge)
+                for edge in mmt_cedge:
                     edge.data.subset.offset(base_offset, True)
+                    edge.data.subset.pop(dims_invalid)
 
             # TODO: other_subset handling
             # TODO: Waiting for Tal's API

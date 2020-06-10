@@ -48,7 +48,7 @@ class ReduceMap(pattern_matching.Transformation):
     create_in_transient = Property(desc = "Create local in-transient register"
                                    "for CUDA BlockReduce",
                                    dtype = bool,
-                                   default = True)
+                                   default = False)
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -164,6 +164,14 @@ class ReduceMap(pattern_matching.Transformation):
         local_storage.apply(nsdfg.sdfg)
         out_transient_node_inner = local_storage._data_node
 
+        # shrink transient
+        edge_to_reduce = nstate.in_edges(out_transient_node_inner)[0]
+        # shrink transient memlet data down to one dimension
+        edge_to_reduce.data.subset.pop([i for i in range(1,edge_to_reduce.data.subset.dims())])
+        # shrink transient array down to one dimension
+        nsdfg.sdfg.data(out_transient_node_inner.data).strides = [1]
+        nsdfg.sdfg.data(out_transient_node_inner.data).offset = [0]
+        nsdfg.sdfg.data(out_transient_node_inner.data).shape = [1]
 
 
         if self.create_in_transient:
@@ -182,13 +190,27 @@ class ReduceMap(pattern_matching.Transformation):
             local_storage.apply(nsdfg.sdfg)
             in_transient_node_inner = local_storage._data_node
 
-            nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Register
+
+            # shrink transient
+            edge_to_reduce = nstate.out_edges(in_transient_node_inner)[0]
+            # shrink transient memlet data down to one dimension
+            edge_to_reduce.data.subset.pop([i for i in range(edge_to_reduce.data.subset.dims())
+                                            if i not in reduce_node.axes])
+            # shrink transient array down to one dimension
+            in_transient_data = nsdfg.sdfg.data(in_transient_node_inner.data)
+            in_transient_data.strides =  [s for (i, s) in enumerate(in_transient_data.strides) \
+                                          if i in reduce_node.axes]
+            in_transient_data.offset = [o for (i, o) in enumerate(in_transient_data.offset) \
+                                        if i in reduce_node.axes]
+            in_transient_data.shape = [s for (i, s) in enumerate(in_transient_data.shape) \
+                                       if i in reduce_node.axes]
 
 
         if self.map_transients_to_registers:
             nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
             if self.create_in_transient:
                 nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
+
         #else:
         #    nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
         #    if self.create_in_transient:
@@ -349,15 +371,14 @@ class ReduceMap(pattern_matching.Transformation):
             new_schedule = dtypes.ScheduleType.Default
             new_implementation = ReduceMap.reduction_implementations[new_schedule]
 
-        # TODO: this is a bit hacky and only works if GPUTransform is done first and not after.
-        # determine axis of new reduction. If on CPU, just take the same axis.
-        # Else on CUDA thread_block take all axes
-        # TODO: Find better solution
-        #if new_schedule == dtypes.ScheduleType.GPU_ThreadBlock:
-        #    new_axes = None
-        #else:
-        #    new_axes = reduce_node.axes
-        new_axes = reduce_node.axes
+
+        if self.create_in_transient:
+            # in this case we select all axes
+            # reduce the transient dims to the dims we reduce
+            new_axes = None
+        else:
+            # just take OG axes
+            new_axes = reduce_node.axes
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
                                            axes = new_axes,
