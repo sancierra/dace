@@ -264,10 +264,10 @@ class Runner():
                     subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
             # apply transformation
             fun(sdfg, graph, subgraph)
+            sdfg.apply_strict_transformations()
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
-            sdfg.apply_strict_transformations()
 
             current_runtimes = self._get_runtimes()
             runtimes.append(self._get_runtime_stats(current_runtimes))
