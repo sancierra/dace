@@ -48,7 +48,7 @@ class ReduceMap(pattern_matching.Transformation):
     create_in_transient = Property(desc = "Create local in-transient register"
                                    "for CUDA BlockReduce",
                                    dtype = bool,
-                                   default = False)
+                                   default = True)
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -209,7 +209,7 @@ class ReduceMap(pattern_matching.Transformation):
         if self.map_transients_to_registers:
             nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
             if self.create_in_transient:
-                nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
+                nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Register
 
         #else:
         #    nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
