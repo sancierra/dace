@@ -504,14 +504,11 @@ class SubgraphFusion():
             else:
                 transient_to_transform.storage = dtypes.StorageType.Default
 
-            print("Target subset", target_subset)
-            print("Target_subset size", target_subset.size())
             dims_invalid = [i for (i,sz) in enumerate(target_subset.size())
                             if sz == 1]
             if new_data_shape == [1]:
                 # scalar case
                 dims_invalid.remove(0)
-            print("DIMS INVALID @",transient_node,":", dims_invalid)
 
             # offset and crop in_path
             mmt_inedge = graph.memlet_path(in_edge)
@@ -524,7 +521,13 @@ class SubgraphFusion():
                 mmt_cedge = graph.memlet_tree(cedge)
                 for edge in mmt_cedge:
                     edge.data.subset.offset(base_offset, True)
-                    edge.data.subset.pop(dims_invalid)
+                    if isinstance(edge.data.subset, subsets.Range):
+                        edge.data.subset.pop(dims_invalid)
+                    else: # subsets.Indices
+                        new_indices = [index for (i, index) in enumerate(edge.data.subset.indices)
+                                             if i not in dims_invalid]
+                        edge.data.subset.indices = new_indices
+                        print("#######################################################")
 
             # TODO: other_subset handling
             # TODO: Waiting for Tal's API
