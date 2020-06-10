@@ -40,10 +40,15 @@ class ReduceMap(pattern_matching.Transformation):
         allow_none = False
     )
 
-    register_trans = Property(desc="Make all connecting transients inside"
-                                    "the global map registers",
-                              dtype = bool,
-                              default = True)
+    map_transients_to_registers = Property(desc="Make all transients created inside"
+                                                "the reduction registers",
+                                                dtype = bool,
+                                                default = True)
+
+    create_in_transient = Property(desc = "Create local in-transient register"
+                                   "for CUDA BlockReduce",
+                                   dtype = bool,
+                                   default = True)
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -56,6 +61,15 @@ class ReduceMap(pattern_matching.Transformation):
         dtypes.ReductionType.Logical_And: 'out = reduction_in and array_in',
         dtypes.ReductionType.Logical_Or: 'out = reduction_in or array_in',
         dtypes.ReductionType.Logical_Xor: 'out = reduction_in xor array_in'
+    }
+
+    reduction_implementations = {
+        dtypes.ScheduleType.Default: 'pure',
+        dtypes.ScheduleType.Sequential: 'pure',
+        dtypes.ScheduleType.CPU_Multicore: 'OpenMP',
+        dtypes.ScheduleType.GPU_Device: 'CUDA (device)',
+        dtypes.ScheduleType.GPU_ThreadBlock: 'CUDA (block)',
+
     }
 
     @staticmethod
@@ -100,6 +114,7 @@ class ReduceMap(pattern_matching.Transformation):
         wcr = reduce_node.wcr
         identity = reduce_node.identity
         schedule = reduce_node.schedule
+        implementation = reduce_node.implementation
 
         # assumption:
         # - there are accessNodes right before and after the reduce nodes
@@ -147,14 +162,38 @@ class ReduceMap(pattern_matching.Transformation):
                                      0)
         local_storage.array = array_out
         local_storage.apply(nsdfg.sdfg)
-        transient_node_inner = local_storage._data_node
-        # take care of transient storage
-        #print("Transient_node_inner data", transient_node_inner.data)
+        out_transient_node_inner = local_storage._data_node
 
-        if self.register_trans:
-            nsdfg.sdfg.data(transient_node_inner.data).storage = dtypes.StorageType.Register
-        else:
-            nsdfg.sdfg.data(transient_node_inner.data).storage = dtypes.StorageType.Default
+
+
+        if self.create_in_transient:
+            # create a in-transient as well.
+            array_in = nstate.in_edges(outer_entry)[0].data.data
+            local_storage_subgraph = {
+                LocalStorage._node_a: nsdfg.sdfg.nodes()[0].nodes().index(outer_entry),
+                LocalStorage._node_b: nsdfg.sdfg.nodes()[0].nodes().index(inner_entry)
+            }
+
+            local_storage = LocalStorage(nsdfg_id,
+                                         nstate_id,
+                                         local_storage_subgraph,
+                                         0)
+            local_storage.array = array_in
+            local_storage.apply(nsdfg.sdfg)
+            in_transient_node_inner = local_storage._data_node
+
+            nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Register
+
+
+        if self.map_transients_to_registers:
+            nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
+            if self.create_in_transient:
+                nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
+        #else:
+        #    nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
+        #    if self.create_in_transient:
+        #        nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
+
 
         # find earliest parent read-write occurrence of array onto which
         # we perform the reduction:
@@ -183,8 +222,8 @@ class ReduceMap(pattern_matching.Transformation):
             print("ReduceMap::Shortcut applied")
             # we are lucky
             shortcut = True
-            nstate.out_edges(transient_node_inner)[0].data.wcr = None
-            nstate.out_edges(transient_node_inner)[0].data.num_accesses = 1
+            nstate.out_edges(out_transient_node_inner)[0].data.wcr = None
+            nstate.out_edges(out_transient_node_inner)[0].data.num_accesses = 1
             nstate.out_edges(outer_exit)[0].data.wcr = None
 
 
@@ -227,7 +266,7 @@ class ReduceMap(pattern_matching.Transformation):
                                             outputs = {"out"},
                                             code = code)
 
-            edge_to_remove = graph.out_edges(transient_node_inner)[0]
+            edge_to_remove = graph.out_edges(out_transient_node_inner)[0]
 
             new_memlet_array_inner =    Memlet(data = out_storage_node.data,
                                             num_accesses = 1,
@@ -235,7 +274,7 @@ class ReduceMap(pattern_matching.Transformation):
                                             vector_length = 1)
             new_memlet_array_outer =    Memlet(data = array_closest_ancestor.data,
                                             num_accesses = graph.in_edges(outer_entry)[0].data.num_accesses,
-                                            subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)),                         ### TODO
+                                            subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)),
                                             vector_length = 1)
 
             new_memlet_reduction =      Memlet(data = graph.out_edges(inner_exit)[0].data.data,
@@ -263,7 +302,7 @@ class ReduceMap(pattern_matching.Transformation):
             graph.remove_edge_and_connectors(outer_edge_to_remove)
 
 
-            graph.add_edge(transient_node_inner,
+            graph.add_edge(out_transient_node_inner,
                            None,
                            new_tasklet,
                            "reduction_in",
@@ -297,14 +336,35 @@ class ReduceMap(pattern_matching.Transformation):
 
         # finally, replace the inner loop by an appropriate reduction
 
-        # TODO: reschedule, not sure about this
-        if schedule == dtypes.ScheduleType.GPU_Device:
-            schedule = dtypes.ScheduleType.GPU_ThreadBlock
+
+        # Rescheduling. Needed later
+        if schedule != dtypes.ScheduleType.Default:
+            new_schedule = dtypes.SCOPEDEFAULT_SCHEDULE[schedule]
+            try:
+                new_implementation = ReduceMap.reduction_implementations[new_schedule]
+            except KeyError:
+                print("Error: Not implemented yet for this kind of Reduction Schedule")
+                raise RuntimeError()
+        else:
+            new_schedule = dtypes.ScheduleType.Default
+            new_implementation = ReduceMap.reduction_implementations[new_schedule]
+
+        # TODO: this is a bit hacky and only works if GPUTransform is done first and not after.
+        # determine axis of new reduction. If on CPU, just take the same axis.
+        # Else on CUDA thread_block take all axes
+        # TODO: Find better solution
+        #if new_schedule == dtypes.ScheduleType.GPU_ThreadBlock:
+        #    new_axes = None
+        #else:
+        #    new_axes = reduce_node.axes
+        new_axes = reduce_node.axes
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
-                                           axes = reduce_node.axes,
-                                           schedule = schedule,
+                                           axes = new_axes,
+                                           schedule = new_schedule,
                                            identity = identity)
+        reduce_node_new.implementation = new_implementation
+
 
         edge_tmp = graph.in_edges(inner_entry)[0]
         memlet_src_reduce = dcpy(edge_tmp.data)
@@ -330,7 +390,7 @@ class ReduceMap(pattern_matching.Transformation):
         if identity is None:
             # set transient_inner to set_zero = True
             # TODO: create identities for other reductions
-            transient_node_inner.setzero = True
+            out_transient_node_inner.setzero = True
 
         # create variables for outside access
         self._new_reduce = reduce_node_new
