@@ -338,8 +338,8 @@ class Runner():
             for array in arrays:
                 print(transformation.__name__.ljust(15,' '),
                       array.ljust(15,' '),
-                      f"{diff_abs_dict[array]:.9g}".ljust(12,' '),
-                      f"{diff_rel_dict[array]:.9g}".ljust(12,' '),
+                      f"{diff_abs_dict[array]:.6g}".ljust(12,' '),
+                      f"{diff_rel_dict[array]:.6g}".ljust(12,' '),
                       verdicts_dict[array])
         '''
         print("################################################################")
@@ -361,7 +361,7 @@ class Runner():
                                   else transformation
             print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
-                print(f"{runtime:.9g}".ljust(12,' '), end='')
+                print(f"{runtime:.6g}".ljust(12,' '), end='')
             print('\n')
 
 
@@ -378,13 +378,13 @@ class Runner():
         for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
             if isinstance(transformation, str):
                 print(transformation.ljust(15,' '),
-                      f"{roofline.data[transformation]:.9g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.9g}".ljust(20,' '),
+                      f"{roofline.data[transformation]:.6g}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.6g}".ljust(20,' '),
                       '----')
             else:
                 print(transformation.__name__.ljust(15,' '),
-                      f"{roofline.data[transformation.__name__]:.9g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.9g}".ljust(20,' '),
+                      f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' ') if roofline else '',
+                      f"{runtime_list[0]:.6g}".ljust(20,' '),
                       'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
