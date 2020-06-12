@@ -43,12 +43,12 @@ class ReduceMap(pattern_matching.Transformation):
     map_transients_to_registers = Property(desc="Make all transients created inside"
                                                 "the reduction registers",
                                                 dtype = bool,
-                                                default = True)
+                                                default = False)
 
     create_in_transient = Property(desc = "Create local in-transient register"
                                    "for CUDA BlockReduce",
                                    dtype = bool,
-                                   default = True)
+                                   default = False)
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -334,29 +334,9 @@ class ReduceMap(pattern_matching.Transformation):
             graph._clear_scopedict_cache()
             # wcr is already removed
 
-        # finally, replace the inner loop by an appropriate reduction
-
-
-        # Rescheduling. Needed later
-        if schedule != dtypes.ScheduleType.Default:
-            new_schedule = dtypes.SCOPEDEFAULT_SCHEDULE[schedule]
-            try:
-                new_implementation = ReduceMap.reduction_implementations[new_schedule]
-            except KeyError:
-                print("Error: Not implemented yet for this kind of Reduction Schedule")
-                raise RuntimeError()
-        else:
-            new_schedule = dtypes.ScheduleType.Default
-            new_implementation = ReduceMap.reduction_implementations[new_schedule]
-
-        # TODO: this is a bit hacky and only works if GPUTransform is done first and not after.
-        # determine axis of new reduction. If on CPU, just take the same axis.
-        # Else on CUDA thread_block take all axes
-        # TODO: Find better solution
-        #if new_schedule == dtypes.ScheduleType.GPU_ThreadBlock:
-        #    new_axes = None
-        #else:
-        #    new_axes = reduce_node.axes
+        # FORNOW: choose default schedule and implementation 
+        new_schedule = dtypes.ScheduleType.Default
+        new_implementation = None
         new_axes = reduce_node.axes
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
