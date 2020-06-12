@@ -33,22 +33,16 @@ class ReduceMap(pattern_matching.Transformation):
 
     _reduce = stdlib.Reduce()
 
-    innermaps_to_reduce = Property(
-        dtype = bool,
-        desc = "Convert inner Array back to Reduce Object",
-        default = True,
-        allow_none = False
-    )
 
     map_transients_to_registers = Property(desc="Make all transients created inside"
                                                 "the reduction registers",
                                                 dtype = bool,
-                                                default = True)
+                                                default = False)
 
     create_in_transient = Property(desc = "Create local in-transient register"
                                    "for CUDA BlockReduce",
                                    dtype = bool,
-                                   default = True)
+                                   default = False)
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -359,17 +353,9 @@ class ReduceMap(pattern_matching.Transformation):
         # finally, replace the inner loop by an appropriate reduction
 
 
-        # Rescheduling. Needed later
-        if schedule != dtypes.ScheduleType.Default:
-            new_schedule = dtypes.SCOPEDEFAULT_SCHEDULE[schedule]
-            try:
-                new_implementation = ReduceMap.reduction_implementations[new_schedule]
-            except KeyError:
-                print("Error: Not implemented yet for this kind of Reduction Schedule")
-                raise RuntimeError()
-        else:
-            new_schedule = dtypes.ScheduleType.Default
-            new_implementation = ReduceMap.reduction_implementations[new_schedule]
+        # FORNOW: Reschedule to 'pure'.
+        new_schedule = dtypes.ScheduleType.Default
+        new_implementation = None # take 'pure' as library default
 
 
         if self.create_in_transient:

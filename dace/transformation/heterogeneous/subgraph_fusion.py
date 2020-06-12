@@ -39,7 +39,7 @@ class SubgraphFusion():
     register_trans = Property(desc="Make all connecting transients inside"
                                     "the global map registers",
                               dtype = bool,
-                              default = True)
+                              default = False)
 
     @staticmethod
     def can_be_applied(sdfg, graph, maps):
@@ -449,7 +449,6 @@ class SubgraphFusion():
 
 
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
-        sdfg.view()
         # do one pass to adjust in-transients and their corresponding memlets
         for transient_node in intermediate_nodes:
             try:

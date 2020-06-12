@@ -120,7 +120,7 @@ if __name__ == "__main__":
     #sdfg.apply_strict_transformations()
     #sdfg.apply_gpu_transformations()
 
-    test_qualitatively(sdfg, sdfg.nodes()[0])
-    sdfg.apply_strict_transformations()
-    sdfg.view()
-    #test_quantitatively(sdfg, sdfg.nodes()[0])
+    #test_qualitatively(sdfg, sdfg.nodes()[0])
+    #sdfg.apply_strict_transformations()
+    #sdfg.view()
+    test_quantitatively(sdfg, sdfg.nodes()[0])
