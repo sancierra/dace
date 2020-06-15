@@ -31,29 +31,38 @@ class MultiExpansion():
     def expand(self, sdfg, graph, map_entries, map_base_variables = None):
 
         """
-        if not subgraph:
-            subgraph = graph
-        maps = []
-        map_entries = []
-        scope_dict = graph.scope_dict()
-        toplevel_scope = helpers.toplevel_scope(graph, subgraph, scope_dict)
-        # gather all top-level maps
-        for node in subgraph:
-            if isinstance(node, nodes.MapEntry) \
-            and scope_dict[node] == toplevel_scope:
-                    maps.append(node.map)
-                    map_entries.append(node)
+        Expansion into outer and inner maps for each map in a specified set.
+        The resulting outer maps all have same range and indices, corresponding
+        variables and memlets get changed accordingly. The inner map contains
+        the leftover dimensions
+        :param sdfg: Underlying SDFG
+        :param graph: Graph in which we expand
+        :param map_entries: List of Map Entries(Type MapEntry) that we want to expand
+        :param map_base_variables: Optional parameter. List of strings
+                                   If None, then expand() searches for the maximal amount
+                                   of equal map ranges and pushes those and their corresponding
+                                   loop variables into the outer loop.
+                                   If specified, then expand() pushes the ranges belonging
+                                   to the loop iteration variables specified into the outer loop
+                                   (For instance map_base_variables = ['i','j'] assumes that
+                                   all maps have common iteration indices i and j with corresponding
+                                   correct ranges)
         """
 
         maps = [entry.map for entry in map_entries]
 
         if not map_base_variables:
+            # find the maximal subset of variables to expand
+            # greedy if there exist multiple ranges that are equal in a map
+
+
             map_base_ranges = helpers.common_map_base_ranges(maps)
             reassignments = helpers.find_reassignment(maps, map_base_ranges)
 
             ##### first, regroup and reassign
             # create params_dict for every map
-            # first, let us define base variables, just take the first map for that
+            # first, let us define the outer iteration variable names,
+            # just take the first map and their indices at common ranges
             map_base_variables = []
             for rng in map_base_ranges:
                 for i in range(len(maps[0].params)):
@@ -61,20 +70,19 @@ class MultiExpansion():
                         map_base_variables.append(maps[0].params[i])
                         break
 
-            #map_base = {item[0]:item[1] for item in zip(map_base_variables, map_base_ranges)}
 
             params_dict = {}
-            print("MultiExpansion::Map_base_variables", map_base_variables)
-            print("MultiExpansion::Map_base_ranges", map_base_ranges)
+            if self.debug:
+                print("MultiExpansion::Map_base_variables:", map_base_variables)
+                print("MultiExpansion::Map_base_ranges:", map_base_ranges)
             for map in maps:
                 # for each map create param dict, first assign identity
                 params_dict_map = {param: param for param in map.params}
                 # now look for the correct reassignment
                 # for every element neq -1, need to change param to map_base_variables[]
-                # if param already appears in own dict, just do a swap
+                # if param already appears in own dict, do a swap
                 # else we just replace it
                 for i, reassignment in enumerate(reassignments[map]):
-                    # 0:-1, 1:-1, 2:1, 3:0, 4:-1
                     if reassignment == -1:
                         # nothing to do
                         pass
@@ -117,7 +125,8 @@ class MultiExpansion():
                 for i in range(len(map.params)):
                     map.params[i] = params_dict_map[map.params[i]]
 
-            print("MultiExpansion::Params replaced")
+            if self.debug:
+                print("MultiExpansion::Params replaced")
 
         else:
             # just calculate map_base_ranges
@@ -129,10 +138,9 @@ class MultiExpansion():
                 index = map0.params.index(var)
                 map_base_ranges.append(map0.range[index])
 
-            if MultiExpansion.debug:
-                for map in maps:
-                    for var, rng in zip(map_base_variables, map_base_ranges):
-                        assert map.range[map.params.index(var)] == rng
+            for map in maps:
+                for var, rng in zip(map_base_variables, map_base_ranges):
+                    assert map.range[map.params.index(var)] == rng
 
 
         # then expand all the maps
@@ -163,7 +171,7 @@ class MultiExpansion():
                                   schedule = dtypes.ScheduleType.Sequential \
                                              if self.sequential_innermaps \
                                              else dtypes.ScheduleType.Default)
-                                  #schedule = dtypes.ScheduleType.Default)
+
             map.label = map.label + '_outer'
             map.params = params_outer
             map.range = ranges_outer

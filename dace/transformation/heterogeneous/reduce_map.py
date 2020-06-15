@@ -33,22 +33,20 @@ class ReduceMap(pattern_matching.Transformation):
 
     _reduce = stdlib.Reduce()
 
-    innermaps_to_reduce = Property(
-        dtype = bool,
-        desc = "Convert inner Array back to Reduce Object",
-        default = True,
-        allow_none = False
-    )
 
-    map_transients_to_registers = Property(desc="Make all transients created inside"
-                                                "the reduction registers",
+
+    map_transient_to_registers = Property(desc="Push out-transient created inside"
+                                                "the reduction into register",
                                                 dtype = bool,
                                                 default = False)
 
-    create_in_transient = Property(desc = "Create local in-transient register"
-                                   "for CUDA BlockReduce",
+    create_in_transient = Property(desc = "Create local in-transient register",
                                    dtype = bool,
                                    default = False)
+
+    reduce_implementation = Property(desc = "Reduce implementation of inner reduce",
+                                     dtype = str,
+                                     default = 'pure')
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -63,14 +61,6 @@ class ReduceMap(pattern_matching.Transformation):
         dtypes.ReductionType.Logical_Xor: 'out = reduction_in xor array_in'
     }
 
-    reduction_implementations = {
-        dtypes.ScheduleType.Default: 'pure',
-        dtypes.ScheduleType.Sequential: 'pure',
-        dtypes.ScheduleType.CPU_Multicore: 'OpenMP',
-        dtypes.ScheduleType.GPU_Device: 'CUDA (device)',
-        dtypes.ScheduleType.GPU_ThreadBlock: 'CUDA (block)',
-
-    }
 
     @staticmethod
     def expressions():
@@ -81,7 +71,7 @@ class ReduceMap(pattern_matching.Transformation):
     def can_be_applied(graph, candidate, expr_index, sdfg, strict = False):
         reduce_node = candidate[ReduceMap._reduce]
         inedge = graph.in_edges(reduce_node)[0]
-        input_dims = len(inedge.data.subset)
+        input_dims = inedge.data.subset.data_dims()
         axes = node.axes
         if axes is None:
             # axes = None -> full reduction, can't expand
@@ -98,26 +88,29 @@ class ReduceMap(pattern_matching.Transformation):
         return str(reduce)
 
     def apply(self, sdfg: SDFG, strict = False):
-        """ Create two nested maps. The inner map ranges over the reduction
-            axis, the outer map over the rest of the axes. An out-transient
-            in between is created. The inner map memlets that flow out get
-            assigned the reduce node's WCR.
+        """ Splits the data dimension into an inner and outer dimension,
+            where the inner dimension are the reduction axes and the
+            outer axes the complement. Pushes the reduce inside a new
+            map consisting of the complement axes.
         """
+
         graph = sdfg.nodes()[self.state_id]
         reduce_node = graph.nodes()[self.subgraph[ReduceMap._reduce]]
         self.expand(sdfg, graph, reduce_node)
 
     def expand(self, sdfg, graph, reduce_node):
-        # API that is at least somewhat consistent with the rest in this module
+        """ Splits the data dimension into an inner and outer dimension,
+            where the inner dimension are the reduction axes and the
+            outer axes the complement. Pushes the reduce inside a new
+            map consisting of the complement axes.
+        """
+
         out_storage_node = graph.out_edges(reduce_node)[0].dst
         in_storage_node = graph.in_edges(reduce_node)[0].src
         wcr = reduce_node.wcr
         identity = reduce_node.identity
         schedule = reduce_node.schedule
         implementation = reduce_node.implementation
-
-        # assumption:
-        # - there are accessNodes right before and after the reduce nodes
 
 
         # remove the reduce identity
@@ -182,17 +175,14 @@ class ReduceMap(pattern_matching.Transformation):
             local_storage.apply(nsdfg.sdfg)
             in_transient_node_inner = local_storage._data_node
 
-            nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Register
+            # FORNOW
+            nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Default
 
 
-        if self.map_transients_to_registers:
+        if self.map_transient_to_registers:
             nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
             if self.create_in_transient:
                 nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
-        #else:
-        #    nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
-        #    if self.create_in_transient:
-        #        nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Default
 
 
         # find earliest parent read-write occurrence of array onto which
@@ -334,9 +324,9 @@ class ReduceMap(pattern_matching.Transformation):
             graph._clear_scopedict_cache()
             # wcr is already removed
 
-        # FORNOW: choose default schedule and implementation 
+        # FORNOW: choose default schedule and implementation
         new_schedule = dtypes.ScheduleType.Default
-        new_implementation = None
+        new_implementation = implementation if implementation else self.reduce_implementation
         new_axes = reduce_node.axes
 
         reduce_node_new = graph.add_reduce(wcr = wcr,

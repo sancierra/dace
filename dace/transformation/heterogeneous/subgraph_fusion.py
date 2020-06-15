@@ -1,6 +1,6 @@
-""" This module contains classes that implement
-    subgraph fusion
+""" This module contains classes that implement subgraph fusion
 """
+import dace
 
 from dace import dtypes, registry, symbolic, subsets, data
 from dace.sdfg import nodes, utils
@@ -22,14 +22,11 @@ import dace.libraries.standard as stdlib
 @make_properties
 class SubgraphFusion():
     """ Implements the SubgraphFusion transformation.
-        Fuses the maps specified in the subgraph into
-        one subgraph, creating transients and new connections
+        Fuses the maps specified together with their outer maps
+        as a global outer map, creating transients and new connections
         where necessary.
-        The subgraph to be inputted has to have been verified
-        to be transformable into one map. This module is just
-        responsible for the transformation.
         Use MultiExpansion first before fusing a graph with SubgraphFusion
-
+        Applicability checks have not been implemented yet.
 
         This is currently not implemented as a transformation template,
         as we want to input an arbitrary subgraph / collection of maps.
@@ -48,16 +45,14 @@ class SubgraphFusion():
 
         # Fusable if
         # 1. Maps have the same access sets and ranges in order
-        # 2. Any nodes in between are AccessNodes only without WCR
-        #    There is at least one AccessNode only between two maps
-        # 3. Any outcoming memlet's subset to an intermediate edge must cover
+        # 2. Any nodes in between two maps are AccessNodes only without WCR
+        #    There is at most one AccessNode only on a path between two maps,
+        #    no other nodes are allowed
+        # 3. Any exiting memlet's subset to an intermediate edge must cover
         #    the respective incoming memlets subset into the next map
-        # 4a Every array that is in between two maps must never appear
-        #    in another write/read (practically write) node in the entire sdfg.
-        #    The array has to be transient and transient only in this state
-        # 4b Every array that is in between two maps can only appear once
+
+        # 4  Every array that is in between two maps can only appear once
         #    in a write node within the maps subgraph
-        # 4c No restrictions
 
         return True
 
@@ -75,9 +70,65 @@ class SubgraphFusion():
 
         return ret
 
-    def _create_transients(self, sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = []):
-        # handles arrays that are
-        # and connect
+
+    def _create_transients(self,sdfg, graph, in_nodes, out_nodes, intermediate_nodes, \
+                           map_entries, map_exits, do_not_override = []):
+        # better preprocessing which allows for non-transient in between nodes
+        ''' creates transients for every in-between node that has exit connections or that is non-transient (or both)
+            the resulting transient can then later be pushed into the map
+        '''
+
+        def redirect(redirect_node, original_node):
+            # redirect all traffic to original node to redirect node
+            # and then create a path from redirect to original
+            # outgoing edges to other maps in our subset should be originated from the clone
+            # similar to utils.change_edge_dest(graph, original_node, redirect_node)
+            # but only when edge comes from a map exit
+            edges = list(graph.in_edges(original_node))
+            for e in edges:
+                if e.src in map_exits:
+                    graph.remove_edge(e)
+                    if isinstance(e, dace.sdfg.graph.MultiConnectorEdge):
+                        graph.add_edge(e.src, e.src_conn, redirect_node, e.dst_conn, e.data)
+                    else:
+                        graph.add_edge(e.src, redirect_node, e.data)
+
+
+            graph.add_edge(redirect_node,
+                           None,
+                           original_node,
+                           None,
+                           EmptyMemlet())
+            for edge in graph.out_edges(original_node):
+                if edge.dst in map_entries:
+                    #edge.src = redirect_node
+                    self.redirect_edge(graph, edge, new_src = redirect_node)
+
+
+        transient_dict = {}
+        for node in (intermediate_nodes):
+            if node in out_nodes \
+               or node in do_not_override \
+               or not sdfg.data(node.data).transient:
+
+                data_ref = sdfg.data(node.data)
+                trans_data_name = node.data + '__trans'
+
+                data_trans = sdfg.add_transient(name=trans_data_name,
+                                                shape= data_ref.shape,
+                                                dtype= data_ref.dtype,
+                                                storage= data_ref.storage,
+                                                offset= data_ref.offset)
+                node_trans = graph.add_access(trans_data_name)
+                redirect(node_trans, node)
+                transient_dict[node_trans] = node
+
+        return transient_dict
+
+
+    def _create_transients_TRANS_ONLY(self, sdfg, graph, in_nodes, out_nodes, intermediate_nodes, \
+                                      map_entries, map_exits, do_not_override = []):
+        # old version that does not work with non-transients
 
         def redirect(redirect_node, original_node):
             # redirect all traffic to original node to redirect node
@@ -110,49 +161,36 @@ class SubgraphFusion():
 
         return transient_dict
 
-    def _create_transients_TRANS(self,sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete = []):
-        # better preprocessing which allows for non-transient in between nodes
-        # handles arrays that are
-        # and connect
-
-        def redirect(redirect_node, original_node):
-            # redirect all traffic to original node to redirect node
-            # and then create a path from redirect to original
-            # outgoing edges to other maps in our subset should be originated from the clone
-            utils.change_edge_dest(graph, original_node, redirect_node)
-            graph.add_edge(redirect_node,
-                           None,
-                           original_node,
-                           None,
-                           EmptyMemlet())
-            for edge in graph.out_edges(original_node):
-                if edge.dst in map_entries:
-                    #edge.src = redirect_node
-                    self.redirect_edge(graph, edge, new_src = redirect_node)
-
-
-        transient_dict = {}
-        for node in (intermediate_nodes):
-            if node in out_nodes \
-               or node in do_not_delete \
-               or not sdfg.data(node.data).transient:
-
-                data_ref = sdfg.data(node.data)
-                trans_data_name = node.data + '__trans'
-
-                data_trans = sdfg.add_transient(name=trans_data_name,
-                                                shape= data_ref.shape,
-                                                dtype= data_ref.dtype,
-                                                storage= data_ref.storage,
-                                                offset= data_ref.offset)
-                node_trans = graph.add_access(trans_data_name)
-                redirect(node_trans, node)
-                transient_dict[node_trans] = node
-
-        return transient_dict
 
     def fuse(self, sdfg, graph, map_entries, **kwargs):
-        # WORK IN PROGRESS
+        """ takes the map_entries specified and tries to fuse maps.
+
+            all maps have to be extended into outer and inner map
+            (use MapExpansion as a pre-pass)
+
+            Extra transients get created for non-transient arrays that
+            lie in between two maps in order to get pushed into the map.
+            (and also other arrays to be specified in do_not_override)
+
+            For every output respective connections are crated automatically.
+
+            See can_be_applied for requirements.
+
+            [Work in Progress] Features and corner cases not supported yet:
+            - subset changes with memlet.other_subset
+            - Transients that get pushed into the global map
+              always persist, even if they have size one (unlike MapFusion)
+
+            :param sdfg: SDFG
+            :param graph: State
+            :param map_entries: Map Entries (class MapEntry) of the outer maps
+                                which we want to fuse
+            :param do_not_override: List of AccessNodes that are transient but
+                                  should not be directly modified when pushed
+                                  into the global map. Instead a transient copy
+                                  is created and linked to it.
+        """
+
         maps = [map_entry.map for map_entry in map_entries]
         map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
 
@@ -167,14 +205,12 @@ class SubgraphFusion():
         intermediate_nodes = set()
 
         """ NOTE:
-        - in_nodes, out_nodes, intermediate_nodes refer to the configuration of
-          the final fused map
+        - in_nodes, out_nodes, intermediate_nodes refer to the configuration of the final fused map
         - in_nodes and out_nodes are trivially disjoint
         - Intermediate_nodes and out_nodes are not necessarily disjoint
-        - Intermediate_nodes and in_nodes SHOULD be disjoint in a valid sdfg.
-          Else there could always be a race condition....
+        - FORNOW: Intermediate_nodes and in_nodes SHOULD be disjoint.
         """
-        # TODO: Last point into specifications, there could be very rare subset case where not race cond.
+        # TODO: Last point into specifications, there could be rare subset case where not race cond.
 
         for map_entry, map_exit in zip(map_entries, map_exits):
             for edge in graph.in_edges(map_entry):
@@ -211,11 +247,11 @@ class SubgraphFusion():
 
         try:
             # in-between transients that should be duplicated nevertheless
-            do_not_delete = kwargs['do_not_delete']
+            do_not_override = kwargs['do_not_override']
         except KeyError:
-            do_not_delete = []
+            do_not_override = []
 
-        transient_dict = self._create_transients_TRANS(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, do_not_delete)
+        transient_dict = self._create_transients(sdfg, graph, in_nodes, out_nodes, intermediate_nodes, map_entries, map_exits, do_not_override)
         inconnectors_dict = {}
         # {access_node: (edge, in_conn, out_conn)}
 
@@ -474,10 +510,12 @@ class SubgraphFusion():
                 for edge in cont_path:
                     edge.data.subset.offset(base_offset, True)
 
+
             # TODO: other_subset handling
             # TODO: Waiting for Tal's API
             #for edge in out_edges:
             #    edge.data.other_subset = dcpy(in_edge.data.subset)
+            #    ...
 
 
         # do one last pass to correct outside memlets adjacent to global map
@@ -499,19 +537,3 @@ class SubgraphFusion():
 
             # override number of accesses
             in_edge.data.num_accesses = memlet_out.num_accesses
-
-        # TODO: Check whether have to do the same for out_connectors...
-        # It doesn't really make sense
-        '''
-        for in_connector in global_map_exit.in_connectors:
-            # find corresponding out_connector
-            out_connector = 'OUT' + in_connector[2:]
-            for iedge in graph.in_edges(global_map_exit):
-                if iedge.dst_conn == in_connector:
-                    in_edge = iedge
-            for oedge in graph.out_edges(global_map_exit):
-                if oedge.src_conn == out_connector:
-                    out_edge = oedge
-            # do memlet propagation
-            # ...
-        '''

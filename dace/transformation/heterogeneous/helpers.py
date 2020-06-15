@@ -18,8 +18,8 @@ import dace.libraries.standard as stdlib
 # Helper functions
 
 def common_map_base_ranges(maps: List[nodes.Map]) -> List:
-    """ Finds maximally extended common map base.
-    Map base = set of ranges that every map in the list has
+    """ Finds a maximal set of ranges that can be found
+        in every instance of the maps in the given list
     """
     if len(maps) == 0:
         return None
@@ -41,13 +41,27 @@ def common_map_base_ranges(maps: List[nodes.Map]) -> List:
 
 
 def find_reassignment(maps: List[nodes.Map], map_base_ranges) -> Dict[nodes.Map, List]:
-    """ Provided an outer map base,
-    finds a reassignment so that ranges get properly mapped to
-    a respective base index. If there is none, we put -1 as index
+    """ Provided a list of maps and their common base ranges
+        (found via common_map_base_ranges()),
+        for each map greedily assign each loop to an index so that
+        a base range has the same index in every loop.
+        If a loop range of a certain map does not correspond to
+        a common base range, no index is assigned (=-1)
+
+
+        :param maps:            List of maps
+        :param map_base_ranges: Common ranges extracted via
+                                common_map_base_ranges()
+
+        :returns: Dict that maps each map to a vector with
+                  the same length as number of map loops.
+                  The vector contains, in order, an index
+                  for each map loop that maps it to a
+                  common base range or '-1' if it does not.
     """
     result = {map: None for map in maps}
     outer_ranges_dict = dict(enumerate(map_base_ranges))
-    # 0: 0:N, 1: 0:N, 2: 0:M     |    0: 0:K, 1: 0:M, 2: 0:N, 3: 0:F, 4: 0:N
+
     for map in maps:
         result_map = []
         for current_range in map.range:
@@ -63,47 +77,12 @@ def find_reassignment(maps: List[nodes.Map], map_base_ranges) -> Dict[nodes.Map,
 
     return result
 
-def dependency_dict(graph: SDFGState, maps: List[nodes.MapEntry]):
-    """ from a list of top-level map entries
-        returns a dict of which map depends on data from which others
-        assuming that all maps in list can be fused together
-
-        All maps in the list should be on the same scope
-        in order for this function to yields something useful
-    """
-    # TODO
-    # there should be already a function doing this
-    # topo sort in nxutil / helpers somewhere
-
-def non_connected_graph(*args):
-    """ Generate non-connected graph part
-        To test whether this leads to the desired behavior in pattern matching
-    """
-    path = gr.OrderedDiGraph()
-    if len(args) == 1 and isinstance(args[0], list):
-        input_nodes = args[0]
-
-    else:
-        input_nodes = list(args)
-
-    path.add_nodes_from(input_nodes)
-    return path
-
-
-def path_from_to(node1, node2, graph):
-    # BFS
-    queue = [node1]
-    while len(queue) > 0:
-        current = queue.pop(0)
-        if current == node2:
-            return True
-        else:
-            queue.extend([edge.dst for edge in graph.out_edges(current)])
-
-    return False
+########################################################################
 
 def toplevel_scope_subgraph(graph, subgraph, scope_dict = None):
-    """ returns the toplevel scope of the subgraph"""
+    """
+    returns the toplevel scope of a *connected* subgraph
+    """
     if not scope_dict:
         scope_dict = graph.scope_dict()
     scopes = set()
@@ -118,6 +97,9 @@ def toplevel_scope_subgraph(graph, subgraph, scope_dict = None):
     raise RuntimeError("Subgraph is not sound (must be connected)")
 
 def toplevel_scope_maps(graph, maps, scope_dict = None):
+    """
+    returns the toplevel scope of a set of given *connected* maps
+    """
     if not scope_dict:
         scope_dict = graph.scope_dict()
     scopes = set()
@@ -127,4 +109,4 @@ def toplevel_scope_maps(graph, maps, scope_dict = None):
         if scope_dict[scope] not in scopes:
             return scope
 
-    raise RuntimeError("Map structure is not sound (underlying subgraph must be complete and connected")
+    raise RuntimeError("Map structure is not sound (underlying subgraph must be connected")
