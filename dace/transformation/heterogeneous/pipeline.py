@@ -1,9 +1,6 @@
 import dace
 import numpy as np
 
-from dace.perf.roofline import Roofline
-from dace.perf.specs import *
-from dace.perf.optimizer import SDFGRooflineOptimizer
 
 from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
