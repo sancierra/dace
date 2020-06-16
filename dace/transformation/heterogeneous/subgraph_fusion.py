@@ -33,10 +33,10 @@ class SubgraphFusion():
 
     """
 
-    register_trans = Property(desc="Make all connecting transients inside"
+    register_trans = Property(desc="Make connecting transients with size 1 inside"
                                     "the global map registers",
                               dtype = bool,
-                              default = False)
+                              default = True)
 
     @staticmethod
     def can_be_applied(sdfg, graph, maps):
@@ -389,30 +389,8 @@ class SubgraphFusion():
                     # handle separately: intermediate_nodes and pure out nodes
                     if dst_original in intermediate_nodes:
 
-                        sizes = edge.data.subset.bounding_box_size()
-                        new_data_shape = [sz for (sz, s) in zip(sizes, edge.data.subset)]
-                        # in case it is just a scalar
-                        new_data_strides = [data._prod(new_data_shape[i+1:])
-                                            for i in range(len(new_data_shape))]
-
-                        new_data_totalsize = data._prod(new_data_shape)
-                        new_data_offset = [0]*len(new_data_shape)
-
-                        transient_to_transform = sdfg.data(dst.data)
-                        transient_to_transform.shape   = new_data_shape
-                        transient_to_transform.strides = new_data_strides
-                        transient_to_transform.total_size = new_data_totalsize
-                        transient_to_transform.offset  = new_data_offset
-                        transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
-
-                        if self.register_trans:
-                            transient_to_transform.storage = dtypes.StorageType.Register
-                        else:
-                            transient_to_transform.storage = dtypes.StorageType.Default
-
-                        # next up, change memlet data to this data
-                        # change all parent memlet data to this data if they have the same content
-                        # DO NOT change children memlet data -- could be other subset accessed in next map
+                        # change upwards adjacent memlet data name to this data name
+                        # downwards was handled before in in_edges
                         new_name = dst.data
                         old_name = dst_original.data
 
@@ -479,17 +457,22 @@ class SubgraphFusion():
             graph.remove_node(map_exit)
 
 
-        # do one last pass to correct memlets between newly created transients
+        # do one pass to adjust in-transients and their corresponding memlets
 
-        # awkward_code
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
+            print("#####", transient_node)
             try:
                 transient_node = transient_dict_rev[transient_node]
             except KeyError:
                 pass
+
+            if len(graph.in_edges(transient_node)) > 1:
+                raise NotImplementedError("Not implemented yet"
+                                          "for transient node with multiple incoming connections")
+
             # for each dimension, determine base set
-            in_edge = graph.in_edges(transient_node)[0]
+            in_edges = graph.in_edges(transient_node)
             cont_edges = []
             out_edges = []
             for e in graph.out_edges(transient_node):
@@ -498,16 +481,45 @@ class SubgraphFusion():
                 else:
                     cont_edges.append(e)
 
+            ### TODO: change for general case
+            in_edge = in_edges[0]
+            target_subset = dcpy(in_edge.data.subset)
             base_offset = in_edge.data.subset.min_element()
+            ###
 
-            # offset everything
-            in_path = graph.memlet_path(in_edge)
-            for edge in in_path:
-                edge.data.subset.offset(base_offset, True)
+            ### augment transients
+
+            sizes = target_subset.bounding_box_size()
+            new_data_shape = [sz for (sz, s) in zip(sizes, target_subset)]
+            # in case it is just a scalar
+            new_data_strides = [data._prod(new_data_shape[i+1:])
+                                for i in range(len(new_data_shape))]
+
+            new_data_totalsize = data._prod(new_data_shape)
+            new_data_offset = [0]*len(new_data_shape)
+
+            transient_to_transform = sdfg.data(transient_node.data)
+            transient_to_transform.shape   = new_data_shape
+            transient_to_transform.strides = new_data_strides
+            transient_to_transform.total_size = new_data_totalsize
+            transient_to_transform.offset  = new_data_offset
+            transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
+
+            if self.register_trans and new_data_totalsize == 1:
+                transient_to_transform.storage = dtypes.StorageType.Register
+            else:
+                transient_to_transform.storage = dtypes.StorageType.Default
+
+            ###
+
+
+            # offset every memlet where necessary
+            for iedge in in_edges:
+                for edge in graph.memlet_tree(iedge):
+                    edge.data.subset.offset(base_offset, True)
 
             for cedge in cont_edges:
-                cont_path = graph.memlet_path(cedge)
-                for edge in cont_path:
+                for edge in graph.memlet_tree(cedge):
                     edge.data.subset.offset(base_offset, True)
 
 
