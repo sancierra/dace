@@ -94,15 +94,14 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
 
 def test_qualitatively(sdfg, graph):
     expand_reduce(sdfg, graph)
-    sdfg.view()
     expand_maps(sdfg, graph)
-    sdfg.view()
     fusion(sdfg, graph)
     sdfg.view()
+    sdfg.validate()
     print("PASS")
 
 def test_quantitatively(sdfg, graph):
-    runner = dace.measure.Runner()
+    runner = dace.measure.Runner(view_all = True)
     runner.go(sdfg, graph, None,
               M, N, O,
               output = ["OUT1", "OUT2", "OUT3"],
@@ -115,7 +114,7 @@ if __name__ == "__main__":
 
     sdfg = TEST.to_sdfg()
     #sdfg.apply_strict_transformations()
-    sdfg.apply_gpu_transformations()
+    #sdfg.apply_gpu_transformations()
 
     test_qualitatively(sdfg, sdfg.nodes()[0])
     #test_quantitatively(sdfg, sdfg.nodes()[0])

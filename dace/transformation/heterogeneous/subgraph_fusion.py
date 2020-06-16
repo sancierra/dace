@@ -38,6 +38,17 @@ class SubgraphFusion():
                               dtype = bool,
                               default = True)
 
+    debug = Property(desc = "Show debug info",
+                     dtype = bool,
+                     default = True)
+
+    def __init__(self, debug = None, register_trans = None):
+        if debug is not None:
+            self.debug = True
+        if register_trans is not None:
+            self.register_trans = True
+
+
     @staticmethod
     def can_be_applied(sdfg, graph, maps):
 
@@ -233,10 +244,10 @@ class SubgraphFusion():
         # any intermediate_nodes currently in in_nodes shouldnt be there
         in_nodes -= intermediate_nodes
 
-
-        print("SubgraphFusion::In_nodes", in_nodes)
-        print("SubgraphFusion::Out_nodes", out_nodes)
-        print("SubgraphFusion::Intermediate_nodes", intermediate_nodes)
+        if self.debug:
+            print("SubgraphFusion::In_nodes", in_nodes)
+            print("SubgraphFusion::Out_nodes", out_nodes)
+            print("SubgraphFusion::Intermediate_nodes", intermediate_nodes)
 
         # all maps are assumed to have the same params and range in order
         global_map = nodes.Map(label = "outer_fused",
@@ -275,7 +286,8 @@ class SubgraphFusion():
 
                     if src in inconnectors_dict:
                         if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
-                            print("SubgraphFusion::Extend range")
+                            if debug:
+                                print("SubgraphFusion::Extend range")
                             inconnectors_dict[edge.data.data][0].subset = edge.data.subset
 
                         in_conn = inconnectors_dict[src][1]
@@ -464,7 +476,6 @@ class SubgraphFusion():
         sdfg.view()
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
-            print("#####", transient_node)
             try:
                 transient_node = transient_dict_rev[transient_node]
             except KeyError:
@@ -500,7 +511,6 @@ class SubgraphFusion():
                     target_subset_curr = dcpy(in_edge.data.subset)
                     base_offset_curr = in_edge.data.subset.min_element()
 
-                    print()
                     target_subset = subsets.bounding_box_union(target_subset, \
                                                                target_subset_curr)
                     base_offset = [min(base_offset[i], base_offset_curr[i]) for i in range(len(base_offset))]

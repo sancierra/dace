@@ -72,7 +72,7 @@ class ReduceMap(pattern_matching.Transformation):
         reduce_node = candidate[ReduceMap._reduce]
         inedge = graph.in_edges(reduce_node)[0]
         input_dims = inedge.data.subset.data_dims()
-        axes = node.axes
+        axes = reduce_node.axes
         if axes is None:
             # axes = None -> full reduction, can't expand
             return False
