@@ -6,7 +6,7 @@ from dace.transformation.heterogeneous.helpers import *
 import dace.sdfg.nodes as nodes
 import numpy as np
 
-from dace.measure.pipeline import expand_reduce, expand_maps, fusion
+from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 
 
 import sys

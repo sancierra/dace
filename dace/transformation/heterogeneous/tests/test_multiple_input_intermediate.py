@@ -7,7 +7,7 @@ import numpy as np
 import unittest
 import sys
 
-from dace.measure.pipeline import fusion
+from dace.transformation.heterogeneous.pipeline import fusion
 
 
 N = dace.symbol('N')
@@ -42,7 +42,7 @@ def TEST(A: dace.float64[N], B: dace.float64[N], C:dace.float64[N], D:dace.float
 def test_quantitatively(sdfg):
     runner = dace.measure.Runner()
     runner.go(sdfg, sdfg.nodes()[0], None,
-              N, pipeline = [dace.measure.pipeline.fusion],
+              N, pipeline = [dace.transformation.heterogeneous.pipeline.fusion],
               output = ['C','D'])
 
 if __name__ == '__main__':
@@ -65,5 +65,5 @@ if __name__ == '__main__':
     test_quantitatively(sdfg)
     sys.exit(0)
 
-    dace.measure.pipeline.fusion(sdfg, sdfg.nodes()[0])
+    dace.transformation.heterogeneous.pipeline.fusion(sdfg, sdfg.nodes()[0])
     sdfg.view()

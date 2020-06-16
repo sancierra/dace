@@ -16,7 +16,7 @@ import timeit
 import sympy
 from copy import deepcopy as dcpy
 
-from dace.measure.pipeline import expand_reduce, expand_maps, fusion
+from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 
 from collections import OrderedDict
 

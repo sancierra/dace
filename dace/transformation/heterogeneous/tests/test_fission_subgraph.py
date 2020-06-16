@@ -7,7 +7,7 @@ from dace.transformation.helpers import nest_state_subgraph
 import numpy as np
 import unittest
 
-from dace.measure.pipeline import fusion
+from dace.transformation.heterogeneous.pipeline import fusion
 
 
 def mapfission_sdfg():
