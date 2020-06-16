@@ -177,7 +177,8 @@ class SubgraphFusion():
             See can_be_applied for requirements.
 
             [Work in Progress] Features and corner cases not supported yet:
-            - subset changes with memlet.other_subset
+            - border memlets with subset changes (memlet.other_subset)
+              are not supported currently
             - Transients that get pushed into the global map
               always persist, even if they have size one (unlike MapFusion)
 
@@ -208,9 +209,11 @@ class SubgraphFusion():
         - in_nodes, out_nodes, intermediate_nodes refer to the configuration of the final fused map
         - in_nodes and out_nodes are trivially disjoint
         - Intermediate_nodes and out_nodes are not necessarily disjoint
-        - FORNOW: Intermediate_nodes and in_nodes SHOULD be disjoint.
+        - Intermediate_nodes and in_nodes are disjoint by design.
+          There could be a node that has both incoming edges from a map exit
+          and from outside, but it is just treated as intermediate_node and handled
+          automatically.
         """
-        # TODO: Last point into specifications, there could be rare subset case where not race cond.
 
         for map_entry, map_exit in zip(map_entries, map_exits):
             for edge in graph.in_edges(map_entry):
@@ -458,7 +461,7 @@ class SubgraphFusion():
 
 
         # do one pass to adjust in-transients and their corresponding memlets
-
+        sdfg.view()
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
             print("#####", transient_node)
@@ -467,9 +470,11 @@ class SubgraphFusion():
             except KeyError:
                 pass
 
+            '''
             if len(graph.in_edges(transient_node)) > 1:
-                raise NotImplementedError("Not implemented yet"
+                raise NotImplementedError("[WIP] Not implemented yet "
                                           "for transient node with multiple incoming connections")
+            '''
 
             # for each dimension, determine base set
             in_edges = graph.in_edges(transient_node)
@@ -481,11 +486,27 @@ class SubgraphFusion():
                 else:
                     cont_edges.append(e)
 
-            ### TODO: change for general case
-            in_edge = in_edges[0]
+
+            # general case: multiple in_edges per in-between transient
+            # e.g different subsets written to it
+            in_edges_iter = iter(in_edges)
+            in_edge = next(in_edges_iter)
             target_subset = dcpy(in_edge.data.subset)
             base_offset = in_edge.data.subset.min_element()
-            ###
+            ###### Work in Progress
+            while True: # entered if there are multiple in_edges
+                try:
+                    in_edge = next(in_edges_iter)
+                    target_subset_curr = dcpy(in_edge.data.subset)
+                    base_offset_curr = in_edge.data.subset.min_element()
+
+                    print()
+                    target_subset = subsets.bounding_box_union(target_subset, \
+                                                               target_subset_curr)
+                    base_offset = [min(base_offset[i], base_offset_curr[i]) for i in range(len(base_offset))]
+                except StopIteration:
+                    break
+            ######
 
             ### augment transients
 
@@ -522,6 +543,12 @@ class SubgraphFusion():
                 for edge in graph.memlet_tree(cedge):
                     edge.data.subset.offset(base_offset, True)
 
+            # of more than one entry: other_subset
+            if len(in_edges) > 1:
+                for oedge in out_edges:
+                    oedge.data.other_subset = dcpy(oedge.data.subset)
+                    oedge.data.other_subset.offset(base_offset, True)
+
 
             # TODO: other_subset handling
             # TODO: Waiting for Tal's API
@@ -530,8 +557,8 @@ class SubgraphFusion():
             #    ...
 
 
-        # do one last pass to correct outside memlets adjacent to global map
 
+        # do one last pass to correct outside memlets adjacent to global map
         for out_connector in global_map_entry.out_connectors:
             # find corresponding in_connector
             in_connector = 'IN' + out_connector[3:]
