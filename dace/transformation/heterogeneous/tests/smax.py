@@ -7,7 +7,7 @@ from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
 import dace.transformation.heterogeneous.pipeline as pipeline
-
+from dace.sdfg.graph import SubgraphView
 
 import dace.libraries.standard as stdlib
 
@@ -51,10 +51,40 @@ sdfg = softmax.to_sdfg()
 H.set(10); B.set(10); SN.set(50); SM.set(50)
 A = np.ndarray((H.get(), B.get(), SN.get(), SM.get()), dtype = np.float32)
 
+
+def get_partition(sdfg, graph):
+    subgraph1 = SubgraphView(graph, [])
+    subgraph2 = SubgraphView(graph, [])
+
+    cnt1 = 0
+    for node in dace.sdfg.utils.dfs_topological_sort(graph):
+        if isinstance(node, stdlib.nodes.reduce.Reduce):
+            if cnt1 < 2:
+                subgraph1._subgraph_nodes.append(node)
+                cnt1 += 1
+            else:
+                subgraph2._subgraph_nodes.append(node)
+
+        if isinstance(node, nodes.MapEntry):
+            if cnt1 < 2:
+                subgraph1._subgraph_nodes.append(node)
+                cnt1 += 1
+            else:
+                subgraph2._subgraph_nodes.append(node)
+
+    return [subgraph1, subgraph2]
+
 def test_graph():
     ################ baseline
     sdfg.apply_gpu_transformations()
+    sdfg.view()
     graph = sdfg.nodes()[0]
+    sglist = get_partition(sdfg, graph)
+    print(sglist[0], sglist[1])
+    print(sglist[0].nodes())
+    print(sglist[1].nodes())
+
+    return
     #csdfg = sdfg.compile_directly()
     print("#### Baseline")
     #csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
@@ -103,9 +133,5 @@ def test_graph():
 
 
 if __name__ == "__main__":
-    #test_result()
-    #sdfg.apply_gpu_transformations()
-    #graph2 = sdfg.nodes()[0]
-    #print(graph2)
-    #sdfg.view()
+
     test_graph()
