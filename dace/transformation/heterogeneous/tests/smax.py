@@ -1,20 +1,19 @@
 import dace
 import numpy as np
+import sys
 
-from dace.perf.roofline import Roofline
-from dace.perf.specs import *
-from dace.perf.optimizer import SDFGRooflineOptimizer
 
 from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
+import dace.transformation.heterogeneous.pipeline as pipeline
+
 
 import dace.libraries.standard as stdlib
 
 import timeit
 
-import dace.measure.pipeline as pipeline
-from dace.measure.runner import Runner
+import dace.sdfg.nodes as nodes
 
 
 dace_dtype = dace.float32
@@ -49,43 +48,58 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
 
 
 sdfg = softmax.to_sdfg()
-roofline = Roofline(PERF_CPU_CRAPBOOK, symbols = {H:3, B:3, SN:5, SM:5})
 H.set(10); B.set(10); SN.set(50); SM.set(50)
-
+A = np.ndarray((H.get(), B.get(), SN.get(), SM.get()), dtype = np.float32)
 
 def test_graph():
-    ################ first, expand the reduce node
-    print(sdfg.nodes()[0])
-    sdfg.view()
-    #sdfg.apply_gpu_transformations()
-    print(sdfg.nodes()[0])
-    sdfg.view()
-    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
-    sdfg.view()
+    ################ baseline
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    #csdfg = sdfg.compile_directly()
+    print("#### Baseline")
+    #csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    ################ reduce expansion
+    pipeline.expand_reduce(sdfg, graph)
+    # change SDFG to evade the 2 bugs
+    label_index = 0
+    sdfg.expand_library_nodes()
+    for node in graph.nodes():
+        if isinstance(node, nodes.NestedSDFG):
+            # change the naming scheme
+            for nested_state in node.sdfg.nodes():
+                for nested_node in nested_state.nodes():
+                    if isinstance(nested_node, nodes.MapEntry):
+                        nested_node.label += str(label_index)
+                        label_index += 1
+                    for iedge in nested_state.in_edges(nested_node):
+                        iedge.data.wcr_conflict = False
+                    for oedge in nested_state.out_edges(nested_node):
+                        oedge.data.wcr_conflict = False
+    # Done.
+    csdfg = sdfg.compile_directly()
+    csdfg(X_in = A, H=H, B=B, SM=SM, SN=SN)
+
+
+
+
+
 
     ############### second, do MultiExpansion
     pipeline.expand_maps(sdfg, sdfg.nodes()[0])
-    sdfg.view()
+    #sdfg.view()
 
     ############ third, do MapFusion
     pipeline.fusion(sdfg, sdfg.nodes()[0])
-
+    #sdfg.view()
     sdfg.apply_strict_transformations()
     sdfg.view()
 
+    sdfg.expand_library_nodes()
+    sdfg.view()
     sdfg.validate()
 
 
-def test_result(debug = False):
-
-    debugger = Runner(measure_mode = ['median', 'avg', 'std'],
-                      view_roofline = True)
-
-    debugger.go(sdfg, sdfg.nodes()[0], None, H, B, SN, SM,
-                performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK,
-                output=[])
-
-    #############
 
 
 if __name__ == "__main__":
