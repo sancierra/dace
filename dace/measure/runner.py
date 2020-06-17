@@ -36,7 +36,7 @@ class Runner():
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
                  view = True, view_all = False,
-                 view_roofline = True,
+                 view_roofline = True, save_roofline = False
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
                  sequential = True):
 
@@ -274,7 +274,7 @@ class Runner():
 
             if roofline:
                 roofline.evaluate(fun.__name__,
-                                  subgraph if subgraph else graph,
+                                  graph,
                                   runtimes = current_runtimes)
 
             # process outputs
@@ -389,9 +389,10 @@ class Runner():
 
         print("################################################################")
 
-        if self.view_roofline:
-            if roofline:
-                roofline.plot(show = True)
+        if roofline:
+            if self.view_roofline:
+                roofline.plot(show = True, save_path = '' if self.save_roofline else None)
+
 
         if self.view and self.sequential or self.view_all:
             sdfg.view()
