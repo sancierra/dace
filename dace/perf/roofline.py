@@ -102,7 +102,8 @@ class Roofline:
         self.specs = specs
         self.data = {}
         self.data_symbolic = {}
-        self.runtimes = {}
+        self.gflops_measured = {}
+        self.gflops_roof = {}
         self.debug = debug
         self.name = name
         self.symbols = symbols
@@ -164,6 +165,7 @@ class Roofline:
         try:
             self.data[name] = sym.evaluate(operational_intensity, self.symbols)
             self.data[name] = float(self.data[name])
+            self.gflops_roof[name] = min(self.data[name] * self.specs.peak_bandwidth, self.specs.peak_performance)
         except TypeError:
             print("Not all the variables are defined in Symbols")
             print("Data after evaluation attempt:")
@@ -172,7 +174,8 @@ class Roofline:
         if runtimes:
             # TODO: convert runtime into GFLOPS
             gflop = float(sym.evaluate(flop_count, self.symbols) * 10**(-9))
-            self.runtimes[name] = list(map(lambda rt: gflop / rt, runtimes))
+            self.gflops_measured[name] = list(map(lambda rt: gflop / rt, runtimes))
+
         if self.debug:
             print(f"Determined OI {operational_intensity}={self.data[name]} on {graph}")
 
@@ -198,7 +201,7 @@ class Roofline:
         x_min = min([val for val in self.data.values()] + [0.5])*base_x**(-1.0)
         x_max = max([val for val in self.data.values()] + [20]) *base_x**(+2.0)
         y_min = min( min([val for val in self.data.values()])*y_ridge / x_ridge, \
-                     min([1]+[minrt for minrt in [min(rt) for rt in self.runtimes.values() if rt]]) \
+                     min([1]+[minrt for minrt in [min(rt) for rt in self.gflops_measured.values() if rt]]) \
                      ) * base_y**(-0.5)
         y_max = y_ridge * (base_y**1.5)
 
@@ -207,10 +210,10 @@ class Roofline:
         colors = get_cmap("tab10").colors
         for i, (key,oi) in enumerate(self.data.items()):
             plot.loglog([oi, oi], [y_0, y_max],label=key, basex = base_x, basey = base_y, color=colors[i%10], linewidth = 1.5)
-            if key in self.runtimes:
-                if len(self.runtimes[key]) < 10:
+            if key in self.gflops_measured:
+                if len(self.gflops_measured[key]) < 10:
                     # just plot everything
-                    for rt in self.runtimes[key]:
+                    for rt in self.gflops_measured[key]:
                         plot.plot([oi],[rt], marker='o',markersize=10,color=colors[i%10], mew=1.5, mfc = 'none')
                 else:
                     # boxplot
@@ -220,11 +223,11 @@ class Roofline:
                     else:
                         boxplot_width = 40
 
-                    perc_100 = np.quantile(self.runtimes[key],1)
-                    perc_75 =  np.quantile(self.runtimes[key],0.75)
-                    perc_50 =  np.quantile(self.runtimes[key],0.5)
-                    perc_25 =  np.quantile(self.runtimes[key],0.25)
-                    perc_0  =  np.quantile(self.runtimes[key],0)
+                    perc_100 = np.quantile(self.gflops_measured[key],1)
+                    perc_75 =  np.quantile(self.gflops_measured[key],0.75)
+                    perc_50 =  np.quantile(self.gflops_measured[key],0.5)
+                    perc_25 =  np.quantile(self.gflops_measured[key],0.25)
+                    perc_0  =  np.quantile(self.gflops_measured[key],0)
                     plot.plot([oi],[perc_100], '.', color = colors[i%10], mew=2, markersize = 5)
                     plot.plot([oi, oi],[perc_25 , perc_75], solid_capstyle = 'butt', color = colors[i%10], linewidth = boxplot_width, alpha = 0.5)
                     plot.plot([oi],[perc_50], '_', color = colors[i%10], mew=0.85, markersize = boxplot_width)

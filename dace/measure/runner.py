@@ -347,7 +347,7 @@ class Runner():
         '''
         print("################################################################")
         print("########################### CONFIG #############################")
-        print("Operation Mode".ljust(30, ' '), self.sequential)
+        print("Operation Mode".ljust(30, ' '), 'seq' if self.sequential else 'non-seq')
         print("Number of Runs per Call".ljust(30, ' '), dace.config.Config.get('treps'))
         '''
 
@@ -369,22 +369,22 @@ class Runner():
 
         if roofline:
             print("################################################################")
-            print("####################### Operational  ###########################")
+            print("######################### Operational  #########################")
             print("Transformation".ljust(15,' '),
                   "Op. Intensity".ljust(15,' '),
-                  f"GFLOP {self.measure_mode[0]}".ljust(15,' '),
+                  "GFLOP Median".ljust(15,' '),
                   "GFLOP Roofline")
             for transformation, runtime_list in zip((['baseline'] + pipeline), runtimes):
                 if isinstance(transformation, str):
                     print(transformation.ljust(15,' '),
                           f"{roofline.data[transformation]:.6g}".ljust(15,' '),
-                          f"{runtime_list[0]:.6g}".ljust(15,' '),
-                          f"{roofline.rooflines[transformation]:.6g}")
+                          f"{np.median(roofline.gflops_measured[transformation]):.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_roof[transformation]):.6g}")
                 else:
                     print(transformation.__name__.ljust(15,' '),
                           f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' '),
-                          f"{runtime_list[0]:.6g}".ljust(15,' '),
-                          f"{roofline.rooflines[transformation.__name__]:.6g}")
+                          f"{np.median(roofline.gflops_measured[transformation.__name__]):.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_roof[transformation.__name__]):.6g}")
 
         print("################################################################")
         print("########################### SUMMARY ############################")
