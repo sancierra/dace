@@ -74,7 +74,7 @@ def get_partition(sdfg, graph):
 
     return [subgraph1, subgraph2]
 
-def test_graph():
+def test_graph_manual():
     ################ baseline
     sdfg.apply_gpu_transformations()
     sdfg.view()
@@ -110,11 +110,6 @@ def test_graph():
     csdfg = sdfg.compile_directly()
     csdfg(X_in = A, H=H, B=B, SM=SM, SN=SN)
 
-
-
-
-
-
     ############### second, do MultiExpansion
     pipeline.expand_maps(sdfg, sdfg.nodes()[0])
     #sdfg.view()
@@ -129,9 +124,28 @@ def test_graph():
     sdfg.view()
     sdfg.validate()
 
+def test_pipeline1():
+    graph = sdfg.nodes()[0]
+    subgraph = SubgraphView(graph, [node for node in graph.nodes()])
+    sdfg.view()
+    pipeline.expand_reduce(sdfg, graph, subgraph)
+    sdfg.view()
+    pipeline.expand_maps(sdfg, graph, subgraph)
+    sdfg.view()
+    pipeline.fusion(sdfg, graph, subgraph)
+    sdfg.view()
 
 
+def test_pipeline2():
+    graph = sdfg.nodes()[0]
+    subgraph = get_partition(sdfg, graph)
+    sdfg.view()
+    pipeline.expand_reduce(sdfg, graph, subgraph)
+    sdfg.view()
+    pipeline.expand_maps(sdfg, graph, subgraph)
+    sdfg.view()
+    pipeline.fusion(sdfg, graph, subgraph)
+    sdfg.view()
 
 if __name__ == "__main__":
-
-    test_graph()
+    test_pipeline2()
