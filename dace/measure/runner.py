@@ -36,7 +36,7 @@ class Runner():
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
                  view = True, view_all = False,
-                 view_roofline = True, save_roofline = False
+                 view_roofline = True, save_roofline = False,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
                  sequential = True):
 
@@ -70,6 +70,7 @@ class Runner():
         self.error_tol_rel = error_tol_rel
 
         self.sequential = sequential
+        self.save_roofline = save_roofline
 
     def _setzero_outputs(self, outputs):
         for element in outputs:
@@ -324,6 +325,8 @@ class Runner():
 
         print("################################################################")
         print("################## TRANSFORMATION CORRECTNESS ##################")
+        if nan_detected:
+            print("WARNING: NaN detected. See debug log for further information")
         print("Transformation".ljust(15,' '),
               "Output".ljust(15,' '),
               "Diff Abs".ljust(12,' '),
@@ -364,6 +367,24 @@ class Runner():
                 print(f"{runtime:.9g}".ljust(12,' '), end='')
             print('\n')
 
+        if roofline:
+            print("################################################################")
+            print("####################### Operational  ###########################")
+            print("Transformation".ljust(15,' '),
+                  "Op. Intensity".ljust(15,' '),
+                  f"GFLOP {self.measure_mode[0]}".ljust(15,' '),
+                  "GFLOP Roofline")
+            for transformation, runtime_list in zip((['baseline'] + pipeline), runtimes):
+                if isinstance(transformation, str):
+                    print(transformation.ljust(15,' '),
+                          f"{roofline.data[transformation]:.9g}".ljust(15,' '),
+                          f"{runtime_list[0]:.9g}".ljust(15,' '),
+                          f"{roofline.rooflines[transformation]:.9g}")
+                else:
+                    print(transformation.__name__.ljust(15,' '),
+                          f"{roofline.data[transformation.__name__]:.9g}".ljust(15,' '),
+                          f"{runtime_list[0]:.9g}".ljust(15,' '),
+                          f"{roofline.rooflines[transformation.__name__]:.9g}")
 
         print("################################################################")
         print("########################### SUMMARY ############################")
@@ -389,13 +410,13 @@ class Runner():
 
         print("################################################################")
 
+        if self.view and self.sequential or self.view_all:
+            sdfg.view()
+
         if roofline:
             if self.view_roofline:
                 roofline.plot(show = True, save_path = '' if self.save_roofline else None)
 
-
-        if self.view and self.sequential or self.view_all:
-            sdfg.view()
 
         for transformation in ['baseline']+pipeline:
             if not all([v == 'PASS' for v in verdicts_dict.values()]):
