@@ -11,6 +11,8 @@ from dace.sdfg.graph import SubgraphView
 
 import dace.libraries.standard as stdlib
 
+from dace.measure import Runner
+
 import timeit
 
 import dace.sdfg.nodes as nodes
@@ -147,5 +149,17 @@ def test_pipeline2():
     pipeline.fusion(sdfg, graph, subgraph)
     sdfg.view()
 
+def test_pipeline3():
+    graph = sdfg.nodes()[0]
+    subgraph = get_partition(sdfg, graph)
+    pipeline.go(sdfg, graph, subgraph)
+    sdfg.view()
+
+def test_pipeline4():
+    graph = sdfg.nodes()[0]
+    subgraph = get_partition(sdfg, graph)
+    runner = Runner()
+    runner.go(sdfg, graph, subgraph,
+              H, B, SN, SM)
 if __name__ == "__main__":
-    test_pipeline2()
+    test_pipeline4()

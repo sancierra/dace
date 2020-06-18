@@ -159,7 +159,22 @@ def fusion(sdfg: dace.SDFG,
         end = timeit.default_timer()
         print("***** Pipeline::MapFusion timer =",end-start,"s")
 
+def go(sdfg: dace.SDFG,
+       graph: dace.SDFGState,
+       subgraph: Union[SubgraphView, List[SubgraphView]] = None):
+    """ Does it all at once.
+        Pipelines ReduceExpansion -> MultiExpansion -> SubgraphFusion
 
+        :param sdfg: SDFG
+        :param graph: SDFGState of interest
+        :param subgraph: If None, performs pipeline on graph.
+                         If SubgraphView, expands and fuses on this subgraph
+                         If List of SubgraphViews, expands and fuses on
+                         each of those subgraphs individually
+    """
+    expand_reduce(sdfg, graph, subgraph)
+    expand_maps(sdfg, graph, subgraph)
+    fusion(sdfg, graph, subgraph)
 
 def get_highest_scope_maps(sdfg, graph, subgraph = None):
     subgraph = graph if not subgraph else subgraph
