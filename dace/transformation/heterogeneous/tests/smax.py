@@ -6,6 +6,10 @@ import sys
 from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
+
+import dace.dtypes as dtypes
+
+from dace.codegen.targets.framecode import set_default_schedule_and_storage_types
 import dace.transformation.heterogeneous.pipeline as pipeline
 from dace.sdfg.graph import SubgraphView
 
@@ -161,5 +165,33 @@ def test_pipeline4():
     runner = Runner()
     runner.go(sdfg, graph, subgraph,
               H, B, SN, SM)
+
 if __name__ == "__main__":
-    test_pipeline4()
+
+    sdfg.apply_gpu_transformations()
+    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
+    #csdfg = sdfg.compile_directly()
+    #result_base = csdfg(X_in=A, H=H, B=B, SN=SN, SM=SM)
+
+    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
+    sdfg.expand_library_nodes()
+
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            for state in node.sdfg.nodes():
+                for snode in state.nodes():
+                    for e in state.out_edges(snode):
+                        e.data.wcr_conflict = False
+
+
+    #csdfg2 = sdfg.compile_directly()
+    #result_1 = csdfg2(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    #print(np.allclose(result_base, result_1))
+
+    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
+    #csdfg3 = sdfg.compile_directly()
+    #result_2 = csdfg3(X_in = A, H=H, B=B, SN=SN, SM=SM)
+    set_default_schedule_and_storage_types(sdfg, dtypes.ScheduleType.GPU_Device)
+
+    sdfg.view()
