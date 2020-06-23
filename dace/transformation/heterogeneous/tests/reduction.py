@@ -9,35 +9,50 @@ M = dace.symbol('M')
 
 N.set(300); M.set(300)
 
+
 @dace.program
 def TEST(A: dace.float32[M,N]):
     return dace.reduce(lambda a, b: max(a,b), A, axis=1, identity = 0)
 
+
+@ dace.program
+def TEST2(A: dace.float32[M,N]):
+    tmp_out = np.ndarray([M], dace.float32)
+    for i in dace.map[0:M]:
+        tmp_out[i] = dace.reduce(lambda a,b: max(a,b), A[i,:], identity=0)
+    return tmp_out
+
+
+
 A = np.random.rand(M.get(), N.get()).astype(np.float32)
 
+
+
 if __name__ == '__main__':
-    sdfg.apply_gpu_transformations()
-    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
-    #csdfg = sdfg.compile_directly()
-    #result_base = csdfg(X_in=A, H=H, B=B, SN=SN, SM=SM)
+    sdfg1 = TEST.to_sdfg()
+    sdfg2 = TEST2.to_sdfg()
+    sdfg1.apply_gpu_transformations()
+    sdfg2.apply_gpu_transformations()
 
-    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
-    sdfg.expand_library_nodes()
+    return1 = sdfg1.compile()(A=A, N=N, M=M)
+    return2 = sdfg2.compile()(A=A, N=N, M=M)
 
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            for state in node.sdfg.nodes():
-                for snode in state.nodes():
-                    for e in state.out_edges(snode):
-                        e.data.wcr_conflict = False
+    print(np.linalg.norm(return1))
+    print(np.linalg.norm(return2))
 
+    ###################
+    sdfg1.expand_library_nodes()
+    sdfg2.expand_library_nodes()
 
-    #csdfg2 = sdfg.compile_directly()
-    #result_1 = csdfg2(X_in = A, H=H, B=B, SN=SN, SM=SM)
+    for sdfg in [sdfg1, sdfg2]:
+        for node in sdfg.nodes()[0].nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                for state in node.sdfg.nodes():
+                    for snode in state.nodes():
+                        for e in state.out_edges(snode):
+                            e.data.wcr_conflict = False
+                            if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                                snode.schedule = dace.dtypes.ScheduleType.Sequential
 
-    print(np.allclose(result_base, result_1))
-
-    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
-    #csdfg3 = sdfg.compile_directly()
-    #result_2 = csdfg3(X_in = A, H=H, B=B, SN=SN, SM=SM)
-    sdfg.view()
+    return1 = sdfg1.compile()(A=A, N=N, M=M)
+    return2 = sdfg2.compile()(A=A, N=N, M=M)
