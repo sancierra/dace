@@ -9,6 +9,8 @@ from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
 
+from dace.codegen import compiler
+
 import dace.libraries.standard as stdlib
 
 import timeit
@@ -22,14 +24,14 @@ H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 
 @dace.program
-def softmax(X_in: dace_dtype[H, B, SN, SM]):
+def softmax(X_in: dace_dtype[H, B, SN, 256]):
     tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3, identity = 0)
 
-    tmp_out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
-    out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
+    tmp_out = np.ndarray([H, B, SN, 256], dtype=dace_dtype)
+    out = np.ndarray([H, B, SN, 256], dtype=dace_dtype)
 
     # No broadcasting rules
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:SM]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:256]:
         with dace.tasklet:
             inp << X_in[i, j, k, l]
             mx << tmp_max[i, j, k]
@@ -38,7 +40,7 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
     #tmp_out = np.exp(X_in - tmp_max)
 
     tmp_sum = dace.reduce(lambda a, b: a + b, tmp_out, identity=0, axis=3)
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:SM]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:256]:
         with dace.tasklet:
             inp << tmp_out[i, j, k, l]
             sm << tmp_sum[i, j, k]
@@ -48,12 +50,10 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
     return out
 
 
-sdfg = softmax.to_sdfg()
-roofline = Roofline(PERF_CPU_CRAPBOOK, symbols = {H:3, B:3, SN:5, SM:5})
-H.set(20); B.set(20); SN.set(100); SM.set(100)
-
+H.set(32); B.set(16); SN.set(256); SM.set(256)
 
 def test_graph():
+    sdfg = softmax.to_sdfg()
     ################ first, expand the reduce node
     print(sdfg.nodes()[0])
     sdfg.view()
@@ -78,7 +78,7 @@ def test_graph():
 
 
 def test_result(debug = False):
-
+    sdfg = softmax.to_sdfg()
     debugger = Runner(measure_mode = ['median', 'avg', 'std'],
                       view_roofline = True)
 
@@ -88,13 +88,44 @@ def test_result(debug = False):
 
     #############
 
+def load_old_configuration(sdfg):
+    # loads old configuration
+    # sdfg._name has to be set already
+    binary_filename = compiler.get_binary_name(sdfg.build_folder, sdfg.name)
+    return compiler.load_from_file(sdfg, binary_filename)
 
-if __name__ == "__main__":
-    #test_result()
+
+
+def get_partition(sdfg, graph):
+    subgraph1 = SubgraphView(graph, [])
+    subgraph2 = SubgraphView(graph, [])
+
+    cnt1 = 0
+    for node in dace.sdfg.utils.dfs_topological_sort(graph):
+        if isinstance(node, stdlib.nodes.reduce.Reduce):
+            if cnt1 < 2:
+                subgraph1._subgraph_nodes.append(node)
+                cnt1 += 1
+            else:
+                subgraph2._subgraph_nodes.append(node)
+
+        if isinstance(node, nodes.MapEntry):
+            if cnt1 < 2:
+                subgraph1._subgraph_nodes.append(node)
+                cnt1 += 1
+            else:
+                subgraph2._subgraph_nodes.append(node)
+
+    return [subgraph1, subgraph2]
+
+
+def test_allfuse():
+
+    sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
-    
-    A = np.ndarray((H.get(), B.get(), SN.get(), SM.get()), dtype = np.float32)
+   
+    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
     
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
@@ -113,6 +144,8 @@ if __name__ == "__main__":
                 for snode in state.nodes():
                     for e in state.out_edges(snode):
                         e.data.wcr_conflict = False
+                    if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                        snode.schedule = dace.dtypes.ScheduleType.Sequential
     ##
     sdfg._name = 'reduce'
     csdfg = sdfg.compile_directly()
@@ -128,15 +161,133 @@ if __name__ == "__main__":
 
     ######################################################
     
-    pipeline.fusion(sdfg, graph)
-    sdfg.view()
 
+    sdfg = softmax.to_sdfg()
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    pipeline.expand_reduce(sdfg, graph)
+    pipeline.expand_maps(sdfg, graph)
+    pipeline.fusion(sdfg, graph)
+    
+    sdfg.apply_strict_transformations()
+    sdfg.expand_library_nodes()
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            for state in node.sdfg.nodes():
+                for snode in state.nodes():
+                    for e in state.out_edges(snode):
+                        e.data.wcr_conflict = False
+                        if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                            snode.schedule = dace.dtypes.ScheduleType.Sequential
+    sdfg.view()
+    
     sdfg._name = 'fusion'
     csdfg = sdfg.compile_directly()
     result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-    
+    #csdfg = load_old_configuration(sdfg)
+    #result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+
+
     ######################################################
     print("Evaluation")
+    print("Norms")
+    print(np.linalg.norm(result_base))
+    print(np.linalg.norm(result1))
+    print(np.linalg.norm(result2))
+    print(np.linalg.norm(result3))
+    #print(result_base)
+    #print(result3)
     assert np.allclose(result_base, result1)
     assert np.allclose(result_base, result2)
     assert np.allclose(result_base, result3)
+
+def test_partialfuse():
+    
+    sdfg = softmax.to_sdfg()
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    subgraph = get_partition(sdfg, graph)
+    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
+    
+    sdfg._name = 'baseline'
+    csdfg = sdfg.compile_directly()
+    result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+
+    ####################################################
+    pipeline.expand_reduce(sdfg, graph, subgraph)
+    
+    ## Manually fix codegen bug ## 
+    sdfg.expand_library_nodes()
+    sdfg.view()
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            for state in node.sdfg.nodes():
+                for snode in state.nodes():
+                    for e in state.out_edges(snode):
+                        e.data.wcr_conflict = False
+                    if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                        snode.schedule = dace.dtypes.ScheduleType.Sequential
+    ##
+    sdfg._name = 'reduce'
+    csdfg = sdfg.compile_directly()
+    result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    ######################################################
+    pipeline.expand_maps(sdfg, graph, subgraph)
+    sdfg.view()
+
+    sdfg._name = 'expansion'
+    csdfg = sdfg.compile_directly()
+    result2 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    ######################################################
+    
+
+    sdfg = softmax.to_sdfg()
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    subgraph = get_partition(sdfg, graph)
+    pipeline.expand_reduce(sdfg, graph, subgraph)
+    pipeline.expand_maps(sdfg, graph, subgraph)
+    pipeline.fusion(sdfg, graph, subgraph)
+    
+    sdfg.apply_strict_transformations()
+    sdfg.expand_library_nodes()
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            for state in node.sdfg.nodes():
+                for snode in state.nodes():
+                    for e in state.out_edges(snode):
+                        e.data.wcr_conflict = False
+                        if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                            snode.schedule = dace.dtypes.ScheduleType.Sequential
+    sdfg.view()
+    
+    sdfg._name = 'fusion'
+    csdfg = sdfg.compile_directly()
+    result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+    #csdfg = load_old_configuration(sdfg)
+    #result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+
+
+    ######################################################
+    print("Evaluation")
+    print("Norms")
+    print(np.linalg.norm(result_base))
+    print(np.linalg.norm(result1))
+    print(np.linalg.norm(result2))
+    print(np.linalg.norm(result3))
+    #print(result_base)
+    #print(result3)
+    assert np.allclose(result_base, result1)
+    assert np.allclose(result_base, result2)
+    assert np.allclose(result_base, result3)
+
+
+if __name__ == "__main__":
+    test_allfuse()
+    
+    
