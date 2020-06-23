@@ -34,25 +34,30 @@ if __name__ == '__main__':
     sdfg1.apply_gpu_transformations()
     sdfg2.apply_gpu_transformations()
 
-    return1 = sdfg1.compile()(A=A, N=N, M=M)
-    return2 = sdfg2.compile()(A=A, N=N, M=M)
+    #return1 = sdfg1.compile()(A=A, N=N, M=M)
+    #return2 = sdfg2.compile()(A=A, N=N, M=M)
 
-    print(np.linalg.norm(return1))
-    print(np.linalg.norm(return2))
+    #print(np.linalg.norm(return1))
+    #print(np.linalg.norm(return2))
 
     ###################
     sdfg1.expand_library_nodes()
     sdfg2.expand_library_nodes()
-
-    for sdfg in [sdfg1, sdfg2]:
+    
+    
+    for sdfg in [sdfg2]:
         for node in sdfg.nodes()[0].nodes():
             if isinstance(node, dace.sdfg.nodes.NestedSDFG):
                 for state in node.sdfg.nodes():
                     for snode in state.nodes():
                         for e in state.out_edges(snode):
                             e.data.wcr_conflict = False
-                            if isinstance(snode, dace.sdfg.nodes.MapEntry):
-                                snode.schedule = dace.dtypes.ScheduleType.Sequential
-
+                            #if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                            #    snode.schedule = dace.dtypes.ScheduleType.Sequential
+    
+    
+    
     return1 = sdfg1.compile()(A=A, N=N, M=M)
     return2 = sdfg2.compile()(A=A, N=N, M=M)
+    print(np.linalg.norm(return1))
+    print(np.linalg.norm(return2))
