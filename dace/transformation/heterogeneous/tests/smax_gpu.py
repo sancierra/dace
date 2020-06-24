@@ -8,6 +8,7 @@ from dace.perf.optimizer import SDFGRooflineOptimizer
 from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
+from dace.transformation.heterogeneous import pipeline
 
 from dace.codegen import compiler
 
@@ -15,9 +16,10 @@ import dace.libraries.standard as stdlib
 
 import timeit
 
-import dace.measure.pipeline as pipeline
 from dace.measure.runner import Runner
 
+from dace.sdfg.graph import SubgraphView
+import dace.sdfg.nodes as nodes
 
 dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
@@ -288,6 +290,6 @@ def test_partialfuse():
 
 
 if __name__ == "__main__":
-    test_allfuse()
+    test_partialfuse()
     
     
