@@ -332,7 +332,7 @@ class ReduceMap(pattern_matching.Transformation):
         # FORNOW: choose default schedule and implementation
         new_schedule = dtypes.ScheduleType.Default
         new_implementation = implementation if implementation else self.reduce_implementation
-        new_axes = reduce_node.axes
+        new_axes = None if self.create_in_transient else reduce_node.axes
 
         reduce_node_new = graph.add_reduce(wcr = wcr,
                                            axes = new_axes,
