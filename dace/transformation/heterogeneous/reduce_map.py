@@ -49,7 +49,9 @@ class ReduceMap(pattern_matching.Transformation):
 
     reduce_implementation = Property(desc = "Reduce implementation of inner reduce",
                                      dtype = str,
-                                     default = 'pure')
+                                     default = 'pure',
+                                     choices = ['pure', 'OpenMP',
+                                                'CUDA (device)', 'CUDA (block)','CUDA (warp)'])
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',

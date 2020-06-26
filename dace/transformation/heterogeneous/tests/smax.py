@@ -173,25 +173,17 @@ if __name__ == "__main__":
     #csdfg = sdfg.compile_directly()
     #result_base = csdfg(X_in=A, H=H, B=B, SN=SN, SM=SM)
 
-    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
-    sdfg.expand_library_nodes()
+    pipeline.expand_reduce(sdfg, sdfg.nodes()[0], create_in_transient = True, reduce_implementation = 'CUDA (block)')
+    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
+    pipeline.fusion(sdfg, sdfg.nodes()[0])
 
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            for state in node.sdfg.nodes():
-                for snode in state.nodes():
-                    for e in state.out_edges(snode):
-                        e.data.wcr_conflict = False
+    sdfg.apply_strict_transformations()
+    sdfg.view()
+    sdfg.expand_library_nodes()
+    sdfg.view()
 
 
     #csdfg2 = sdfg.compile_directly()
     #result_1 = csdfg2(X_in = A, H=H, B=B, SN=SN, SM=SM)
 
     #print(np.allclose(result_base, result_1))
-
-    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
-    #csdfg3 = sdfg.compile_directly()
-    #result_2 = csdfg3(X_in = A, H=H, B=B, SN=SN, SM=SM)
-    set_default_schedule_and_storage_types(sdfg, dtypes.ScheduleType.GPU_Device)
-
-    sdfg.view()

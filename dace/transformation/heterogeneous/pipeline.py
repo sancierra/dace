@@ -35,7 +35,8 @@ Usual Pipeline:
 
 def expand_reduce(sdfg: dace.SDFG,
                   graph: dace.SDFGState,
-                  subgraph: Union[SubgraphView, List[SubgraphView]] = None):
+                  subgraph: Union[SubgraphView, List[SubgraphView]] = None,
+                  **kwargs):
     """
     Perform a ReduceMap transformation of all the Reduce Nodes specified in the
     subgraph. If for a reduce node transformation cannot be done, a warning is omitted.
@@ -48,6 +49,8 @@ def expand_reduce(sdfg: dace.SDFG,
                      If SubgraphView, all the Reduces therein are considered
                      If List of SubgraphViews, all the Reduces in all the
                      SubgraphViews are considered
+    :param kwargs: Property setters for ReduceMap class
+
     """
     subgraph = graph if not subgraph else subgraph
     if not isinstance(subgraph, List):
@@ -70,6 +73,9 @@ def expand_reduce(sdfg: dace.SDFG,
                 reduce_nodes.append(node)
 
         trafo_reduce = ReduceMap(0,0,{},0)
+        for (property, val) in kwargs.items():
+            setattr(trafo_reduce, property, val)
+
         start = timeit.default_timer()
         for reduce_node in reduce_nodes:
             trafo_reduce.expand(sdfg,graph,reduce_node)
@@ -84,7 +90,8 @@ def expand_reduce(sdfg: dace.SDFG,
 
 def expand_maps(sdfg: dace.SDFG,
                 graph: dace.SDFGState,
-                subgraph: Union[SubgraphView, List[SubgraphView]] = None):
+                subgraph: Union[SubgraphView, List[SubgraphView]] = None,
+                **kwargs):
 
     """
     Perform MultiExpansion on all the Map nodes specified.
@@ -96,19 +103,22 @@ def expand_maps(sdfg: dace.SDFG,
                      (the corresponding MapEntry has to be in the subgraph!)
                      If a list of SubgraphViews, all top-level maps in their SubgraphViews
                      get expanded (corresponding MapEntry has to be in one of the subgraphs)
-
+    :param kwargs: Property setters for MultiExpansion
 
     """
     subgraph = graph if not subgraph else subgraph
     if not isinstance(subgraph, List):
         subgraph = [subgraph]
 
+    trafo_expansion = MultiExpansion()
+    for (property, val) in kwargs.items():
+        setattr(trafo_expansion, property, val)
+
     if TRANSFORMATION_TIMER:
         start = timeit.default_timer()
 
     for sg in subgraph:
         map_entries = get_highest_scope_maps(sdfg, graph, sg)
-        trafo_expansion = MultiExpansion()
         start = timeit.default_timer()
         trafo_expansion.expand(sdfg, graph, map_entries)
 
@@ -118,7 +128,8 @@ def expand_maps(sdfg: dace.SDFG,
 
 def fusion(sdfg: dace.SDFG,
            graph: dace.SDFGState,
-           subgraph: Union[SubgraphView, List[SubgraphView]] = None):
+           subgraph: Union[SubgraphView, List[SubgraphView]] = None,
+           **kwargs):
     """
     Perform MapFusion on the graph/subgraph/subgraphs specified
 
@@ -131,11 +142,17 @@ def fusion(sdfg: dace.SDFG,
                      if List of SubgraphViews, performs SubgraphFusion
                      on each of these Subgraphs, using the respective
                      top-level maps for fusion
+    :param kwargs: Property setters for SubgraphFusion
     """
 
     subgraph = graph if not subgraph else subgraph
     if not isinstance(subgraph, List):
         subgraph = [subgraph]
+
+    map_fusion = SubgraphFusion()
+    for (property, val) in kwargs.items():
+        setattr(map_fusion, property, val)
+
     if TRANSFORMATION_TIMER:
         start = timeit.default_timer()
 
@@ -149,7 +166,6 @@ def fusion(sdfg: dace.SDFG,
                 if graph.exit_node(map_entry) in sg.nodes():
                     sg.nodes().remove(graph.exit_node(map_entry))
         print(f"Subgraph Fusion on map entries {map_entries}")
-        map_fusion = SubgraphFusion()
         map_fusion.fuse(sdfg, graph, map_entries)
         if isinstance(sg, SubgraphView):
             sg.nodes().append(map_fusion._global_map_entry)
