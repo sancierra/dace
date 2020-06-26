@@ -64,7 +64,7 @@ def expand_reduce(sdfg: dace.SDFG,
         for node in sg.nodes():
             if isinstance(node, stdlib.Reduce):
                 if not ReduceMap.can_be_applied(graph = graph,
-                                                candidate = {ReduceMap._reduce: node},
+                                                candidate = {ReduceMap._reduce: graph.node_id(node)},
                                                 expr_index = 0,
                                                 sdfg = sdfg):
                     print(f"WARNING: Cannot expand reduce node {node}: \
