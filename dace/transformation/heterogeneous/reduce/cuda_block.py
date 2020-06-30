@@ -13,7 +13,7 @@ from dace.sdfg.propagation import propagate_memlets_sdfg
 from dace.frontend.operations import detect_reduction_type
 from dace.transformation.heterogeneous import helpers
 
-from dace.transformation.dataflow import LocalStorage
+from dace.transformation.dataflow.local_storage import LocalStorage
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -24,10 +24,10 @@ import timeit
 
 
 
-@registry.autoregister_parmas(singlestate=True)
+@registry.autoregister_params(singlestate=True)
 @make_properties
 class CUDABlockAllReduce(pattern_matching.Transformation):
-    """ Implements the CUDABlockReduce transformation.
+    """ Implements the CUDABlockAllReduce transformation.
         Takes a cuda block reduce node, transforms it to a block reduce node,
         warps it in outer maps and creates an if-output of thread0
         to a newly created shared memory container
@@ -43,22 +43,27 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
     @staticmethod
     def expressions():
         return [
-            utils.node_path_graph(CUDABlockReduce._reduce)
+            utils.node_path_graph(CUDABlockAllReduce._reduce)
         ]
 
     @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict = False):
-        reduce_node = graph.nodes()[candidate[CUDABlockReduce._reduce]]
+        # TODO: Work in progress
+        reduce_node = graph.nodes()[candidate[CUDABlockAllReduce._reduce]]
         inedge = graph.in_edges(reduce_node)[0]
+        scope_dict = graph.scope_dict()
         if reduce_node.implementation != 'CUDA (block)':
             return False
-        if inedge.data.total_size == 1:
+        if sdfg.data(inedge.data.data).total_size == 1:
             return False
-        if not reduce_node.axes:
-            # full reduction, cannot do threadBlocks
+        if not scope_dict[reduce_node]:
+            # reduce node must not be top level
+            # but inside a block already
             return False
-        if len(reduce_node.axes) == len(inedge.data.subset):
-            # full reduction, cannot do threadBlocks
+
+        # finally, check whether data_dims of incoming
+        # memlet is equal to length of data axes
+        if inedge.data.subset.data_dims() != len(reduce_node.axes):
             return False
 
         # good to go
@@ -66,7 +71,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
     @staticmethod
     def match_to_str(graph, candidate):
-        reduce = candidate[ReduceMap._reduce]
+        reduce = candidate[CUDABlockAllReduce._reduce]
         return str(reduce)
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
@@ -91,9 +96,9 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
         """
 
         graph = sdfg.nodes()[self.state_id]
-        reduce_node = graph.nodes()[self.subgraph[ReduceMap._reduce]]
+        reduce_node = graph.nodes()[self.subgraph[CUDABlockAllReduce._reduce]]
         in_edge = graph.in_edges(reduce_node)[0]
-        out_edge = graph.out_edge(reduce_ndoe)[0]
+        out_edge = graph.out_edges(reduce_node)[0]
 
         axes = reduce_node.axes
 
@@ -103,49 +108,85 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
         # add a map that encloses the reduce node
         (new_entry, new_exit) = graph.add_map(
                       name = str(reduce_node)+'_mapped',
-                      ndrange = [rng for (i,rng) in enumerate(in_edge.data.subset)],
+                      ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'
+                                for (i,rng) in enumerate(in_edge.data.subset)
+                                if i in axes},
                       schedule = dtypes.ScheduleType.Default)
 
+        if self.debug:
+            print(f"CUDABlockAllReduce on range(s) {new_entry.map.range}")
+        map = new_entry.map
         self.redirect_edge(graph, in_edge, new_dst = new_entry)
         self.redirect_edge(graph, out_edge, new_src = new_exit)
         subset_in = subsets.Range([in_edge.data.subset[i] if i not in axes
-                                   else new_entry.map.params[i]
+                                   else (new_entry.map.params[0],new_entry.map.params[0],1)
                                    for i in range(len(in_edge.data.subset))])
-        memlet_in = dace.memlet.Memlet(
-                        data = in_edge.data.data,
-                        num_accesses = 1,
-                        subset = subset_in,
-                        vector_length = 1
+        memlet_in = Memlet(data = in_edge.data.data,
+                           num_accesses = 1,
+                           subset = subset_in,
+                           vector_length = 1
         )
         memlet_out = dcpy(out_edge.data)
-        graph.add_edge(u = new_entry, v = reduce_node, memlet = memlet_in)
-        graph.add_edge(u = reduce_node, v = new_exit, memlet_memlet_out)
+        graph.add_edge(u = new_entry, u_connector = None,
+                       v = reduce_node,v_connector = None,
+                       memlet = memlet_in)
+        graph.add_edge(u = reduce_node, u_connector = None,
+                       v = new_exit, v_connector = None,
+                       memlet = memlet_out)
 
         # add in and out local storage
 
         in_local_storage_subgraph = {
-            LocalStorage._node_a: new_entry,
-            LocalStorage._node_b: reduce_node
+            LocalStorage._node_a: graph.nodes().index(new_entry),
+            LocalStorage._node_b: graph.nodes().index(reduce_node)
         }
         out_local_storage_subgraph = {
-            LocalStorage._node_a: reduce_node,
-            LocalStorage._node_b: new_exit
+            LocalStorage._node_a: graph.nodes().index(reduce_node),
+            LocalStorage._node_b: graph.nodes().index(new_exit)
         }
         local_storage = LocalStorage(sdfg.sdfg_id,
                                      self.state_id,
-                                     in_local_stoarge_subgraph,
+                                     in_local_storage_subgraph,
                                      0)
 
-        local_storage.array = array_out
-        '''
-        from dace.transformation.dataflow.local_storage import LocalStorage
-        local_storage_subgraph = {
-            LocalStorage._node_a: nsdfg.sdfg.nodes()[0].nodes().index(inner_exit),
-            LocalStorage._node_b: nsdfg.sdfg.nodes()[0].nodes().index(outer_exit)
-        }
-        nsdfg_id = nsdfg.sdfg.sdfg_list.index(nsdfg.sdfg)
-        nstate_id = 0
-        local_storage = LocalStorage(nsdfg_id,
-        '''
+        local_storage.array = in_edge.data.data
+        local_storage.apply(sdfg)
+        in_transient = local_storage._data_node
+        sdfg.data(in_transient.data).storage = dtypes.StorageType.Register
 
-        # add an if tasket and diverge to it
+        local_storage = LocalStorage(sdfg.sdfg_id,
+                                     self.state_id,
+                                     out_local_storage_subgraph,
+                                     0)
+        local_storage.array = out_edge.data.data
+        local_storage.apply(sdfg)
+        out_transient = local_storage._data_node
+        sdfg.data(in_transient.data).storage = dtypes.StorageType.Register
+
+        # add an if tasket and diverge
+
+        code = 'if '
+        for (i,param) in enumerate(new_entry.map.params):
+            code += (param + '==0')
+            if i < len(axes) - 1:
+                code += ' and '
+        code += ':\n'
+        code += '\tout=inp'
+
+        tasklet_node = graph.add_tasklet(name = 'block_reduce_write',
+                                         inputs = ['inp'],
+                                         outputs = ['out'],
+                                         code = code)
+
+        edge_out_outtrans = graph.out_edges(out_transient)[0]
+        edge_out_innerexit = graph.out_edges(new_exit)[0]
+        self.redirect_edge(graph, edge_out_outtrans, new_dst = tasklet_node,
+                           new_dst_conn = 'inp')
+        e = graph.add_edge(u = tasklet_node, u_connector = 'out',
+                           v = new_exit, v_connector = None,
+                           memlet = dcpy(edge_out_innerexit.data))
+        e.data.num_accesses = -1
+
+        # fill scope connectors, done.
+        sdfg.view()
+        sdfg.fill_scope_connectors()
