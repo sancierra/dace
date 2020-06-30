@@ -12,6 +12,7 @@ from dace.sdfg.propagation import propagate_memlets_sdfg
 
 from dace.frontend.operations import detect_reduction_type
 
+from dace.transformation.heterogeneous.reduce import CUDABlockAllReduce
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -43,11 +44,13 @@ class ReduceMap(pattern_matching.Transformation):
                                                 dtype = bool,
                                                 default = True)
 
-    create_in_transient = Property(desc = "Create local in-transient",
+    create_in_transient = Property(desc = "Create local in-transient in"
+                                          "shared memory",
                                    dtype = bool,
                                    default = False)
 
-    create_out_transient = Property(desc = "Create local out-transient",
+    create_out_transient = Property(desc = "Create local out-transient"
+                                           "in register",
                                     dtype = bool,
                                     default = False)
 
@@ -56,6 +59,11 @@ class ReduceMap(pattern_matching.Transformation):
                                      default = 'pure',
                                      choices = ['pure', 'OpenMP',
                                                 'CUDA (device)', 'CUDA (block)','CUDA (warp)'])
+    cuda_expand = Property(desc = "If implementation is of type CUDA (block) or CUDA (warp),"
+                                  "perform necessary additional transformations",
+                           dtype = bool,
+                           default = True)
+
 
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
@@ -167,6 +175,9 @@ class ReduceMap(pattern_matching.Transformation):
             local_storage.apply(nsdfg.sdfg)
             out_transient_node_inner = local_storage._data_node
 
+            # push to register
+            nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
+
 
         if self.create_in_transient:
             # create an in-transient as well.
@@ -188,11 +199,9 @@ class ReduceMap(pattern_matching.Transformation):
             local_storage.apply(nsdfg.sdfg)
             in_transient_node_inner = local_storage._data_node
 
+            # push to shared memory / default
             nsdfg.sdfg.data(in_transient_node_inner.data).storage = dtypes.StorageType.Default
 
-
-        if self.map_out_transient_to_registers and self.create_out_transient:
-            nsdfg.sdfg.data(out_transient_node_inner.data).storage = dtypes.StorageType.Register
 
 
         # find earliest parent read-write occurrence of array onto which
@@ -379,10 +388,29 @@ class ReduceMap(pattern_matching.Transformation):
         # create variables for outside access
         self._new_reduce = reduce_node_new
         self._outer_entry = outer_entry
+
+        # CUDA reduce kernels might need some extra work if they are
+        # not allocated on CUDA (device)
+        if self.cuda_expand:
+            if self.reduce_implementation == 'CUDA (block)':
+                # check whether can be applied
+                candidate = {CUDABlockAllReduce._reduce: graph.nodes().index(reduce_node_new)}
+                applicable = CUDABlockAllReduce.can_be_applied(graph, candidate, 0, sdfg)
+                if not applicable:
+                    print("WARNING: CUDABlockAllReduce::Can_Be_Applied returned False")
+
+                transformation = CUDABlockAllReduce(self.sdfg_id, self.state_id,
+                                                    candidate, 0)
+                transformation.apply(sdfg)
+
+            if self.reduce_implementation == 'CUDA (warp)':
+                raise NotImplementedError('Not implemented yet.')
         return
 
 
     def _expand_reduce(self, sdfg, state, node):
+        # expands a reduce into two nested maps
+        # taken from legacy expand_reduce.py
 
         node.validate(sdfg, state)
         inedge: graph.MultiConnectorEdge = state.in_edges(node)[0]
