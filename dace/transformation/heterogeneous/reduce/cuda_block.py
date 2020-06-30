@@ -38,7 +38,9 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
     debug = Property(desc="Debug Info",
                      dtype = bool,
                      default = True)
-
+    collapse = Property(desc = "Collapse Reduction for better viewability",
+                        dtype = bool,
+                        default = False)
 
     @staticmethod
     def expressions():
@@ -102,12 +104,9 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
         axes = reduce_node.axes
 
-        # first, set reduce_node axes to all
-        reduce_node.axes = None
-
         # add a map that encloses the reduce node
         (new_entry, new_exit) = graph.add_map(
-                      name = str(reduce_node)+'_mapped',
+                      name = str(reduce_node)+' - Block',
                       ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'
                                 for (i,rng) in enumerate(in_edge.data.subset)
                                 if i in axes},
@@ -161,7 +160,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
         local_storage.array = out_edge.data.data
         local_storage.apply(sdfg)
         out_transient = local_storage._data_node
-        sdfg.data(in_transient.data).storage = dtypes.StorageType.Register
+        sdfg.data(out_transient.data).storage = dtypes.StorageType.Register
 
         # add an if tasket and diverge
 
@@ -187,6 +186,11 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
                            memlet = dcpy(edge_out_innerexit.data))
         e.data.num_accesses = -1
 
+        # set reduce_node axes to all (needed)
+        reduce_node.axes = None
+
+        if self.collapse:
+            new_entry.is_collapsed = True
         # fill scope connectors, done.
-        sdfg.view()
         sdfg.fill_scope_connectors()
+        return
