@@ -78,16 +78,19 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
                                          new_dst = None, new_dst_conn = None, new_data = None ):
-        if not(new_src or new_dst) or new_src and new_dst:
-            raise RuntimeError("Redirect Edge has been used wrongly")
+
         data = new_data if new_data else edge.data
-        if new_src:
+        if new_src and new_dst:
+            ret = graph.add_edge(new_src, new_src_conn, new_dst, new_dst_conn, data)
+            graph.remove_edge(edge)
+        elif new_src:
             ret = graph.add_edge(new_src, new_src_conn, edge.dst, edge.dst_conn, data)
             graph.remove_edge(edge)
-        if new_dst:
+        elif new_dst:
             ret = graph.add_edge(edge.src, edge.src_conn, new_dst, new_dst_conn, data)
             graph.remove_edge(edge)
-
+        else:
+            print("WARNING: redirect_edge has been called in vain")
         return ret
 
     def apply(self, sdfg, strict = False):
@@ -97,6 +100,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
             of thread 0 to a shared memory transient
         """
 
+        ### define some useful vars
         graph = sdfg.nodes()[self.state_id]
         reduce_node = graph.nodes()[self.subgraph[CUDABlockAllReduce._reduce]]
         in_edge = graph.in_edges(reduce_node)[0]
@@ -104,7 +108,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
         axes = reduce_node.axes
 
-        # add a map that encloses the reduce node
+        ### add a map that encloses the reduce node
         (new_entry, new_exit) = graph.add_map(
                       name = str(reduce_node)+' - Block',
                       ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'
@@ -133,7 +137,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
                        v = new_exit, v_connector = None,
                        memlet = memlet_out)
 
-        # add in and out local storage
+        ### add in and out local storage
 
         in_local_storage_subgraph = {
             LocalStorage._node_a: graph.nodes().index(new_entry),
@@ -143,6 +147,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
             LocalStorage._node_a: graph.nodes().index(reduce_node),
             LocalStorage._node_b: graph.nodes().index(new_exit)
         }
+
         local_storage = LocalStorage(sdfg.sdfg_id,
                                      self.state_id,
                                      in_local_storage_subgraph,
@@ -162,8 +167,14 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
         out_transient = local_storage._data_node
         sdfg.data(out_transient.data).storage = dtypes.StorageType.Register
 
-        # add an if tasket and diverge
+        # hack: swap edges as local_storage does not work correctly here
+        # TODO: beautify
+        e1 = graph.in_edges(out_transient)[0]
+        e2 = graph.out_edges(out_transient)[0]
+        e1.data.data = dcpy(e2.data.data)
+        e1.data.subset = dcpy(e2.data.subset)
 
+        ### add an if tasket and diverge
         code = 'if '
         for (i,param) in enumerate(new_entry.map.params):
             code += (param + '==0')
@@ -179,14 +190,14 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
         edge_out_outtrans = graph.out_edges(out_transient)[0]
         edge_out_innerexit = graph.out_edges(new_exit)[0]
-        self.redirect_edge(graph, edge_out_outtrans, new_dst = tasklet_node,
-                           new_dst_conn = 'inp')
+        self.redirect_edge(graph, edge_out_outtrans,
+                           new_dst = tasklet_node, new_dst_conn = 'inp')
         e = graph.add_edge(u = tasklet_node, u_connector = 'out',
                            v = new_exit, v_connector = None,
                            memlet = dcpy(edge_out_innerexit.data))
         e.data.num_accesses = -1
 
-        # set reduce_node axes to all (needed)
+        ### set reduce_node axes to all (needed)
         reduce_node.axes = None
 
         if self.collapse:
