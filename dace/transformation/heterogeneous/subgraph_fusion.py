@@ -36,7 +36,7 @@ class SubgraphFusion():
     register_trans = Property(desc="Make connecting transients with size 1 inside"
                                     "the global map registers",
                               dtype = bool,
-                              default = True)
+                              default = False)
 
     debug = Property(desc = "Show debug info",
                      dtype = bool,

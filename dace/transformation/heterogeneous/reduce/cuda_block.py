@@ -110,7 +110,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
 
         ### add a map that encloses the reduce node
         (new_entry, new_exit) = graph.add_map(
-                      name = str(reduce_node)+' - Block',
+                      name = 'inner_reduce_block',
                       ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'
                                 for (i,rng) in enumerate(in_edge.data.subset)
                                 if i in axes},
