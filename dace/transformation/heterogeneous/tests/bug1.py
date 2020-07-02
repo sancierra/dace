@@ -22,7 +22,7 @@ def TEST(X: d32[N,N]):
     for i in dace.map[0:N]:
         tmp = dace.reduce(lambda a,b: a+b, X[i,:], identity = 0)
         result[i] = tmp
-
+    return result
 @dace.program
 def TEST2(X: d16[N]):
     for i in dace.map[0:N]:
@@ -54,12 +54,15 @@ def bug1():
 
     sdfg.view()
     A = np.random.rand(N.get(), N.get()).astype(np.float32)
-    TEST(A=A, N=N)
+    csdfg = sdfg.compile()
+    csdfg(A=A, N=N)
 
 def bug2():
     sdfg = TEST2.to_sdfg()
+    sdfg.apply_gpu_transformations()
     A = np.random.rand(N.get()).astype(np.float16)
-    TEST2(A=A, N=N)
+    csdfg = sdfg.compile()
+    csdfg(A=A, N=N)
 
 if __name__ == '__main__':
     bug1()
