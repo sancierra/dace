@@ -28,8 +28,7 @@ H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 @dace.program
 def softmax(X_in: dace_dtype[H, B, SN, SM]):
-    tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3, identity = 0)
-
+    tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3)
     tmp_out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
     out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
 
@@ -168,22 +167,65 @@ def test_pipeline4():
 
 if __name__ == "__main__":
 
+    sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
-    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
-    #csdfg = sdfg.compile_directly()
-    #result_base = csdfg(X_in=A, H=H, B=B, SN=SN, SM=SM)
-
-    pipeline.expand_reduce(sdfg, sdfg.nodes()[0], create_in_transient = True, reduce_implementation = 'CUDA (block)')
-    pipeline.expand_maps(sdfg, sdfg.nodes()[0])
+    sdfg.view()
+    pipeline.expand_reduce(sdfg, sdfg.nodes()[0])
+    pipeline.expand_maps(sdfg,sdfg.nodes()[0])
     pipeline.fusion(sdfg, sdfg.nodes()[0])
+    sdfg.view()
+
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+
+    #A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
+
+    sdfg._name = 'baseline'
+    #csdfg = sdfg.compile_directly()
+    #result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+
+    ####################################################
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = False)
+
+    ## Manually fix codegen bug ##
+    sdfg.expand_library_nodes()
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            for state in node.sdfg.nodes():
+                for snode in state.nodes():
+                    for e in state.out_edges(snode):
+                        e.data.wcr_conflict = False
+                    if isinstance(snode, dace.sdfg.nodes.MapEntry):
+                        snode.schedule = dace.dtypes.ScheduleType.Sequential
+    sdfg.view()
+    sdfg._name = 'reduce'
+    #csdfg = sdfg.compile_directly()
+    #result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    ######################################################
+    pipeline.expand_maps(sdfg, graph)
+    sdfg.view()
+
+    sdfg._name = 'expansion'
+    #csdfg = sdfg.compile_directly()
+    #result2 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+
+    ######################################################
+
+
+    sdfg = softmax.to_sdfg()
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'CUDA (block)')
+    pipeline.expand_maps(sdfg, graph)
+    pipeline.fusion(sdfg, graph)
 
     sdfg.apply_strict_transformations()
     sdfg.view()
-    sdfg.expand_library_nodes()
-    sdfg.view()
 
-
-    #csdfg2 = sdfg.compile_directly()
-    #result_1 = csdfg2(X_in = A, H=H, B=B, SN=SN, SM=SM)
-
-    #print(np.allclose(result_base, result_1))
+    sdfg._name = 'fusion'
+    #csdfg = sdfg.compile_directly()
+    #result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+    #csdfg = load_old_configuration(sdfg)
+    #result3 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)

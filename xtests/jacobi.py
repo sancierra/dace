@@ -52,11 +52,34 @@ if __name__ == "__main__":
     print("==== Program start ====")
     sdfg = jacobi.to_sdfg()
     sdfg.view()
-    
+    sdfg_id = 0
+    state_id = 1
+    entry1 = None
+    entry2 = None
+    for node in sdfg.nodes()[1].nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry):
+            if node.label == 'a2b':
+                entry1 = node
+            if node.label == 'b2a':
+                entry2 = node
+    d1 = {dace.transformation.dataflow.tiling.MapTiling._map_entry: sdfg.nodes()[1].nodes().index(entry1)}
+    d2 = {dace.transformation.dataflow.tiling.MapTiling._map_entry: sdfg.nodes()[1].nodes().index(entry2)}
+
+    print(entry1)
+    print(entry2)
+
+    t1 = dace.transformation.dataflow.tiling.MapTiling(sdfg_id, state_id, d1, 0)
+    t1.apply(sdfg)
+    t2 = dace.transformation.dataflow.tiling.MapTiling(sdfg_id, state_id, d2, 0)
+    t2.apply(sdfg)
+
+
+    sdfg.view()
+    asdfasdf
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("W", type=int, nargs="?", default=12)
-    parser.add_argument("H", type=int, nargs="?", default=12)
+    parser.add_argument("W", type=int, nargs="?", default=2000)
+    parser.add_argument("H", type=int, nargs="?", default=2000)
     parser.add_argument("MAXITER", type=int, nargs="?", default=30)
     args = vars(parser.parse_args())
 
