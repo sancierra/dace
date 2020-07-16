@@ -548,7 +548,7 @@ class SubgraphFusion():
             if self.register_trans and new_data_totalsize == 1:
                 transient_to_transform.storage = dtypes.StorageType.Register
             else:
-                transient_to_transform.storage = dtypes.StorageType.Default
+                transient_to_transform.storage = dtypes.StorageType.GPU_Shared
 
             ###
 
