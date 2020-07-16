@@ -35,7 +35,7 @@ class Runner():
     def __init__(self,
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
-                 view = True, view_all = False,
+                 view = False, view_all = False,
                  view_roofline = True, save_roofline = False,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
                  sequential = True):
@@ -254,7 +254,7 @@ class Runner():
         for element in outputs:
             current = outputs[element] if outputs[element] is not None else result
             if np.isnan(current).any():
-                print(f"WARNING: NaN detected in output {output} in Baseline")
+                print(f"WARNING: NaN detected in output {current} in Baseline")
                 nan_detected = True
 
         for fun in pipeline:
