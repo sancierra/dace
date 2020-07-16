@@ -195,7 +195,9 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
         e = graph.add_edge(u = tasklet_node, u_connector = 'out',
                            v = new_exit, v_connector = None,
                            memlet = dcpy(edge_out_innerexit.data))
-        e.data.num_accesses = -1
+        # set dynamic with volume 0 FORNOW
+        e.data.volume = 0
+        e.data.dynamic = True 
 
         ### set reduce_node axes to all (needed)
         reduce_node.axes = None
