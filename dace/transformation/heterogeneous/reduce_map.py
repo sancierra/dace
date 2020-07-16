@@ -59,6 +59,7 @@ class ReduceMap(pattern_matching.Transformation):
                                      default = 'pure',
                                      choices = ['pure', 'OpenMP',
                                                 'CUDA (device)', 'CUDA (block)','CUDA (warp)'])
+
     cuda_expand = Property(desc = "If implementation is of type CUDA (block) or CUDA (warp),"
                                   "perform necessary additional transformations",
                            dtype = bool,
@@ -234,7 +235,7 @@ class ReduceMap(pattern_matching.Transformation):
             shortcut = True
             if self.create_out_transient:
                 nstate.out_edges(out_transient_node_inner)[0].data.wcr = None
-                nstate.out_edges(out_transient_node_inner)[0].data.num_accesses = 1
+                nstate.out_edges(out_transient_node_inner)[0].data.volume = 1
             nstate.out_edges(outer_exit)[0].data.wcr = None
 
 
@@ -283,22 +284,22 @@ class ReduceMap(pattern_matching.Transformation):
                              else graph.out_edges(inner_exit)[0]
 
             new_memlet_array_inner =    Memlet(data = out_storage_node.data,
-                                            num_accesses = 1,
+                                            volume = 1,
                                             subset = edge_to_remove.data.subset,
-                                            vector_length = 1)
+                                            veclen = 1)
             new_memlet_array_outer =    Memlet(data = array_closest_ancestor.data,
-                                            num_accesses = graph.in_edges(outer_entry)[0].data.num_accesses,
+                                            volume = graph.in_edges(outer_entry)[0].data.volume,
                                             subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)),
-                                            vector_length = 1)
+                                            veclen = 1)
 
             new_memlet_reduction =      Memlet(data = graph.out_edges(inner_exit)[0].data.data,
-                                            num_accesses = 1,
+                                            volume = 1,
                                             subset = graph.out_edges(inner_exit)[0].data.subset,
-                                            vector_length = 1)
+                                            veclen = 1)
             new_memlet_out_inner =      Memlet(data = edge_to_remove.data.data,
-                                            num_accesses = 1,
+                                            volume = 1,
                                             subset = edge_to_remove.data.subset,
-                                            vector_length = 1)
+                                            veclen = 1)
             new_memlet_out_outer =      dcpy(new_memlet_array_outer)
 
             # remove old edges
@@ -367,9 +368,9 @@ class ReduceMap(pattern_matching.Transformation):
 
         edge_tmp = graph.out_edges(inner_exit)[0]
         memlet_reduce_dst = Memlet(data = edge_tmp.data.data,
-                                   num_accesses = 1,
+                                   volume = 1,
                                    subset = edge_tmp.data.subset,
-                                   vector_length = edge_tmp.data.veclen)
+                                   veclen = edge_tmp.data.veclen)
 
         graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, memlet_reduce_dst)
 

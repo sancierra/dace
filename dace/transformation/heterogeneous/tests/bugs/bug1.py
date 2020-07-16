@@ -5,8 +5,6 @@ from copy import deepcopy as dcpy
 
 import dace.dtypes as dtypes
 
-from dace.codegen.targets.framecode import set_default_schedule_and_storage_types
-
 import dace.libraries.standard as stdlib
 
 

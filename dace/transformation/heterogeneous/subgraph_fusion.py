@@ -4,7 +4,7 @@ import dace
 
 from dace import dtypes, registry, symbolic, subsets, data
 from dace.sdfg import nodes, utils
-from dace.memlet import Memlet, EmptyMemlet
+from dace.memlet import Memlet
 from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
@@ -109,7 +109,7 @@ class SubgraphFusion():
                            None,
                            original_node,
                            None,
-                           EmptyMemlet())
+                           Memlet())
             for edge in graph.out_edges(original_node):
                 if edge.dst in map_entries:
                     #edge.src = redirect_node
@@ -149,7 +149,7 @@ class SubgraphFusion():
                            None,
                            original_node,
                            None,
-                           EmptyMemlet())
+                           Memlet())
             for edge in graph.out_edges(original_node):
                 if edge.dst in map_entries:
                     #edge.src = redirect_node
@@ -339,9 +339,9 @@ class SubgraphFusion():
                     queue = []
                     for out_edge in out_edges:
                         mm = Memlet(data = new_name,
-                                    num_accesses = out_edge.data.num_accesses,
+                                    volume = out_edge.data.volume,
                                     subset = out_edge.data.subset,
-                                    vector_length = out_edge.data.veclen,
+                                    veclen = out_edge.data.veclen,
                                     other_subset = out_edge.data.other_subset
                                     )
 
@@ -420,9 +420,9 @@ class SubgraphFusion():
                         old_name = dst_original.data
 
                         mm = Memlet(data = new_name,
-                                    num_accesses = edge.data.num_accesses,
+                                    volume = edge.data.volume,
                                     subset = edge.data.subset,
-                                    vector_length = edge.data.veclen,
+                                    veclen = edge.data.veclen,
                                     other_subset = edge.data.other_subset)
 
                         self.redirect_edge(graph, out_edge, new_src = edge.src,
@@ -547,6 +547,9 @@ class SubgraphFusion():
 
             if self.register_trans and new_data_totalsize == 1:
                 transient_to_transform.storage = dtypes.StorageType.Register
+            elif schedule == dtypes.ScheduleType.GPU_Device:
+                # push to shared mem FORNOW
+                transient_to_transform.storage = dtypes.StorageType.GPU_Shared
             else:
                 transient_to_transform.storage = dtypes.StorageType.Default
 
@@ -594,7 +597,7 @@ class SubgraphFusion():
                                           union_inner_edges = True)
 
             # override number of accesses
-            in_edge.data.num_accesses = memlet_out.num_accesses
+            in_edge.data.volume = memlet_out.volume
 
         # create a hook for outside the class to access global_map
         self._global_map_entry = global_map_entry
