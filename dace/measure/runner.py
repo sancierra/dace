@@ -227,6 +227,7 @@ class Runner():
                 subgraph_index = [graph.nodes().index(e) for e in subgraph.nodes()]
 
         # name and lists used for storing all the results
+        names = ['baseline']
         runtimes = []
         diffs_abs = []
         diffs_rel = []
@@ -272,12 +273,25 @@ class Runner():
                 graph = sdfg.nodes()[graph_index]
                 if subgraph:
                     subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
+
+            # determine name of transformation
+            if isinstance(fun, List):
+                name = ''
+                for index,func in enumerate(fun):
+                    if index > 0:
+                        name += '|'
+                    name += func.__name__[0:3]
+            else:
+                name = fun.__name__
+            names.append(name)
+
             # apply transformation
             if isinstance(fun, List):
                 for func, arg in zip(fun, args):
                     func(sdfg, graph, subgraph, **arg)
             else:
                 func(sdfg, graph, subgraph, **args)
+
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
@@ -287,16 +301,16 @@ class Runner():
             runtimes.append(self._get_runtime_stats(current_runtimes))
 
             if roofline:
-                roofline.evaluate(fun.__name__,
+                roofline.evaluate(name,
                                   graph,
                                   runtimes = current_runtimes)
 
             # process outputs
             if self.debug:
-                print(f"{fun.__name__} Norms:")
+                print(f"{name} Norms:")
                 self._print_norms(outputs, result)
                 if self.verbose:
-                    print(f"{fun.__name__} Arrays:")
+                    print(f"{name} Arrays:")
                     self._print_arrays(outputs, result)
 
             # see whether equality with baseline holds
@@ -307,7 +321,7 @@ class Runner():
                 current = outputs[element] if outputs[element] is not None else result
                 # NaN check
                 if np.isnan(current).any():
-                    print(f"WARNING: NaN detected in output {element} in {fun.__name__}")
+                    print(f"WARNING: NaN detected in output {element} in {name}")
                     nan_detected = True
 
                 try:
@@ -347,13 +361,12 @@ class Runner():
               "Verdict")
         if len(outputs) == 0:
             print("                      No Outputs specified                      " )
-        for transformation, diff_abs_dict, diff_rel_dict, verdicts_dict \
-                        in zip(pipeline, diffs_abs, diffs_rel, verdicts):
+        for idx, (transformation, diff_abs_dict, diff_rel_dict, verdicts_dict) \
+                        in enumerate(zip(pipeline, diffs_abs, diffs_rel, verdicts)):
 
             arrays = sorted(list(diff_abs_dict.keys()))
             for array in arrays:
-                print(transformation.__name__.ljust(15,' '),
-                      array.ljust(15,' '),
+                print("transformation"+str(idx),
                       f"{diff_abs_dict[array]:.6g}".ljust(12,' '),
                       f"{diff_rel_dict[array]:.6g}".ljust(12,' '),
                       verdicts_dict[array])
@@ -372,9 +385,7 @@ class Runner():
             print(measure.ljust(12,' '), end='')
         print('\n')
 
-        for transformation, runtime_list in zip(['baseline'] + pipeline, runtimes):
-            transformation_name = transformation.__name__ if not isinstance(transformation, str) \
-                                  else transformation
+        for idx, (transformation_name, runtime_list) in enumerate(zip(names, runtimes)):
             print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
                 print(f"{runtime:.6g}".ljust(12,' '), end='')
@@ -387,17 +398,12 @@ class Runner():
                   "Op. Intensity".ljust(15,' '),
                   "GFLOP Median".ljust(15,' '),
                   "GFLOP Roofline")
-            for transformation, runtime_list in zip((['baseline'] + pipeline), runtimes):
-                if isinstance(transformation, str):
+            for transformation_name, runtime_list in zip(names, runtimes):
+                if isinstance(transformation_name, str):
                     print(transformation.ljust(15,' '),
-                          f"{roofline.data[transformation]:.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_measured[transformation]):.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_roof[transformation]):.6g}")
-                else:
-                    print(transformation.__name__.ljust(15,' '),
-                          f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_measured[transformation.__name__]):.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_roof[transformation.__name__]):.6g}")
+                          f"{roofline.data[transformation_name]:.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_measured[transformation_name]):.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_roof[transformation_name]):.6g}")
 
         print("################################################################")
         print("########################### SUMMARY ############################")
@@ -409,17 +415,14 @@ class Runner():
               f"Runtime {self.measure_mode[0]}".ljust(20, ' '),
               "Verdict")
 
-        for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
-            if isinstance(transformation, str):
-                print(transformation.ljust(15,' '),
-                      f"{roofline.data[transformation]:.6g}".ljust(15,' ') if roofline else '',
+        for transformation_name, runtime_list, verdicts_dict in zip(pipeline, runtimes, ['_'] + verdicts):
+            if transformation_name == 'baseline':
+                print(transformation_name.ljust(15,' '),
+                      f"{roofline.data[transformation_name]:.6g}".ljust(15,' ') if roofline else '',
                       f"{runtime_list[0]:.6g}".ljust(20,' '),
                       '----')
-            else:
-                print(transformation.__name__.ljust(15,' '),
-                      f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.6g}".ljust(20,' '),
-                      'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
+            if transformation_name != 'baseline:'
+                print('PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
 
@@ -431,8 +434,8 @@ class Runner():
                 roofline.plot(show = True, save_path = '' if self.save_roofline else None)
 
 
-        for transformation in ['baseline']+pipeline:
-            if not all([v == 'PASS' for v in verdicts_dict.values()]):
+        for verdicts_dict in verdicts:
+            if not all([v == 'PASS' for v in verdicts_dict[transformation_name].values()]):
                 return False
 
         return True
