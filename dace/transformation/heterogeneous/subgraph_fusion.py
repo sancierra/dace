@@ -341,7 +341,6 @@ class SubgraphFusion():
                         mm = Memlet(data = new_name,
                                     volume = out_edge.data.volume,
                                     subset = out_edge.data.subset,
-                                    veclen = out_edge.data.veclen,
                                     other_subset = out_edge.data.other_subset
                                     )
 
@@ -422,7 +421,6 @@ class SubgraphFusion():
                         mm = Memlet(data = new_name,
                                     volume = edge.data.volume,
                                     subset = edge.data.subset,
-                                    veclen = edge.data.veclen,
                                     other_subset = edge.data.other_subset)
 
                         self.redirect_edge(graph, out_edge, new_src = edge.src,

@@ -125,10 +125,8 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
                                    else (new_entry.map.params[0],new_entry.map.params[0],1)
                                    for i in range(len(in_edge.data.subset))])
         memlet_in = Memlet(data = in_edge.data.data,
-                           num_accesses = 1,
-                           subset = subset_in,
-                           vector_length = 1
-        )
+                           volume = 1,
+                           subset = subset_in)
         memlet_out = dcpy(out_edge.data)
         graph.add_edge(u = new_entry, u_connector = None,
                        v = reduce_node,v_connector = None,
@@ -197,7 +195,7 @@ class CUDABlockAllReduce(pattern_matching.Transformation):
                            memlet = dcpy(edge_out_innerexit.data))
         # set dynamic with volume 0 FORNOW
         e.data.volume = 0
-        e.data.dynamic = True 
+        e.data.dynamic = True
 
         ### set reduce_node axes to all (needed)
         reduce_node.axes = None

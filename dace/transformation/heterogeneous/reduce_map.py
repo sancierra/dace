@@ -285,21 +285,17 @@ class ReduceMap(pattern_matching.Transformation):
 
             new_memlet_array_inner =    Memlet(data = out_storage_node.data,
                                             volume = 1,
-                                            subset = edge_to_remove.data.subset,
-                                            veclen = 1)
+                                            subset = edge_to_remove.data.subset)
             new_memlet_array_outer =    Memlet(data = array_closest_ancestor.data,
                                             volume = graph.in_edges(outer_entry)[0].data.volume,
-                                            subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)),
-                                            veclen = 1)
+                                            subset = subsets.Range.from_array(sdfg.data(out_storage_node.data)))
 
             new_memlet_reduction =      Memlet(data = graph.out_edges(inner_exit)[0].data.data,
                                             volume = 1,
-                                            subset = graph.out_edges(inner_exit)[0].data.subset,
-                                            veclen = 1)
+                                            subset = graph.out_edges(inner_exit)[0].data.subset)
             new_memlet_out_inner =      Memlet(data = edge_to_remove.data.data,
                                             volume = 1,
-                                            subset = edge_to_remove.data.subset,
-                                            veclen = 1)
+                                            subset = edge_to_remove.data.subset)
             new_memlet_out_outer =      dcpy(new_memlet_array_outer)
 
             # remove old edges
@@ -369,8 +365,7 @@ class ReduceMap(pattern_matching.Transformation):
         edge_tmp = graph.out_edges(inner_exit)[0]
         memlet_reduce_dst = Memlet(data = edge_tmp.data.data,
                                    volume = 1,
-                                   subset = edge_tmp.data.subset,
-                                   veclen = edge_tmp.data.veclen)
+                                   subset = edge_tmp.data.subset)
 
         graph.add_edge(reduce_node_new, None, edge_tmp.dst, edge_tmp.dst_conn, memlet_reduce_dst)
 
