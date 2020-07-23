@@ -38,7 +38,7 @@ class Runner():
                  view = False, view_all = False,
                  view_roofline = True, save_roofline = False,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
-                 sequential = True):
+                 sequential = False):
 
         """ A runner wrapper for DaCe programs for testing runtimes and
             correctness of heterogeneous transformations.
@@ -179,6 +179,7 @@ class Runner():
                  subgraph = None,
                  roofline = None,
                  pipeline = [expand_reduce, expand_maps, fusion],
+                 pipeline_args = None,
                  report = False):
 
         """ Test a pipeline specified as the argument 'pipeline'.
@@ -207,6 +208,14 @@ class Runner():
         # if so, add it to the outputs array with value
         if '__return' in sdfg.arglist():
             outputs['__return'] = None
+
+        if not pipeline_args:
+            pipeline_args = []
+            for element in pipeline:
+                if isinstance(element, List):
+                    pipeline_args.append([{}]*len(element))
+                else:
+                    pipeline_args.append({})
 
         if self.view or self.view_all:
             sdfg.view()
@@ -257,14 +266,18 @@ class Runner():
                 print(f"WARNING: NaN detected in output {current} in Baseline")
                 nan_detected = True
 
-        for fun in pipeline:
+        for fun, args in zip(pipeline, pipeline_args):
             if not self.sequential:
                 sdfg = dcpy(sdfg_base)
                 graph = sdfg.nodes()[graph_index]
                 if subgraph:
                     subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
             # apply transformation
-            fun(sdfg, graph, subgraph)
+            if isinstance(fun, List):
+                for func, arg in zip(fun, args):
+                    func(sdfg, graph, subgraph, **arg)
+            else:
+                func(sdfg, graph, subgraph, **args)
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
@@ -426,6 +439,7 @@ class Runner():
 
     def go(self, sdfg, graph, subgraph, *symbols,
         pipeline = [expand_reduce, expand_maps, fusion],
+        pipeline_args = None,
         performance_spec = dace.perf.specs.PERF_GPU_DAVINCI,
         output = [],
         name = "Runner::Go",
@@ -458,4 +472,5 @@ class Runner():
                       symbols = symbols_dict,
                       inputs = input_dict, outputs = output_dict,
                       roofline = roofline, pipeline = pipeline,
+                      pipeline_args = pipeline_args,
                       report = report)
