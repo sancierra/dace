@@ -251,7 +251,7 @@ class SDFG(OrderedDiGraph):
 
     @property
     def sdfg_id(self):
-        """ 
+        """
         Returns the unique index of the current SDFG within the current
         tree of SDFGs (top-level SDFG is 0, nested SDFGs are greater).
         """
@@ -1148,7 +1148,6 @@ class SDFG(OrderedDiGraph):
     def add_stream(self,
                    name: str,
                    dtype,
-                   veclen=1,
                    buffer_size=1,
                    shape=(1, ),
                    storage=dtypes.StorageType.Default,
@@ -1163,9 +1162,8 @@ class SDFG(OrderedDiGraph):
             dtype = dtypes.typeclass(dtype)
 
         desc = dt.Stream(
-            dtype,
-            veclen,
-            buffer_size,
+            dtype=dtype,
+            buffer_size=buffer_size,
             shape=shape,
             storage=storage,
             transient=transient,
