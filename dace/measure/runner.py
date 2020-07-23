@@ -421,7 +421,7 @@ class Runner():
                       f"{roofline.data[transformation_name]:.6g}".ljust(15,' ') if roofline else '',
                       f"{runtime_list[0]:.6g}".ljust(20,' '),
                       '----')
-            if transformation_name != 'baseline:'
+            if transformation_name != 'baseline':
                 print('PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
