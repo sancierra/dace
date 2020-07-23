@@ -1,0 +1,4440 @@
+{
+  "type": "SDFG",
+  "attributes": {
+    "arg_types": [],
+    "constants_prop": {
+      "I": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        128
+      ],
+      "J": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        128
+      ],
+      "K": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        80
+      ]
+    },
+    "_arrays": {
+      "u_pos": {
+        "type": "Array",
+        "attributes": {
+          "allow_conflicts": false,
+          "materialize_func": null,
+          "strides": [
+            "_u_pos_I_stride",
+            "_u_pos_J_stride",
+            "_u_pos_K_stride"
+          ],
+          "total_size": "I*J*K",
+          "offset": [
+            "0",
+            "0",
+            "0"
+          ],
+          "may_alias": false,
+          "alignment": 0,
+          "dtype": "float32",
+          "shape": [
+            "I",
+            "J",
+            "K"
+          ],
+          "transient": false,
+          "storage": "GPU_Global",
+          "lifetime": "Scope",
+          "location": {},
+          "debuginfo": null
+        }
+      },
+      "wcon": {
+        "type": "Array",
+        "attributes": {
+          "allow_conflicts": false,
+          "materialize_func": null,
+          "strides": [
+            "_wcon_I_stride",
+            "_wcon_J_stride",
+            "_wcon_K_stride"
+          ],
+          "total_size": "J*K*(I + 1)",
+          "offset": [
+            "0",
+            "0",
+            "0"
+          ],
+          "may_alias": false,
+          "alignment": 0,
+          "dtype": "float32",
+          "shape": [
+            "I + 1",
+            "J",
+            "K"
+          ],
+          "transient": false,
+          "storage": "GPU_Global",
+          "lifetime": "Scope",
+          "location": {},
+          "debuginfo": null
+        }
+      },
+      "utens_stage": {
+        "type": "Array",
+        "attributes": {
+          "allow_conflicts": false,
+          "materialize_func": null,
+          "strides": [
+            "_utens_stage_I_stride",
+            "_utens_stage_J_stride",
+            "_utens_stage_K_stride"
+          ],
+          "total_size": "I*J*K",
+          "offset": [
+            "0",
+            "0",
+            "0"
+          ],
+          "may_alias": false,
+          "alignment": 0,
+          "dtype": "float32",
+          "shape": [
+            "I",
+            "J",
+            "K"
+          ],
+          "transient": false,
+          "storage": "GPU_Global",
+          "lifetime": "Scope",
+          "location": {},
+          "debuginfo": null
+        }
+      },
+      "utens": {
+        "type": "Array",
+        "attributes": {
+          "allow_conflicts": false,
+          "materialize_func": null,
+          "strides": [
+            "_utens_I_stride",
+            "_utens_J_stride",
+            "_utens_K_stride"
+          ],
+          "total_size": "I*J*K",
+          "offset": [
+            "0",
+            "0",
+            "0"
+          ],
+          "may_alias": false,
+          "alignment": 0,
+          "dtype": "float32",
+          "shape": [
+            "I",
+            "J",
+            "K"
+          ],
+          "transient": false,
+          "storage": "GPU_Global",
+          "lifetime": "Scope",
+          "location": {},
+          "debuginfo": null
+        }
+      },
+      "u_stage": {
+        "type": "Array",
+        "attributes": {
+          "allow_conflicts": false,
+          "materialize_func": null,
+          "strides": [
+            "_u_stage_I_stride",
+            "_u_stage_J_stride",
+            "_u_stage_K_stride"
+          ],
+          "total_size": "I*J*K",
+          "offset": [
+            "0",
+            "0",
+            "0"
+          ],
+          "may_alias": false,
+          "alignment": 0,
+          "dtype": "float32",
+          "shape": [
+            "I",
+            "J",
+            "K"
+          ],
+          "transient": false,
+          "storage": "GPU_Global",
+          "lifetime": "Scope",
+          "location": {},
+          "debuginfo": null
+        }
+      }
+    },
+    "symbols": {
+      "I": "int32",
+      "J": "int32",
+      "_u_pos_J_stride": "int32",
+      "_u_pos_I_stride": "int32",
+      "_u_pos_K_stride": "int32",
+      "K": "int32",
+      "_wcon_K_stride": "int32",
+      "_wcon_J_stride": "int32",
+      "_wcon_I_stride": "int32",
+      "_utens_stage_J_stride": "int32",
+      "_utens_stage_I_stride": "int32",
+      "_utens_stage_K_stride": "int32",
+      "_utens_J_stride": "int32",
+      "_utens_K_stride": "int32",
+      "_utens_I_stride": "int32",
+      "_u_stage_J_stride": "int32",
+      "_u_stage_I_stride": "int32",
+      "_u_stage_K_stride": "int32",
+      "_gt_loc__dtr_stage": "float32"
+    },
+    "global_code": {
+      "frame": {
+        "string_data": "",
+        "language": "CPP"
+      }
+    },
+    "init_code": {
+      "frame": {
+        "string_data": "",
+        "language": "CPP"
+      }
+    },
+    "exit_code": {
+      "frame": {
+        "string_data": "",
+        "language": "CPP"
+      }
+    },
+    "name": "vadv_full"
+  },
+  "nodes": [
+    {
+      "type": "SDFGState",
+      "label": "state_0",
+      "id": 0,
+      "collapsed": false,
+      "scope_dict": {
+        "-1": [
+          0,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "0": [
+          1,
+          2
+        ]
+      },
+      "nodes": [
+        {
+          "type": "MapEntry",
+          "label": "horizontal[i=0:I, j=0:J]",
+          "attributes": {
+            "label": "horizontal",
+            "params": [
+              "i",
+              "j"
+            ],
+            "range": {
+              "type": "Range",
+              "ranges": [
+                {
+                  "start": "0",
+                  "end": "I - 1",
+                  "step": "1",
+                  "tile": "1"
+                },
+                {
+                  "start": "0",
+                  "end": "J - 1",
+                  "step": "1",
+                  "tile": "1"
+                }
+              ]
+            },
+            "schedule": "GPU_Device",
+            "unroll": false,
+            "collapse": 1,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 219,
+              "end_line": 219,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "is_collapsed": false,
+            "instrument": "No_Instrumentation",
+            "in_connectors": {
+              "IN_1": null,
+              "IN_2": null,
+              "IN_3": null,
+              "IN_4": null,
+              "IN_5": null
+            },
+            "out_connectors": {
+              "OUT_1": null,
+              "OUT_2": null,
+              "OUT_3": null,
+              "OUT_4": null,
+              "OUT_5": null
+            }
+          },
+          "id": 0,
+          "scope_entry": null,
+          "scope_exit": "1"
+        },
+        {
+          "type": "MapExit",
+          "label": "horizontal[i=0:I, j=0:J]",
+          "attributes": {
+            "in_connectors": {
+              "IN_1": null
+            },
+            "out_connectors": {
+              "OUT_1": null
+            }
+          },
+          "id": 1,
+          "scope_entry": "0",
+          "scope_exit": "1"
+        },
+        {
+          "type": "NestedSDFG",
+          "label": "vadv",
+          "attributes": {
+            "sdfg": {
+              "type": "SDFG",
+              "attributes": {
+                "arg_types": [],
+                "constants_prop": {},
+                "_arrays": {
+                  "u_pos": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "_u_pos_I_stride",
+                        "_u_pos_J_stride",
+                        "_u_pos_K_stride"
+                      ],
+                      "total_size": "I*J*K",
+                      "offset": [
+                        "0",
+                        "0",
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "I",
+                        "J",
+                        "K"
+                      ],
+                      "transient": false,
+                      "storage": "Default",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "wcon": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "_wcon_I_stride",
+                        "_wcon_J_stride",
+                        "_wcon_K_stride"
+                      ],
+                      "total_size": "J*K*(I + 1)",
+                      "offset": [
+                        "0",
+                        "0",
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "I + 1",
+                        "J",
+                        "K"
+                      ],
+                      "transient": false,
+                      "storage": "Default",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "utens_stage": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "_utens_stage_I_stride",
+                        "_utens_stage_J_stride",
+                        "_utens_stage_K_stride"
+                      ],
+                      "total_size": "I*J*K",
+                      "offset": [
+                        "0",
+                        "0",
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "I",
+                        "J",
+                        "K"
+                      ],
+                      "transient": false,
+                      "storage": "Default",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "utens": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "_utens_I_stride",
+                        "_utens_J_stride",
+                        "_utens_K_stride"
+                      ],
+                      "total_size": "I*J*K",
+                      "offset": [
+                        "0",
+                        "0",
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "I",
+                        "J",
+                        "K"
+                      ],
+                      "transient": false,
+                      "storage": "Default",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "u_stage": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "_u_stage_I_stride",
+                        "_u_stage_J_stride",
+                        "_u_stage_K_stride"
+                      ],
+                      "total_size": "I*J*K",
+                      "offset": [
+                        "0",
+                        "0",
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "I",
+                        "J",
+                        "K"
+                      ],
+                      "transient": false,
+                      "storage": "Default",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "ccol0": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "1"
+                      ],
+                      "total_size": "K",
+                      "offset": [
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "K"
+                      ],
+                      "transient": true,
+                      "storage": "Register",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "dcol0": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "1"
+                      ],
+                      "total_size": "K",
+                      "offset": [
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "K"
+                      ],
+                      "transient": true,
+                      "storage": "Register",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  },
+                  "data_col0": {
+                    "type": "Array",
+                    "attributes": {
+                      "allow_conflicts": false,
+                      "materialize_func": null,
+                      "strides": [
+                        "1"
+                      ],
+                      "total_size": "1",
+                      "offset": [
+                        "0"
+                      ],
+                      "may_alias": false,
+                      "alignment": 0,
+                      "dtype": "float32",
+                      "shape": [
+                        "1"
+                      ],
+                      "transient": true,
+                      "storage": "Register",
+                      "lifetime": "Scope",
+                      "location": {},
+                      "debuginfo": null
+                    }
+                  }
+                },
+                "symbols": {
+                  "I": "int32",
+                  "J": "int32",
+                  "K": "int32",
+                  "_utens_J_stride": "int32",
+                  "j": "int64",
+                  "_wcon_I_stride": "int32",
+                  "_utens_stage_J_stride": "int32",
+                  "_u_pos_J_stride": "int32",
+                  "_u_pos_K_stride": "int32",
+                  "_u_stage_I_stride": "int32",
+                  "_wcon_J_stride": "int32",
+                  "_utens_K_stride": "int32",
+                  "_utens_I_stride": "int32",
+                  "_gt_loc__dtr_stage": "float32",
+                  "_u_stage_J_stride": "int32",
+                  "i": "int64",
+                  "_utens_stage_K_stride": "int32",
+                  "_utens_stage_I_stride": "int32",
+                  "_u_pos_I_stride": "int32",
+                  "_wcon_K_stride": "int32",
+                  "_u_stage_K_stride": "int32"
+                },
+                "global_code": {
+                  "frame": {
+                    "string_data": "",
+                    "language": "CPP"
+                  }
+                },
+                "init_code": {
+                  "frame": {
+                    "string_data": "",
+                    "language": "CPP"
+                  }
+                },
+                "exit_code": {
+                  "frame": {
+                    "string_data": "",
+                    "language": "CPP"
+                  }
+                },
+                "name": "vadv"
+              },
+              "nodes": [
+                {
+                  "type": "SDFGState",
+                  "label": "with_29",
+                  "id": 0,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      6,
+                      7
+                    ]
+                  },
+                  "nodes": [
+                    {
+                      "type": "Tasklet",
+                      "label": "vadv_29",
+                      "attributes": {
+                        "code": {
+                          "string_data": "_gt_loc_out__gcv_Ip0Jp0Kp0 = (float(0.25) * (_gt_loc__wcon[1] + _gt_loc__wcon[0]))\n_gt_loc_out__cs_Ip0Jp0Kp0 = (_gt_loc_out__gcv_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__ccol_Ip0Jp0Kp0 = (_gt_loc_out__gcv_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__bcol_Ip0Jp0Kp0 = (_gt_loc__dtr_stage - _gt_loc_out__ccol_Ip0Jp0Kp0)\n_gt_loc_out__correction_term_Ip0Jp0Kp0 = ((- _gt_loc_out__cs_Ip0Jp0Kp0) * (_gt_loc__u_stage[1] - _gt_loc__u_stage[0]))\n_gt_loc_out__dcol_Ip0Jp0Kp0 = ((((_gt_loc__dtr_stage * _gt_loc__u_pos_Ip0Jp0Kp0) + _gt_loc__utens_Ip0Jp0Kp0) + _gt_loc__utens_stage_Ip0Jp0Kp0) + _gt_loc_out__correction_term_Ip0Jp0Kp0)\n_gt_loc_out__divided_Ip0Jp0Kp0 = (float(1.0) / _gt_loc_out__bcol_Ip0Jp0Kp0)\n_gt_loc_out__ccol_Ip0Jp0Kp0 = (_gt_loc_out__ccol_Ip0Jp0Kp0 * _gt_loc_out__divided_Ip0Jp0Kp0)\n_gt_loc_out__dcol_Ip0Jp0Kp0 = (_gt_loc_out__dcol_Ip0Jp0Kp0 * _gt_loc_out__divided_Ip0Jp0Kp0)",
+                          "language": "Python"
+                        },
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 56,
+                          "start_column": 4,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "instrument": "No_Instrumentation",
+                        "label": "vadv_29",
+                        "location": {},
+                        "environments": [],
+                        "in_connectors": {
+                          "_gt_loc__u_pos_Ip0Jp0Kp0": null,
+                          "_gt_loc__wcon": null,
+                          "_gt_loc__u_stage": null,
+                          "_gt_loc__utens_Ip0Jp0Kp0": null,
+                          "_gt_loc__utens_stage_Ip0Jp0Kp0": null
+                        },
+                        "out_connectors": {
+                          "_gt_loc_out__dcol_Ip0Jp0Kp0": null,
+                          "_gt_loc_out__ccol_Ip0Jp0Kp0": null
+                        }
+                      },
+                      "id": 0,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "wcon",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "wcon",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 1,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 2,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_pos",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_pos",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 3,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 4,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 5,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "ccol0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "ccol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 6,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 29,
+                          "end_line": 29,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 7,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_pos",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "3",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_pos_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "2",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "0",
+                                  "end": "1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "0",
+                                  "end": "1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "2"
+                          }
+                        }
+                      },
+                      "src": "2",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_stage",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "4",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "0"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "5",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_stage_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "2",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "1",
+                                  "end": "1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "wcon",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "1",
+                                  "end": "1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "2"
+                          }
+                        }
+                      },
+                      "src": "1",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__wcon",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "0"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "ccol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "0"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "6",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__ccol_Ip0Jp0Kp0"
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "0"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "0"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "7",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__dcol_Ip0Jp0Kp0"
+                    }
+                  ],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "with_61",
+                  "id": 1,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      6,
+                      7,
+                      8,
+                      9
+                    ]
+                  },
+                  "nodes": [
+                    {
+                      "type": "Tasklet",
+                      "label": "vadv_61",
+                      "attributes": {
+                        "code": {
+                          "string_data": "_gt_loc_out__gav_Ip0Jp0Kp0 = (float((- 0.25)) * (_gt_loc__wcon[(1, 0)] + _gt_loc__wcon[(0, 0)]))\n_gt_loc_out__gcv_Ip0Jp0Kp0 = (float(0.25) * (_gt_loc__wcon[(1, 1)] + _gt_loc__wcon[(0, 1)]))\n_gt_loc_out__as__Ip0Jp0Kp0 = (_gt_loc_out__gav_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__cs_Ip0Jp0Kp0 = (_gt_loc_out__gcv_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__acol_Ip0Jp0Kp0 = (_gt_loc_out__gav_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__ccol_Ip0Jp0Kp0 = (_gt_loc_out__gcv_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__bcol_Ip0Jp0Kp0 = ((_gt_loc__dtr_stage - _gt_loc_out__acol_Ip0Jp0Kp0) - _gt_loc_out__ccol_Ip0Jp0Kp0)\n_gt_loc_out__correction_term_Ip0Jp0Kp0 = (((- _gt_loc_out__as__Ip0Jp0Kp0) * (_gt_loc__u_stage[0] - _gt_loc__u_stage[1])) - (_gt_loc_out__cs_Ip0Jp0Kp0 * (_gt_loc__u_stage[2] - _gt_loc__u_stage[1])))\n_gt_loc_out__dcol_Ip0Jp0Kp0 = ((((_gt_loc__dtr_stage * _gt_loc__u_pos_Ip0Jp0Kp0) + _gt_loc__utens_Ip0Jp0Kp0) + _gt_loc__utens_stage_Ip0Jp0Kp0) + _gt_loc_out__correction_term_Ip0Jp0Kp0)\n_gt_loc_out__divided_Ip0Jp0Kp0 = (float(1.0) / (_gt_loc_out__bcol_Ip0Jp0Kp0 - (_gt_loc__ccol_Ip0Jp0Kn1 * _gt_loc_out__acol_Ip0Jp0Kp0)))\n_gt_loc_out__ccol_Ip0Jp0Kp0 = (_gt_loc_out__ccol_Ip0Jp0Kp0 * _gt_loc_out__divided_Ip0Jp0Kp0)\n_gt_loc_out__dcol_Ip0Jp0Kp0 = ((_gt_loc_out__dcol_Ip0Jp0Kp0 - (_gt_loc__dcol_Ip0Jp0Kn1 * _gt_loc_out__acol_Ip0Jp0Kp0)) * _gt_loc_out__divided_Ip0Jp0Kp0)",
+                          "language": "Python"
+                        },
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 103,
+                          "start_column": 8,
+                          "end_column": 12,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "instrument": "No_Instrumentation",
+                        "label": "vadv_61",
+                        "location": {},
+                        "environments": [],
+                        "in_connectors": {
+                          "_gt_loc__u_pos_Ip0Jp0Kp0": null,
+                          "_gt_loc__wcon": null,
+                          "_gt_loc__u_stage": null,
+                          "_gt_loc__utens_Ip0Jp0Kp0": null,
+                          "_gt_loc__utens_stage_Ip0Jp0Kp0": null,
+                          "_gt_loc__ccol_Ip0Jp0Kn1": null,
+                          "_gt_loc__dcol_Ip0Jp0Kn1": null
+                        },
+                        "out_connectors": {
+                          "_gt_loc_out__dcol_Ip0Jp0Kp0": null,
+                          "_gt_loc_out__ccol_Ip0Jp0Kp0": null
+                        }
+                      },
+                      "id": 0,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "wcon",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "wcon",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 1,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 2,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_pos",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_pos",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 3,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 4,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 5,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "ccol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "ccol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 6,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 7,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "ccol0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "ccol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 8,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 61,
+                          "end_line": 61,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 9,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "ccol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "6",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__ccol_Ip0Jp0Kn1",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "7",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__dcol_Ip0Jp0Kn1",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_pos",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "3",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_pos_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "3",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "k - 1",
+                                  "end": "k + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "k - 1",
+                                  "end": "k + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "3"
+                          }
+                        }
+                      },
+                      "src": "2",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_stage",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "4",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "5",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_stage_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "4",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "k",
+                                  "end": "k + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "wcon",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "k",
+                                  "end": "k + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "4"
+                          }
+                        }
+                      },
+                      "src": "1",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__wcon",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "ccol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "8",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__ccol_Ip0Jp0Kp0"
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "9",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__dcol_Ip0Jp0Kp0"
+                    }
+                  ],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "guard",
+                  "id": 2,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": []
+                  },
+                  "nodes": [],
+                  "edges": [],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "with_109",
+                  "id": 3,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      6,
+                      7,
+                      8,
+                      9,
+                      10,
+                      11
+                    ]
+                  },
+                  "nodes": [
+                    {
+                      "type": "Tasklet",
+                      "label": "vadv_109",
+                      "attributes": {
+                        "code": {
+                          "string_data": "_gt_loc_out__gav_Ip0Jp0Kp0 = (float((- 0.25)) * (_gt_loc__wcon[1] + _gt_loc__wcon[0]))\n_gt_loc_out__as__Ip0Jp0Kp0 = (_gt_loc_out__gav_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__acol_Ip0Jp0Kp0 = (_gt_loc_out__gav_Ip0Jp0Kp0 * float(0.5))\n_gt_loc_out__bcol_Ip0Jp0Kp0 = (_gt_loc__dtr_stage - _gt_loc_out__acol_Ip0Jp0Kp0)\n_gt_loc_out__correction_term_Ip0Jp0Kp0 = ((- _gt_loc_out__as__Ip0Jp0Kp0) * (_gt_loc__u_stage[0] - _gt_loc__u_stage[1]))\n_gt_loc_out__dcol_Ip0Jp0Kp0 = ((((_gt_loc__dtr_stage * _gt_loc__u_pos_Ip0Jp0Kp0) + _gt_loc__utens_Ip0Jp0Kp0) + _gt_loc__utens_stage_Ip0Jp0Kp0) + _gt_loc_out__correction_term_Ip0Jp0Kp0)\n_gt_loc_out__divided_Ip0Jp0Kp0 = (float(1.0) / (_gt_loc_out__bcol_Ip0Jp0Kp0 - (_gt_loc__ccol_Ip0Jp0Kn1 * _gt_loc_out__acol_Ip0Jp0Kp0)))\n_gt_loc_out__dcol_Ip0Jp0Kp0 = ((_gt_loc_out__dcol_Ip0Jp0Kp0 - (_gt_loc__dcol_Ip0Jp0Kn1 * _gt_loc_out__acol_Ip0Jp0Kp0)) * _gt_loc_out__divided_Ip0Jp0Kp0)",
+                          "language": "Python"
+                        },
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 137,
+                          "start_column": 4,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "instrument": "No_Instrumentation",
+                        "label": "vadv_109",
+                        "location": {},
+                        "environments": [],
+                        "in_connectors": {
+                          "_gt_loc__u_pos_Ip0Jp0Kp0": null,
+                          "_gt_loc__wcon": null,
+                          "_gt_loc__u_stage": null,
+                          "_gt_loc__utens_Ip0Jp0Kp0": null,
+                          "_gt_loc__utens_stage_Ip0Jp0Kp0": null,
+                          "_gt_loc__ccol_Ip0Jp0Kn1": null,
+                          "_gt_loc__dcol_Ip0Jp0Kn1": null
+                        },
+                        "out_connectors": {
+                          "_gt_loc_out__dcol_Ip0Jp0Kp0": null
+                        }
+                      },
+                      "id": 0,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "wcon",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "wcon",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 1,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 2,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_pos",
+                      "attributes": {
+                        "access": "ReadWrite",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_pos",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 3,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 4,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens_stage",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 5,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "ccol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "ccol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 6,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 109,
+                          "end_line": 109,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 7,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "Tasklet",
+                      "label": "vadv_143",
+                      "attributes": {
+                        "code": {
+                          "string_data": "_gt_loc_out__datacol_Ip0Jp0Kp0 = _gt_loc__dcol_Ip0Jp0Kp0\n_gt_loc_out__data_col_Ip0Jp0Kp0 = _gt_loc_out__datacol_Ip0Jp0Kp0\n_gt_loc_out__utens_stage_Ip0Jp0Kp0 = (_gt_loc__dtr_stage * (_gt_loc_out__datacol_Ip0Jp0Kp0 - _gt_loc__u_pos_Ip0Jp0Kp0))",
+                          "language": "Python"
+                        },
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 143,
+                          "end_line": 151,
+                          "start_column": 4,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "instrument": "No_Instrumentation",
+                        "label": "vadv_143",
+                        "location": {},
+                        "environments": [],
+                        "in_connectors": {
+                          "_gt_loc__u_pos_Ip0Jp0Kp0": null,
+                          "_gt_loc__dcol_Ip0Jp0Kp0": null
+                        },
+                        "out_connectors": {
+                          "_gt_loc_out__datacol_Ip0Jp0Kp0": null,
+                          "_gt_loc_out__utens_stage_Ip0Jp0Kp0": null
+                        }
+                      },
+                      "id": 8,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "ReadWrite",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 143,
+                          "end_line": 143,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 9,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "data_col0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 143,
+                          "end_line": 143,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "data_col0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 10,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens_stage",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 143,
+                          "end_line": 143,
+                          "start_column": 4,
+                          "end_column": 4,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 11,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 2"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "ccol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 2"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "6",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__ccol_Ip0Jp0Kn1",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 2"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 2"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "7",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__dcol_Ip0Jp0Kn1",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "9",
+                      "dst": "8",
+                      "dst_connector": "_gt_loc__dcol_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_pos",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "3",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_pos_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_pos",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "3",
+                      "dst": "8",
+                      "dst_connector": "_gt_loc__u_pos_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "2",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "K - 2",
+                                  "end": "K - 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "K - 2",
+                                  "end": "K - 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "2"
+                          }
+                        }
+                      },
+                      "src": "2",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_stage",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "4",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "5",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__utens_stage_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "2",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "K - 1",
+                                  "end": "K - 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "wcon",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "i",
+                                  "end": "i + 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "j",
+                                  "end": "j",
+                                  "step": "1",
+                                  "tile": "1"
+                                },
+                                {
+                                  "start": "K - 1",
+                                  "end": "K - 1",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "2"
+                          }
+                        }
+                      },
+                      "src": "1",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__wcon",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "data_col0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "8",
+                      "dst": "10",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__datacol_Ip0Jp0Kp0"
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "K - 1"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "9",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__dcol_Ip0Jp0Kp0"
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "K - 1"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "8",
+                      "dst": "11",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__utens_stage_Ip0Jp0Kp0"
+                    }
+                  ],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "with_157",
+                  "id": 4,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      6
+                    ]
+                  },
+                  "nodes": [
+                    {
+                      "type": "Tasklet",
+                      "label": "vadv_157",
+                      "attributes": {
+                        "code": {
+                          "string_data": "_gt_loc_out__datacol_Ip0Jp0Kp0 = (_gt_loc__dcol_Ip0Jp0Kp0 - (_gt_loc__ccol_Ip0Jp0Kp0 * _gt_loc__data_col_Ip0Jp0Kp1))\n_gt_loc_out__data_col_Ip0Jp0Kp0 = _gt_loc_out__datacol_Ip0Jp0Kp0\n_gt_loc_out__utens_stage_Ip0Jp0Kp0 = (_gt_loc__dtr_stage * (_gt_loc_out__datacol_Ip0Jp0Kp0 - _gt_loc__u_pos_Ip0Jp0Kp0))",
+                          "language": "Python"
+                        },
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 170,
+                          "start_column": 8,
+                          "end_column": 12,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "instrument": "No_Instrumentation",
+                        "label": "vadv_157",
+                        "location": {},
+                        "environments": [],
+                        "in_connectors": {
+                          "_gt_loc__u_pos_Ip0Jp0Kp0": null,
+                          "_gt_loc__data_col_Ip0Jp0Kp1": null,
+                          "_gt_loc__ccol_Ip0Jp0Kp0": null,
+                          "_gt_loc__dcol_Ip0Jp0Kp0": null
+                        },
+                        "out_connectors": {
+                          "_gt_loc_out__datacol_Ip0Jp0Kp0": null,
+                          "_gt_loc_out__utens_stage_Ip0Jp0Kp0": null
+                        }
+                      },
+                      "id": 0,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "data_col0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "data_col0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 1,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "dcol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "dcol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 2,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "ccol0",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "ccol0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 3,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "u_pos",
+                      "attributes": {
+                        "access": "ReadOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "u_pos",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 4,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "data_col0",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "data_col0",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 5,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    },
+                    {
+                      "type": "AccessNode",
+                      "label": "utens_stage",
+                      "attributes": {
+                        "access": "WriteOnly",
+                        "setzero": false,
+                        "debuginfo": {
+                          "type": "DebugInfo",
+                          "start_line": 157,
+                          "end_line": 157,
+                          "start_column": 8,
+                          "end_column": 8,
+                          "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+                        },
+                        "data": "utens_stage",
+                        "in_connectors": {},
+                        "out_connectors": {}
+                      },
+                      "id": 6,
+                      "scope_entry": null,
+                      "scope_exit": null
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "ccol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "3",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__ccol_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "data_col0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "1",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__data_col_Ip0Jp0Kp1",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "dcol0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "2",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__dcol_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "u_pos",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "dst_subset": null,
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "4",
+                      "dst": "0",
+                      "dst_connector": "_gt_loc__u_pos_Ip0Jp0Kp0",
+                      "src_connector": null
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "data_col0",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Range",
+                              "ranges": [
+                                {
+                                  "start": "0",
+                                  "end": "0",
+                                  "step": "1",
+                                  "tile": "1"
+                                }
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "5",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__datacol_Ip0Jp0Kp0"
+                    },
+                    {
+                      "type": "MultiConnectorEdge",
+                      "attributes": {
+                        "data": {
+                          "type": "Memlet",
+                          "attributes": {
+                            "volume": "1",
+                            "dynamic": false,
+                            "subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "other_subset": null,
+                            "data": "utens_stage",
+                            "wcr": null,
+                            "veclen": 1,
+                            "debuginfo": null,
+                            "wcr_nonatomic": false,
+                            "allow_oob": false,
+                            "src_subset": null,
+                            "dst_subset": {
+                              "type": "Indices",
+                              "indices": [
+                                "i",
+                                "j",
+                                "k"
+                              ]
+                            },
+                            "num_accesses": "1"
+                          }
+                        }
+                      },
+                      "src": "0",
+                      "dst": "6",
+                      "dst_connector": null,
+                      "src_connector": "_gt_loc_out__utens_stage_Ip0Jp0Kp0"
+                    }
+                  ],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "endfor_156",
+                  "id": 5,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": []
+                  },
+                  "nodes": [],
+                  "edges": [],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                },
+                {
+                  "type": "SDFGState",
+                  "label": "guard_14",
+                  "id": 6,
+                  "collapsed": false,
+                  "scope_dict": {
+                    "-1": []
+                  },
+                  "nodes": [],
+                  "edges": [],
+                  "attributes": {
+                    "is_collapsed": false,
+                    "nosync": false,
+                    "instrument": "No_Instrumentation",
+                    "location": {}
+                  }
+                }
+              ],
+              "edges": [
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {
+                          "k": "1"
+                        },
+                        "condition": {
+                          "string_data": "1",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "k=1"
+                    }
+                  },
+                  "src": "0",
+                  "dst": "2"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {
+                          "k": "k + 1"
+                        },
+                        "condition": {
+                          "string_data": "1",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "k=k + 1"
+                    }
+                  },
+                  "src": "1",
+                  "dst": "2"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {},
+                        "condition": {
+                          "string_data": "(not (k > (- 1)))",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "(not (k > (- 1)))"
+                    }
+                  },
+                  "src": "6",
+                  "dst": "5"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {
+                          "k": "k + -1"
+                        },
+                        "condition": {
+                          "string_data": "1",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "k=k + -1"
+                    }
+                  },
+                  "src": "4",
+                  "dst": "6"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {},
+                        "condition": {
+                          "string_data": "(k < (K - 1))",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "(k < (K - 1))"
+                    }
+                  },
+                  "src": "2",
+                  "dst": "1"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {},
+                        "condition": {
+                          "string_data": "(not (k < (K - 1)))",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "(not (k < (K - 1)))"
+                    }
+                  },
+                  "src": "2",
+                  "dst": "3"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {
+                          "k": "K - 2"
+                        },
+                        "condition": {
+                          "string_data": "1",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "k=K - 2"
+                    }
+                  },
+                  "src": "3",
+                  "dst": "6"
+                },
+                {
+                  "type": "Edge",
+                  "attributes": {
+                    "data": {
+                      "type": "InterstateEdge",
+                      "attributes": {
+                        "assignments": {},
+                        "condition": {
+                          "string_data": "(k > (- 1))",
+                          "language": "Python"
+                        }
+                      },
+                      "label": "(k > (- 1))"
+                    }
+                  },
+                  "src": "6",
+                  "dst": "4"
+                }
+              ],
+              "sdfg_list_id": 1
+            },
+            "schedule": "Default",
+            "symbol_mapping": {
+              "_utens_J_stride": "_utens_J_stride",
+              "j": "j",
+              "I": "I",
+              "J": "J",
+              "_wcon_I_stride": "_wcon_I_stride",
+              "_utens_stage_J_stride": "_utens_stage_J_stride",
+              "_u_pos_J_stride": "_u_pos_J_stride",
+              "_u_pos_K_stride": "_u_pos_K_stride",
+              "_u_stage_I_stride": "_u_stage_I_stride",
+              "K": "K",
+              "_wcon_J_stride": "_wcon_J_stride",
+              "_utens_K_stride": "_utens_K_stride",
+              "_utens_I_stride": "_utens_I_stride",
+              "_gt_loc__dtr_stage": "_gt_loc__dtr_stage",
+              "_u_stage_J_stride": "_u_stage_J_stride",
+              "i": "i",
+              "_utens_stage_K_stride": "_utens_stage_K_stride",
+              "_utens_stage_I_stride": "_utens_stage_I_stride",
+              "_u_pos_I_stride": "_u_pos_I_stride",
+              "_wcon_K_stride": "_wcon_K_stride",
+              "_u_stage_K_stride": "_u_stage_K_stride"
+            },
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 222,
+              "end_line": 222,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "is_collapsed": false,
+            "instrument": "No_Instrumentation",
+            "label": "vadv",
+            "location": {},
+            "environments": [],
+            "in_connectors": {
+              "wcon": null,
+              "u_stage": null,
+              "utens_stage": null,
+              "u_pos": null,
+              "utens": null
+            },
+            "out_connectors": {
+              "utens_stage": null
+            }
+          },
+          "id": 2,
+          "scope_entry": "0",
+          "scope_exit": "1"
+        },
+        {
+          "type": "AccessNode",
+          "label": "wcon",
+          "attributes": {
+            "access": "ReadOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 225,
+              "end_line": 225,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "wcon",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 3,
+          "scope_entry": null,
+          "scope_exit": null
+        },
+        {
+          "type": "AccessNode",
+          "label": "u_stage",
+          "attributes": {
+            "access": "ReadOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 225,
+              "end_line": 225,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "u_stage",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 4,
+          "scope_entry": null,
+          "scope_exit": null
+        },
+        {
+          "type": "AccessNode",
+          "label": "utens_stage",
+          "attributes": {
+            "access": "ReadOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 225,
+              "end_line": 225,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "utens_stage",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 5,
+          "scope_entry": null,
+          "scope_exit": null
+        },
+        {
+          "type": "AccessNode",
+          "label": "u_pos",
+          "attributes": {
+            "access": "ReadOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 225,
+              "end_line": 225,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "u_pos",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 6,
+          "scope_entry": null,
+          "scope_exit": null
+        },
+        {
+          "type": "AccessNode",
+          "label": "utens",
+          "attributes": {
+            "access": "ReadOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 225,
+              "end_line": 225,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "utens",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 7,
+          "scope_entry": null,
+          "scope_exit": null
+        },
+        {
+          "type": "AccessNode",
+          "label": "utens_stage",
+          "attributes": {
+            "access": "WriteOnly",
+            "setzero": false,
+            "debuginfo": {
+              "type": "DebugInfo",
+              "start_line": 233,
+              "end_line": 233,
+              "start_column": 0,
+              "end_column": 0,
+              "filename": "c:\\Users\\XK\\Desktop\\university\\dace\\vadv-local2.py"
+            },
+            "data": "utens_stage",
+            "in_connectors": {},
+            "out_connectors": {}
+          },
+          "id": 8,
+          "scope_entry": null,
+          "scope_exit": null
+        }
+      ],
+      "edges": [
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J**2*K*(I + 1)",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "wcon",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I*J**2*K*(I + 1)"
+              }
+            }
+          },
+          "src": "3",
+          "dst": "0",
+          "dst_connector": "IN_1",
+          "src_connector": null
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I**2*J**2*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "u_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I**2*J**2*K"
+              }
+            }
+          },
+          "src": "4",
+          "dst": "0",
+          "dst_connector": "IN_2",
+          "src_connector": null
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I**2*J**2*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I**2*J**2*K"
+              }
+            }
+          },
+          "src": "5",
+          "dst": "0",
+          "dst_connector": "IN_3",
+          "src_connector": null
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I**2*J**2*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "u_pos",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I**2*J**2*K"
+              }
+            }
+          },
+          "src": "6",
+          "dst": "0",
+          "dst_connector": "IN_4",
+          "src_connector": null
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I**2*J**2*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I**2*J**2*K"
+              }
+            }
+          },
+          "src": "7",
+          "dst": "0",
+          "dst_connector": "IN_5",
+          "src_connector": null
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I**2*J**2*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": null,
+                "dst_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "num_accesses": "I**2*J**2*K"
+              }
+            }
+          },
+          "src": "1",
+          "dst": "8",
+          "dst_connector": null,
+          "src_connector": "OUT_1"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "J*K*(I + 1)",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "wcon",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "J*K*(I + 1)"
+              }
+            }
+          },
+          "src": "0",
+          "dst": "2",
+          "dst_connector": "wcon",
+          "src_connector": "OUT_1"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "u_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I*J*K"
+              }
+            }
+          },
+          "src": "0",
+          "dst": "2",
+          "dst_connector": "u_stage",
+          "src_connector": "OUT_2"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I*J*K"
+              }
+            }
+          },
+          "src": "0",
+          "dst": "2",
+          "dst_connector": "utens_stage",
+          "src_connector": "OUT_3"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "u_pos",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I*J*K"
+              }
+            }
+          },
+          "src": "0",
+          "dst": "2",
+          "dst_connector": "u_pos",
+          "src_connector": "OUT_4"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "dst_subset": null,
+                "num_accesses": "I*J*K"
+              }
+            }
+          },
+          "src": "0",
+          "dst": "2",
+          "dst_connector": "utens",
+          "src_connector": "OUT_5"
+        },
+        {
+          "type": "MultiConnectorEdge",
+          "attributes": {
+            "data": {
+              "type": "Memlet",
+              "attributes": {
+                "volume": "I*J*K",
+                "dynamic": false,
+                "subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "other_subset": null,
+                "data": "utens_stage",
+                "wcr": null,
+                "veclen": 1,
+                "debuginfo": null,
+                "wcr_nonatomic": false,
+                "allow_oob": false,
+                "src_subset": null,
+                "dst_subset": {
+                  "type": "Range",
+                  "ranges": [
+                    {
+                      "start": "0",
+                      "end": "I - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "J - 1",
+                      "step": "1",
+                      "tile": "1"
+                    },
+                    {
+                      "start": "0",
+                      "end": "K - 1",
+                      "step": "1",
+                      "tile": "1"
+                    }
+                  ]
+                },
+                "num_accesses": "I*J*K"
+              }
+            }
+          },
+          "src": "2",
+          "dst": "1",
+          "dst_connector": "IN_1",
+          "src_connector": "utens_stage"
+        }
+      ],
+      "attributes": {
+        "is_collapsed": false,
+        "nosync": false,
+        "instrument": "No_Instrumentation",
+        "location": {}
+      }
+    }
+  ],
+  "edges": [],
+  "sdfg_list_id": 0
+}
