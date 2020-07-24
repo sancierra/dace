@@ -358,9 +358,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 out_edges = [child.edge for child in mmt.root().children]
 
                 if src in in_nodes:
-
                     in_conn = None; out_conn = None
-
                     if src in inconnectors_dict:
                         if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
                             if debug:
@@ -383,8 +381,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         # reroute in edge via global_map_entry
                         self.redirect_edge(graph, edge, new_dst = global_map_entry, \
                                                         new_dst_conn = in_conn)
-                        #edge.dst = global_map_entry
-                        #edge.dst_conn = in_conn
+                        #edge.dst = global_map_entry, edge.dst_conn = in_conn
 
                     # map out edges to new map
                     for out_edge in out_edges:
@@ -394,41 +391,21 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         #out_edge.src_conn = out_conn
 
                 else:
-
                     # connect directly
-                    # also make sure memlet data gets changed correctly
-                    old_name = edge.data.data
-                    if src in transient_dict:
-                        new_name = old_name + '__trans'
-                    else:
-                        new_name = old_name
-
-                    queue = []
                     for out_edge in out_edges:
-                        mm = Memlet(data = new_name,
-                                    volume = out_edge.data.volume,
-                                    subset = out_edge.data.subset,
-                                    other_subset = out_edge.data.other_subset
-                                    )
-
+                        mm = dcpy(out_edge.data)
                         self.redirect_edge(graph, out_edge, new_src = src, new_data = mm)
-                        queue.append(out_edge.dst)
-                        #out_edge.src = src
 
                     graph.remove_edge(edge)
 
 
-                    while len(queue) > 0:
-                        current = queue.pop(0)
-                        if isinstance(current, nodes.MapEntry):
-                            for oedge in graph.out_edges(current):
-                                if oedge.data.data == old_name:
-                                    oedge.data.data = new_name
-                                    queue.append(oedge.dst)
             for edge in graph.out_edges(map_entry):
                 # special case: for nodes that have no data connections
                 if not edge.src_conn:
                     self.redirect_edge(graph, edge, new_src = global_map_entry)
+
+            ######################################
+
             for edge in graph.in_edges(map_exit):
                 if not edge.dst_conn:
                     # no destination connector, path ends here.
@@ -437,22 +414,17 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 # find corresponding out_edges for current edge, cannot use mmt anymore
                 out_edges = [oedge for oedge in graph.out_edges(map_exit)
                                       if oedge.src_conn[3:] == edge.dst_conn[2:]]
+
+                # Tuple to store in/out connector port that might be created
                 port_created = None
 
                 for out_edge in out_edges:
                     dst = out_edge.dst
-                    transient_created = None
-                    try:
-                        dst_original = transient_dict[dst]
-                        transient_created = True
-                    except KeyError:
-                        transient_created = False
-                        dst_original = dst
 
-
-                    if transient_created:
-                        # transients only get created for itntermediate_nodes
-                        # that are either in out_nodes or non-transient
+                    if dst in intermediate_nodes & out_nodes:
+                        # create connection thru global map from
+                        # dst to dst_transient that was created
+                        dst_transient = transients_created[dst]
                         next_conn = global_map_exit.next_connector()
                         in_conn= 'IN_' + next_conn
                         out_conn = 'OUT_' + next_conn
@@ -463,54 +435,29 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                        global_map_exit, in_conn,
                                        dcpy(edge.data))
                         graph.add_edge(global_map_exit, out_conn,
-                                       dst_original, None,
+                                       dst_transient, None,
                                        dcpy(out_edge.data))
 
-                        edge_to_remove = None
+                        # remove edge from dst to dst_transient that was created
+                        # in intermediate preparation.
                         for e in graph.out_edges(dst):
-                            if e.dst == dst_original:
-                                edge_to_remove = e
+                            if e.dst == dst_transient:
+                                graph.remove_edge(e)
+                                removed = True
                                 break
-                        if edge_to_remove:
-                            graph.remove_edge(edge_to_remove)
-                        else:
-                            print("ERROR: Transient support edge should be removable, not found")
 
+                        if self.debug:
+                            assert removed == True
 
                     # handle separately: intermediate_nodes and pure out nodes
-                    if dst_original in intermediate_nodes:
-
-                        # change upwards adjacent memlet data name to this data name
-                        # downwards was handled before in in_edges
-                        new_name = dst.data
-                        old_name = dst_original.data
-
-                        mm = Memlet(data = new_name,
-                                    volume = edge.data.volume,
-                                    subset = edge.data.subset,
-                                    other_subset = edge.data.other_subset)
-
+                    # case 1: intermediate_nodes: can just redirect edge
+                    if dst in intermediate_nodes:
                         self.redirect_edge(graph, out_edge, new_src = edge.src,
                                                             new_src_conn = edge.src_conn,
-                                                            new_data = mm)
+                                                            new_data = dcpy(edge.data))
 
-
-                        queue = [edge.src]
-                        while len(queue) > 0:
-                            current = queue.pop(0)
-                            if isinstance(current, nodes.MapExit):
-                                for iedge in graph.in_edges(current):
-                                    if iedge.data.data == old_name:
-                                        iedge.data.data = new_name
-                                        queue.append(iedge.src)
-
-                        # TODO
-                        # remove data node if size is 1 and only 1 in_edge
-                        # can just do a direct flow
-                        #if new_data_totalsize == 1 and len(graph.in_edges(dst)) == 1:
-                        #......
-
-                    if dst_original in (out_nodes - intermediate_nodes):
+                    # case 2: pure out node: connect to outer array node
+                    if dst in (out_nodes - intermediate_nodes):
                         if edge.dst != global_map_exit:
                             next_conn = global_map_exit.next_connector()
                             in_conn= 'IN_' + next_conn
@@ -528,7 +475,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             in_conn = port_created.st
                             out_conn = port_created.nd
 
-
                         # map
                         graph.add_edge(global_map_exit,
                                        out_conn,
@@ -541,13 +487,13 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 if not port_created:
                     graph.remove_edge(edge)
 
-
-
+            # maps are now ready to be discarded
             graph.remove_node(map_entry)
             graph.remove_node(map_exit)
 
 
         # do one pass to adjust in-transients and their corresponding memlets
+        # TODO: adjust
         transient_dict_rev = {v:k for k,v in transient_dict.items()}
         for transient_node in intermediate_nodes:
             try:
