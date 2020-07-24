@@ -20,7 +20,7 @@ import dace.libraries.standard as stdlib
 
 
 @make_properties
-class SubgraphFusion():
+class SubgraphFusion(pattern_matching.SubgraphTransformation):
     """ Implements the SubgraphFusion transformation.
         Fuses the maps specified together with their outer maps
         as a global outer map, creating transients and new connections
@@ -50,9 +50,9 @@ class SubgraphFusion():
 
 
     @staticmethod
-    def can_be_applied(sdfg, graph, maps):
+    def match(sdfg, subgraph):
 
-        # TODO: Not really a priority right now
+        # TODO
 
         # Fusable if
         # 1. Maps have the same access sets and ranges in order
@@ -65,7 +65,19 @@ class SubgraphFusion():
         # 4  Every array that is in between two maps can only appear once
         #    in a write node within the maps subgraph
 
+        graph = subgraph.graph
+
+        for node in subgraph.nodes():
+            if node not in graph.nodes():
+                return False
+
+        # next, get all the maps
+        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+
+        # TODO
+        # IMPLEMENT
         return True
+
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
                                          new_dst = None, new_dst_conn = None, new_data = None ):
@@ -172,6 +184,16 @@ class SubgraphFusion():
 
         return transient_dict
 
+    def apply(self, sdfg, subgraph, **kwargs):
+        # ASSUMPTION: all subgraph nodes must be in the same graph
+        # if there are nested sdfgs within the (sub)graph,
+        # the nested sdfg nodes themselves are put into the subgraph
+        # but not the nodes they contain
+
+        graph = subgraph.graph
+
+        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        self.fuse(sdfg, graph, map_entries, **kwargs)
 
     def fuse(self, sdfg, graph, map_entries, **kwargs):
         """ takes the map_entries specified and tries to fuse maps.
