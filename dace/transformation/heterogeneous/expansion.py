@@ -123,7 +123,6 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
                         # nothing to do
                         pass
                     else:
-                        # TODO: this part is a bit ugly, beautify
                         current_var = map.params[i]
                         current_assignment = params_dict_map[current_var]
                         target_assignment = map_base_variables[reassignment]
@@ -131,7 +130,6 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
                             if target_assignment in params_dict_map.values():
                                 # do a swap
                                 key1 = current_var
-                                # get the corresponding key, cumbersome
                                 for key, value in params_dict_map.items():
                                     if value == target_assignment:
                                         key2 = key
@@ -141,7 +139,7 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
                                 params_dict_map[key1] = key2
                                 params_dict_map[key2] = key1
                             else:
-                                # just reassign - noone cares
+                                # just reassign
                                 params_dict_map[current_var] = target_assignment
 
                 # done, assign params_dict_map to the global one

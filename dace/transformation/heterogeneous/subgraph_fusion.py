@@ -3,9 +3,8 @@
 import dace
 
 from dace import dtypes, registry, symbolic, subsets, data
-from dace.sdfg import nodes, utils
+from dace.sdfg import nodes, utils, replace, SDFG, scope_contains_scope
 from dace.memlet import Memlet
-from dace.sdfg import replace, SDFG
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
@@ -111,28 +110,58 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                            redirect_node, None,
                            Memlet())
 
+        # first search whether intermediate_nodes appear outside of subgraph
+        # and store it in dict
+        data_counter = defaultdict(int)
+        # do a full global search and count each data from each intermediate node
+        scope_dict = graph.scope_dict()
+        data_intermediate = set([node.data for node in intermediate_nodes])
+        def search(sdfg, graph, intermediate_nodes, data_counter):
+            for state in sdfg.nodes():
+                for node in state.nodes():
+                    if node.data in data_intermediate:
+                        data_counter[node.data] += 1
+                    if isinstance(node, nodes.NestedSDFG):
+                        # check whether NestedSDFG is part of our subgraph
+                        # if so, we can pass
+                        nestedSearch = False
+                        if state != graph:
+                            nestedSearch = True
+                        else:
+                            if self.subgraph and node not in self.subgraph:
+                                # if called via apply() just use self.subgraph
+                                nestedSearch = True
+                            elif not self.subgraph and \
+                                 any([scope_contains_scope(scope_dict, map_entry, node) \
+                                      for map_entry in map_entries]):
+                                nestedSearch = True
+                        if nestedSearch:
+                            search(node.sdfg, graph, intermediate_nodes, data_counter)
+
+        # finally: If intermediate_counter and global counter match and if the array
+        # is declared transient, it is fully contained by the subgraph
+        subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
+                                        and sdfg.data(data).transient \
+                                  for data in data_intermediate}
+
         transients_created = {}
-        for node in intermediate_nodes:
-            if node in out_nodes:
-                # case 1: create new transient at exit replacing the array
-                # and redirect all traffic
-                data_ref = sdfg.data(node.data)
-                out_trans_data_name = node.data + '_OUT'
-                data_trans = sdfg.add_transient(name = out_trans_data_name,
-                                                shape = data_ref.shape,
-                                                dtype = data_ref.dtype,
-                                                storage= data_ref.storage,
-                                                offset = data_ref.offset)
-                node_trans = graph.add_access(trans_data_name)
-                redirect(node_trans, node)
-                transients_created[node] = node_trans
-            else:
-                # Search whether node appears outside of subgraph.
-                # TODO
-                # If so, we will just put the original array.
-                # TODO
-                # If not, underlying data will be modified directly
-                # TODO
+        for node in intermediate_nodes & out_nodes:
+            # create new transient at exit replacing the array
+            # and redirect all traffic
+            data_ref = sdfg.data(node.data)
+            out_trans_data_name = node.data + '_OUT'
+            data_trans = sdfg.add_transient(name = out_trans_data_name,
+                                            shape = data_ref.shape,
+                                            dtype = data_ref.dtype,
+                                            storage= data_ref.storage,
+                                            offset = data_ref.offset)
+            node_trans = graph.add_access(trans_data_name)
+            redirect(node_trans, node)
+            transients_created[node] = node_trans
+
+        return (subgraph_contains_data, transients_created)
+
+
     def _create_transients(self,sdfg, graph, in_nodes, out_nodes, intermediate_nodes, \
                            map_entries, map_exits, do_not_override = []):
         # better preprocessing which allows for non-transient in between nodes
@@ -189,6 +218,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
 
     def apply(self, sdfg, subgraph, **kwargs):
+        self.subgraph = subgraph
 
         graph = subgraph.graph
 
@@ -293,36 +323,31 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             raise RuntimeError("Not all the maps have the same schedule. Cannot fuse.")
 
         global_map_entry.schedule = schedule
+        graph.add_node(global_map_entry)
+        graph.add_node(global_map_exit)
 
-        # next up, for any intermediate node, find whether it only appears
-        # in the subgraph or also somewhere else / as an input
 
         try:
-            # in-between transients that should be duplicated nevertheless
+            # in-between transients whose data should not be modified
             do_not_override = kwargs['do_not_override']
         except KeyError:
             do_not_override = []
 
+        # next up, for any intermediate node, find whether it only appears
+        # in the subgraph or also somewhere else / as an input
         # create new transients for nodes that are in out_nodes and
         # intermediate_nodes simultaneously
-        # also check whether we can override transient or not
-        node_dict = self.prepare_intermediate_nodes(sdfg, graph, in_nodes, out_nodes, \
+        node_info = self.prepare_intermediate_nodes(sdfg, graph, in_nodes, out_nodes, \
                                                     intermediate_nodes,\
                                                     map_entries, map_exits, \
                                                     intermediate_data_counter, \
                                                     do_not_override)
 
-        transient_dict = self._create_transients(sdfg, graph, in_nodes, out_nodes, \
-                                                 intermediate_nodes, map_entries, map_exits, \
-                                                 do_not_override)
-        # Dict for saving
+        (subgraph_contains_data, transients_created) = node_info
+
         inconnectors_dict = {}
         # Dict for saving incoming nodes and their assigned connectors
-        # Format:
-        # {access_node: (edge, in_conn, out_conn)}
-
-        graph.add_node(global_map_entry)
-        graph.add_node(global_map_exit)
+        # Format: {access_node: (edge, in_conn, out_conn)}
 
         for map_entry, map_exit in zip(map_entries, map_exits):
             # handle inputs

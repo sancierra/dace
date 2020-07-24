@@ -140,10 +140,9 @@ class ReduceMap(pattern_matching.Transformation):
             nsdfg = self._expand_reduce(sdfg, graph, reduce_node)
         except Exception:
             print(f"Aborting: Could not execute expansion in {reduce_node}")
-            raise TypeError("EXPANSION_ABORT")
+            raise TypeError("Exception in ReduceMap::_expand_reduce")
 
-        # find the new nested sdfg
-
+        # find the new nodes in the nested sdfg created
         nstate = nsdfg.sdfg.nodes()[0]
         for node, scope in nstate.scope_dict().items():
             if isinstance(node, nodes.MapEntry):
@@ -181,7 +180,7 @@ class ReduceMap(pattern_matching.Transformation):
 
 
         if self.create_in_transient:
-            # create an in-transient as well.
+            # create an in-transient between inner and outer map entry
             array_in = nstate.in_edges(outer_entry)[0].data.data
 
             from dace.transformation.dataflow.local_storage import LocalStorage
