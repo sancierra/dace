@@ -157,12 +157,12 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         if idx > 0 and memlet.data == node.data:
                             lower_subsets.add(memlet.subset)
 
-            # now look whether
+            # now check coverage
+            # TODO: not that trivial given the available tools
             subset_up.covers(subset_down)
 
 
-
-
+        '''
         #####################################################################
         first_map_exit = graph.nodes()[candidate[MapFusion._first_map_exit]]
         first_map_entry = graph.entry_node(first_map_exit)
@@ -252,7 +252,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # fail.
             if provided is False:
                 return False
-
+        '''
         return True
 
     def storage_type_inference(node):
