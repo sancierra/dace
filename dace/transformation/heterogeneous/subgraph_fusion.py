@@ -146,12 +146,19 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 if in_edge.wcr:
                     return False
                 if in_edge.src in map_exits:
-                    # TODO
+                    subset = graph.memlet_path(in_edge)[1].subset
+                    upper_subsets.add(subset)
                 else:
                     raise NotImplementedError("TODO")
 
-            lower_subsets = set()
-            #subset_up.covers(subset_down)
+            for out_edge in graph.out_edges(node):
+                if out_edge.dst in map_exits:
+                    for idx, memlet in enumerate(graph.memlet_tree(out_edge)):
+                        if idx > 0 and memlet.data == node.data:
+                            lower_subsets.add(memlet.subset)
+
+            # now look whether
+            subset_up.covers(subset_down)
 
 
 
