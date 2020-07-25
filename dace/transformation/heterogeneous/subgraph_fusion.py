@@ -18,10 +18,10 @@ import dace.libraries.standard as stdlib
 '''
 TODO:
 
-- revamp
-- other_subset
-- can_be_applied()
-- StorageType Inference
+- revamp                        [OK]   TEST: failed
+- other_subset                  [OK]   TEST: failed
+- can_be_applied()              [In progress]
+- StorageType Inference         [OK]   cancelled
 - cover intermediate nodes with incoming edges from outside
 - stencils
 
@@ -41,14 +41,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
     """
 
-    register_trans = Property(desc="Make connecting transients with size 1 inside"
-                                    "the global map registers",
-                              dtype = bool,
-                              default = False)
-
     debug = Property(desc = "Show debug info",
                      dtype = bool,
                      default = True)
+
     cuda_transient_allocation = Property(desc = "Storage Location to push"
                                                 "transients to in GPU environment",
                                          dtype = str,
@@ -56,32 +52,207 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                          choices = ["auto", "shared", "local", "default"])
     @staticmethod
     def match(sdfg, subgraph):
-        # TODO
 
         # Fusable if
         # 1. Maps have the same access sets and ranges in order
-        # 2. Any nodes in between two maps are AccessNodes only without WCR
+        # 2. Any nodes in between two maps are AccessNodes only, without WCR
         #    There is at most one AccessNode only on a path between two maps,
         #    no other nodes are allowed
         # 3. Any exiting memlet's subset to an intermediate edge must cover
         #    the respective incoming memlets subset into the next map
 
-        # 4  Every array that is in between two maps can only appear once
-        #    in a write node within the maps subgraph
-
         graph = subgraph.graph
-
         for node in subgraph.nodes():
             if node not in graph.nodes():
                 return False
 
         # next, get all the maps
-        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        map_entries = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
 
-        # TODO
-        # IMPLEMENT
+        # 1. check whether all map ranges and indices are the same
+        if len(maps) <= 1:
+            return False
+        base_map = map[0]
+        for map in maps:
+            if map.get_param_num() != base_map.get_param_num():
+                return False
+            if not all([p1 == p2 for (p1,p2) in zip(map.params, base_map.params)]):
+                return False
+            if not map.range == base_map.range:
+                return False
+
+        # 2. check intermediate feasiblility
+        # see map_fusion.py for similar checks
+        # we are being more relaxed here
+
+        # 2.1 do some preparation work first:
+        # calculate all out_nodes and intermediate_nodes
+        # definition see in apply()
+        intermediate_nodes = set()
+        out_nodes = set()
+        for map_entry, map_exit in zip(map_entries, map_exits):
+            for edge in graph.out_edges(map_exit):
+                current_node = edge.dst
+                if len(graph.out_edges(current_node)) == 0:
+                    out_nodes.add(current_node)
+                else:
+                    for dst_edge in graph.out_edges(current_node):
+                        if dst_edge.dst in map_entries:
+                            intermediate_nodes.add(current_node)
+                        else:
+                            out_nodes.add(current_node)
+
+        # 2.2 topological feasibility:
+        # For each intermediate and out node: must never reach any map
+        # entry if it is not connected to map entry immediately
+        visited = set()
+        # for memoization purposes
+        def visit_descendants(graph, node, visited, map_entries):
+            # if we have already been at this node
+            if node in visited:
+                return True
+            # not necessary to add if there aren't any other in connections
+            if graph.in_edges(node) > 1:
+                visited.add(node)
+            for oedge in graph.out_edges(node):
+                if not visit_descendants(graph, oedge.dst, visited, map_entries):
+                    return False
+            return True
+
+        for node in intermediate_nodes | out_nodes:
+            # these nodes must not lead to a map entry
+            nodes_to_check = set()
+            for oedge in graph.out_edges(node):
+                if oedge.dst not in map_entries:
+                    nodes_to_check.add(oedge.dst)
+
+            for forbidden_node in nodes_to_check:
+                if not visit_descandants(graph, forbidden_node, visited, map_entries):
+                    return False
+
+        del visited
+
+        # 2.3 memlet feasibility
+        # For each intermediate node, look at whether incoming inner map memlets
+        # cover outgoing inner map memlets
+        # check for WCRs on the fly
+        for node in intermediate_nodes:
+            upper_subsets = set()
+            lower_subsets = set()
+            # find upper_subsetes
+            for in_edge in graph.in_edges(node):
+                # first check for WCRs
+                if in_edge.wcr:
+                    return False
+                if in_edge.src in map_exits:
+                    # TODO
+                else:
+                    raise NotImplementedError("TODO")
+
+            lower_subsets = set()
+            #subset_up.covers(subset_down)
+
+
+
+
+        #####################################################################
+        first_map_exit = graph.nodes()[candidate[MapFusion._first_map_exit]]
+        first_map_entry = graph.entry_node(first_map_exit)
+        second_map_entry = graph.nodes()[candidate[
+            MapFusion._second_map_entry]]
+
+        # NOTE: check whether WCR in intermediate node
+
+        for _in_e in graph.in_edges(first_map_exit):
+            if _in_e.data.wcr is not None:
+                for _out_e in graph.out_edges(second_map_entry):
+                    if _out_e.data.data == _in_e.data.data:
+                        # wcr is on a node that is used in the second map, quit
+                        return False
+
+
+
+
+        # NOTE: Check whether there is a pattern map -> access -> map.
+        # NOTE: just create the sets. we don't need more.
+        intermediate_nodes = set()
+        intermediate_data = set()
+        for _, _, dst, _, _ in graph.out_edges(first_map_exit):
+            if isinstance(dst, nodes.AccessNode):
+                intermediate_nodes.add(dst)
+                intermediate_data.add(dst.data)
+
+                # If array is used anywhere else in this state.
+                num_occurrences = len([
+                    n for n in graph.nodes()
+                    if isinstance(n, nodes.AccessNode) and n.data == dst.data
+                ])
+                if num_occurrences > 1:
+                    return False
+            else:
+                return False
+
+
+        # NOTE: Need to do something more general here
+        # Check if any intermediate transient is also going to another location
+        second_inodes = set(e.src for e in graph.in_edges(second_map_entry)
+                            if isinstance(e.src, nodes.AccessNode))
+        transients_to_remove = intermediate_nodes & second_inodes
+        # if any(e.dst != second_map_entry for n in transients_to_remove
+        #        for e in graph.out_edges(n)):
+        if any(graph.out_degree(n) > 1 for n in transients_to_remove):
+            return False
+
+
+        # NOTE: need something like these memlet checks
+        # AFTER having done
+        # Check that input set of second map is provided by the output set
+        # of the first map, or other unrelated maps
+        for second_edge in graph.out_edges(second_map_entry):
+            # Memlets that do not come from one of the intermediate arrays
+            if second_edge.data.data not in intermediate_data:
+                # however, if intermediate_data eventually leads to
+                # second_memlet.data, need to fail.
+                for _n in intermediate_nodes:
+                    source_node = _n
+                    destination_node = graph.memlet_path(second_edge)[0].src
+                    # NOTE: Assumes graph has networkx version
+                    if destination_node in nx.descendants(
+                            graph._nx, source_node):
+                        return False
+                continue
+
+            provided = False
+
+            # Compute second subset with respect to first subset's symbols
+            sbs_permuted = dcpy(second_edge.data.subset)
+            sbs_permuted.replace({
+                symbolic.pystr_to_symbolic(k): symbolic.pystr_to_symbolic(v)
+                for k, v in params_dict.items()
+            })
+
+            for first_memlet in out_memlets:
+                if first_memlet.data != second_edge.data.data:
+                    continue
+
+                # If there is a covered subset, it is provided
+                if first_memlet.subset.covers(sbs_permuted):
+                    provided = True
+                    break
+
+            # If none of the output memlets of the first map provide the info,
+            # fail.
+            if provided is False:
+                return False
+
         return True
 
+    def storage_type_inference(node):
+        ''' on a fused graph, looks in which memory intermediate node
+            needs to be pushed to
+        '''
+        raise NotImplementedError("WIP")
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
                                          new_dst = None, new_dst_conn = None, new_data = None ):
@@ -562,8 +733,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     if self.cuda_transient_allocation == 'default':
                         transient_to_transform.storage = dtypes.StorageType.Default
                     if self.cuda_transient_allocation == 'auto':
-                        # TODO: Storage Inference goes here.
-                        raise NotImplementedError("Not implemented yet. TODO")
+                        transient_to_transform.storage = self.storage_type_inference(node)
 
             else:
                 # don't modify data container - array is needed outside
