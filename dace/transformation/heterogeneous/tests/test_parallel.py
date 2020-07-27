@@ -1,8 +1,10 @@
 import dace
-from dace.transformation.heterogeneous.expansion import MultiExpansion
+from dace.transformation.heterogeneous import MultiExpansion, SubgraphFusion
 from dace.transformation.heterogeneous.helpers import *
 import dace.sdfg.nodes as nodes
+from dace.sdfg.graph import SubgraphView
 import numpy as np
+import dace.transformation.heterogeneous.pipeline as pipeline
 
 from dace.measure import Runner
 
@@ -68,7 +70,10 @@ if __name__ == "__main__":
 
     sdfg = TEST.to_sdfg()
     state = sdfg.nodes()[0]
+    subgraph = SubgraphView(state,[node for node in state.nodes()])
 
-    runner = Runner()
+
+    print("APPLY")
+    runner = Runner(sequential = True, view_roofline = False, view = True)
     runner.go(sdfg, state, None, N, M, O, P, Q, R,
               output = [])
