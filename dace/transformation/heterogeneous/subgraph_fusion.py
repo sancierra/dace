@@ -119,7 +119,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if node in visited:
                 return True
             # not necessary to add if there aren't any other in connections
-            if graph.in_edges(node) > 1:
+            if len(graph.in_edges(node)) > 1:
                 visited.add(node)
             for oedge in graph.out_edges(node):
                 if not visit_descendants(graph, oedge.dst, visited, map_entries):
@@ -134,7 +134,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     nodes_to_check.add(oedge.dst)
 
             for forbidden_node in nodes_to_check:
-                if not visit_descandants(graph, forbidden_node, visited, map_entries):
+                if not visit_descendants(graph, forbidden_node, visited, map_entries):
                     return False
 
         del visited
@@ -149,44 +149,53 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # find upper_subsetes
             for in_edge in graph.in_edges(node):
                 # first check for WCRs
-                if in_edge.wcr:
+                if in_edge.data.wcr:
                     return False
                 if in_edge.src in map_exits:
-                    subset = graph.memlet_path(in_edge)[1].subset
-                    upper_subsets.add(subset)
+                    edge = graph.memlet_path(in_edge)[-2]
+                    upper_subsets.add(edge.data.subset)
                 else:
                     raise NotImplementedError("TODO")
 
             for out_edge in graph.out_edges(node):
-                if out_edge.dst in map_exits:
-                    for idx, memlet in enumerate(graph.memlet_tree(out_edge)):
-                        if idx > 0 and memlet.data == node.data:
-                            lower_subsets.add(memlet.subset)
+                if out_edge.dst in map_entries:
+                    # cannot use memlet tree here as there could be
+                    # not just one map succedding. Do it manually
+                    for oedge in graph.out_edges(out_edge.dst):
+                        if oedge.src_conn[3:] == out_edge.dst_conn[2:]:
+                            lower_subsets.add(oedge.data.subset)
 
-            union_upper = subsets.Range()
-            for subs in upper_subsets:
+            upper_iter = iter(upper_subsets)
+            union_upper = next(upper_iter)
+            for subs in upper_iter:
                 union_upper = subsets.union(union_upper, subs)
-            union_lower = subsets.Range()
-            for subs in lower_subsets:
+
+            lower_iter = iter(lower_subsets)
+            #print("**********", lower_subsets)
+            union_lower = next(lower_iter)
+            for subs in lower_iter:
                 union_lower = subsets.union(union_lower, subs)
 
-
+            #print(union_upper)
+            #print(union_lower)
             # finally check coverage
             if not union_upper.covers(union_lower):
                 # TODO: Implement special case stencil smem.
                 return False
+
+            '''
             # TODO: The following restriction is too harsh,
             # but relaxing it is hard to do in an elegant way.
-            for subs_lo in union_lower:
+            for subs_lo in lower_subsets:
                 covered = False
-                for subs_hi in union_higher:
+                for subs_hi in upper_subsets:
                     if subs_hi.covers(subs_lo):
                         covered = True
                         break
                 if not covered:
                     print('[WIP] WARNING: Please check subsets manually')
                     return False
-
+            '''
 
         return True
 
