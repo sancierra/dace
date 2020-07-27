@@ -140,13 +140,33 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         del visited
 
         # 2.3 memlet feasibility
-        # For each intermediate node, look at whether incoming inner map memlets
-        # cover outgoing inner map memlets
-        # check for WCRs on the fly
+        # For each intermediate node, look at whether inner adjacent
+        # memlets of the exiting map cover inner adjacent memlets
+        # of the next entering map.
+        # We also check for any WCRs on the fly.
+
         for node in intermediate_nodes:
             upper_subsets = set()
             lower_subsets = set()
-            # find upper_subsetes
+            # First, determine which dimensions of the memlet ranges
+            # change with the map, we do not need to care about the other dimensions.
+            dims_to_inspect = set()
+            for in_edge in graph.in_edges(node):
+                if in_edges.src in map_exits:
+                    other_edge = graph.memlet_path(in_edge)[-2]
+                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.subset, other_edge.subset)):
+                        if sbs1 != sbs2:
+                            dims_to_inspect.add(idx)
+                else:
+                    raise NotImplementedError("TODO")
+            for out_edge in graph.out_edges(node):
+                for other_edge in graph.memlet_tree(out_edge):
+                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.subset, other_edge.subset)):
+                        if sbs1 != sbs2:
+                            dims_to_inspect.add(idx)
+
+            # TODO: continue
+            # find upper_subsets
             for in_edge in graph.in_edges(node):
                 # first check for WCRs
                 if in_edge.data.wcr:
@@ -157,6 +177,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 else:
                     raise NotImplementedError("TODO")
 
+            # find lower_subsets
             for out_edge in graph.out_edges(node):
                 if out_edge.dst in map_entries:
                     # cannot use memlet tree here as there could be
@@ -165,19 +186,28 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         if oedge.src_conn[3:] == out_edge.dst_conn[2:]:
                             lower_subsets.add(oedge.data.subset)
 
+            print("upper_subsets:", upper_subsets)
+            print("lower_subsets:", lower_subsets)
+
             upper_iter = iter(upper_subsets)
             union_upper = next(upper_iter)
             for subs in upper_iter:
                 union_upper = subsets.union(union_upper, subs)
+                if not union_upper:
+                    # something went wrong
+                    return False
 
             lower_iter = iter(lower_subsets)
             #print("**********", lower_subsets)
             union_lower = next(lower_iter)
             for subs in lower_iter:
                 union_lower = subsets.union(union_lower, subs)
+                if not union_lower:
+                    # something went wrong
+                    return False
 
-            #print(union_upper)
-            #print(union_lower)
+            print("union_upper:",union_upper)
+            print("union_lower:",union_lower)
             # finally check coverage
             if not union_upper.covers(union_lower):
                 # TODO: Implement special case stencil smem.
