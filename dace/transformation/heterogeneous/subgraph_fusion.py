@@ -9,11 +9,15 @@ from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
+from dace.transformation.heterogeneous import helpers
+
 
 from copy import deepcopy as dcpy
 from typing import List, Union
 
 import dace.libraries.standard as stdlib
+
+from collections import defaultdict
 
 '''
 TODO:
@@ -69,11 +73,12 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # next, get all the maps
         map_entries = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
         map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
+        maps = [map_entry.map for map_entry in map_entries]
 
         # 1. check whether all map ranges and indices are the same
         if len(maps) <= 1:
             return False
-        base_map = map[0]
+        base_map = maps[0]
         for map in maps:
             if map.get_param_num() != base_map.get_param_num():
                 return False
@@ -204,9 +209,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         return ret
 
-    def preapare_intermediate_nodes(self, sdfg, graph, in_nodes, out_nodes,
+    def prepare_intermediate_nodes(self, sdfg, graph, in_nodes, out_nodes,
                                     intermediate_nodes, map_entries, map_exits,
-                                    intermediate_data_counter):
+                                    intermediate_data_counter,
+                                    do_not_override = []):
 
         def redirect(redirect_node, original_node):
             # redirect all outgoing traffic which
@@ -255,6 +261,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # is declared transient, it is fully contained by the subgraph
         subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
                                         and sdfg.data(data).transient \
+                                        and data not in do_not_override \
                                   for data in data_intermediate}
 
         transients_created = {}
