@@ -19,6 +19,7 @@ from copy import deepcopy as dcpy
 from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 
 from collections import OrderedDict
+from typing import List
 
 class Runner():
     # A measurement and correctness checker for an SDFG
@@ -35,7 +36,7 @@ class Runner():
     def __init__(self,
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
-                 view = False, view_all = False,
+                 view = False,
                  view_roofline = True, save_roofline = False,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
                  sequential = False):
@@ -49,7 +50,6 @@ class Runner():
                                  The first element of the vector will also go into the general
                                  summary at the end.
             :param view: view graph at the beginning and at the end
-            :param view_all: view graph at every transformation
             :param view_roofline: view graph at end with roofline plot
             :param error_tol_abs: absolut error tolerance for array checks
             :param error_tol_rel: relative error tolerance for array checks
@@ -63,7 +63,6 @@ class Runner():
         self.measure_mode = measure_mode
 
         self.view = view
-        self.view_all = view_all
         self.view_roofline = view_roofline
 
         self.error_tol_abs = error_tol_abs
@@ -217,7 +216,7 @@ class Runner():
                 else:
                     pipeline_args.append({})
 
-        if self.view or self.view_all:
+        if self.view:
             sdfg.view()
 
         if not self.sequential:
@@ -290,7 +289,7 @@ class Runner():
                 for func, arg in zip(fun, args):
                     func(sdfg, graph, subgraph, **arg)
             else:
-                func(sdfg, graph, subgraph, **args)
+                fun(sdfg, graph, subgraph, **args)
 
 
             self._setzero_outputs(outputs)
@@ -342,7 +341,7 @@ class Runner():
             diffs_rel.append(difference_dict_rel)
             verdicts.append(verdicts_dict)
 
-            if self.view_all:
+            if self.view:
                 sdfg.view()
 
 
@@ -400,7 +399,7 @@ class Runner():
                   "GFLOP Roofline")
             for transformation_name, runtime_list in zip(names, runtimes):
                 if isinstance(transformation_name, str):
-                    print(transformation.ljust(15,' '),
+                    print(transformation_name.ljust(15,' '),
                           f"{roofline.data[transformation_name]:.6g}".ljust(15,' '),
                           f"{np.median(roofline.gflops_measured[transformation_name]):.6g}".ljust(15,' '),
                           f"{np.median(roofline.gflops_roof[transformation_name]):.6g}")
@@ -415,19 +414,17 @@ class Runner():
               f"Runtime {self.measure_mode[0]}".ljust(20, ' '),
               "Verdict")
 
-        for transformation_name, runtime_list, verdicts_dict in zip(pipeline, runtimes, ['_'] + verdicts):
+        for transformation_name, runtime_list, verdicts_dict in zip(names, runtimes, ['_'] + verdicts):
+            print(transformation_name.ljust(15,' '),
+                  f"{roofline.data[transformation_name]:.6g}".ljust(15,' ') if roofline else '',
+                  f"{runtime_list[0]:.6g}".ljust(20,' '), end='')
             if transformation_name == 'baseline':
-                print(transformation_name.ljust(15,' '),
-                      f"{roofline.data[transformation_name]:.6g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.6g}".ljust(20,' '),
-                      '----')
+                print('----')
             if transformation_name != 'baseline':
                 print('PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
 
-        if self.view and self.sequential or self.view_all:
-            sdfg.view()
 
         if roofline:
             if self.view_roofline:
@@ -435,7 +432,7 @@ class Runner():
 
 
         for verdicts_dict in verdicts:
-            if not all([v == 'PASS' for v in verdicts_dict[transformation_name].values()]):
+            if not all([v == 'PASS' for v in verdicts_dict.values()]):
                 return False
 
         return True
