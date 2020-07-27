@@ -18,6 +18,7 @@ from typing import List, Union
 import dace.libraries.standard as stdlib
 
 from collections import defaultdict
+from itertools import chain
 
 '''
 TODO:
@@ -261,12 +262,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         # set up data_counter
         search(sdfg, graph, data_intermediate, data_counter)
-        print("****************")
-        for data in data_intermediate:
-            print(data, "|", data_counter[data], "|", intermediate_data_counter[data])
 
         # finally: If intermediate_counter and global counter match and if the array
         # is declared transient, it is fully contained by the subgraph
+        for data in data_intermediate:
+            print(data, "|", data_counter[data], ")|", intermediate_data_counter[data])
 
         subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
                                         and sdfg.data(data).transient \
@@ -284,7 +284,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                             dtype = data_ref.dtype,
                                             storage= data_ref.storage,
                                             offset = data_ref.offset)
-            node_trans = graph.add_access(trans_data_name)
+            node_trans = graph.add_access(out_trans_data_name)
             redirect(node_trans, node)
             transients_created[node] = node_trans
 
@@ -326,7 +326,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     self.redirect_edge(graph, edge, new_src = redirect_node)
 
 
-        transient_dict = {}
+        transients_created = {}
         for node in (intermediate_nodes):
             if node in out_nodes \
                or node in do_not_override \
@@ -342,9 +342,9 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                                 offset= data_ref.offset)
                 node_trans = graph.add_access(trans_data_name)
                 redirect(node_trans, node)
-                transient_dict[node_trans] = node
+                transients_created[node_trans] = node
 
-        return transient_dict
+        return transients_created
 
 
     def apply(self, sdfg, subgraph, **kwargs):
@@ -425,10 +425,15 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 else:
                     for dst_edge in graph.out_edges(current_node):
                         if dst_edge.dst in map_entries:
+                            if current_node not in intermediate_nodes:
+                                # add to data counter
+                                intermediate_data_counter[current_node.data] += 1
+
+                            # add to intermediate_nodes
                             intermediate_nodes.add(current_node)
-                            # add to data counter
-                            intermediate_data_counter[current_node.data] += 1
+
                         else:
+                            # add to out_nodes
                             out_nodes.add(current_node)
                 for e in graph.in_edges(current_node):
                     if e.src not in map_exits:
@@ -479,7 +484,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         (subgraph_contains_data, transients_created) = node_info
         if self.debug:
-            print("Intermediate_nodes transients")
+            print("SubgraphFusion::Intermediate_nodes: subgraph_contains_data")
             print(subgraph_contains_data)
 
         inconnectors_dict = {}
@@ -568,12 +573,13 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         global_map_exit.add_in_connector(in_conn)
                         global_map_exit.add_out_connector(out_conn)
 
-                        graph.add_edge(dst, None,
-                                       global_map_exit, in_conn,
-                                       dcpy(edge.data))
-                        graph.add_edge(global_map_exit, out_conn,
-                                       dst_transient, None,
-                                       dcpy(out_edge.data))
+                        e = graph.add_edge(dst, None,
+                                           global_map_exit, in_conn,
+                                           dcpy(edge.data))
+
+                        e = graph.add_edge(global_map_exit, out_conn,
+                                           dst_transient, None,
+                                           dcpy(out_edge.data))
 
                         # remove edge from dst to dst_transient that was created
                         # in intermediate preparation.
@@ -724,6 +730,14 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 # hack: set lifetime to State | TODO: verify
                 sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
 
+            # also correct memlets of created transient
+            if node in transients_created:
+                transient_in_edges = graph.in_edges(transients_created[node])
+                transient_out_edges = graph.out_edges(transients_created[node])
+                for edge in chain(transient_in_edges, transient_out_edges):
+                    for e in graph.memlet_tree(edge):
+                        if e.data.data == node.data:
+                            e.data.data += '_OUT'
 
 
         ### do one last pass to correct outside memlets adjacent to global map
