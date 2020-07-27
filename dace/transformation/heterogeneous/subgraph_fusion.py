@@ -58,8 +58,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # 2. Any nodes in between two maps are AccessNodes only, without WCR
         #    There is at most one AccessNode only on a path between two maps,
         #    no other nodes are allowed
-        # 3. Any exiting memlet's subset to an intermediate edge must cover
-        #    the respective incoming memlets subset into the next map
+        # 3. The exiting memlets' subsets to an intermediate edge must cover
+        #    the respective incoming memlets' subset into the next map
 
         graph = subgraph.graph
         for node in subgraph.nodes():
@@ -157,9 +157,29 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         if idx > 0 and memlet.data == node.data:
                             lower_subsets.add(memlet.subset)
 
-            # now check coverage
-            # TODO: not that trivial given the available tools
-            subset_up.covers(subset_down)
+            union_upper = subsets.Range()
+            for subs in upper_subsets:
+                union_upper = subsets.union(union_upper, subs)
+            union_lower = subsets.Range()
+            for subs in lower_subsets:
+                union_lower = subsets.union(union_lower, subs)
+
+
+            # finally check coverage
+            if not union_upper.covers(union_lower):
+                # TODO: Implement special case stencil smem.
+                return False
+            # TODO: The following restriction is too harsh,
+            # but relaxing it is hard to do in an elegant way.
+            for subs_lo in union_lower:
+                covered = False
+                for subs_hi in union_higher:
+                    if subs_hi.covers(subs_lo):
+                        covered = True
+                        break
+                if not covered:
+                    print('[WIP] WARNING: Please check subsets manually')
+                    return False
 
 
         '''
