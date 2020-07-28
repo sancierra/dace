@@ -28,5 +28,12 @@ def test_matching():
     fusion = heterogeneous.SubgraphFusion()
     print("True  ==", heterogeneous.SubgraphFusion.match(vadv_unfused,subgraph))
 
-#view_all()
-test_matching()
+def test_fuse_all():
+    graph = vadv_unfused.nodes()[0]
+    subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
+    fusion = heterogeneous.SubgraphFusion()
+    fusion.apply(vadv_unfused, subgraph)
+    vadv_unfused.view()
+view_all()
+#test_matching()
+test_fuse_all()
