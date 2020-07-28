@@ -358,62 +358,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         return (subgraph_contains_data, transients_created)
 
 
-    def _create_transients(self,sdfg, graph, in_nodes, out_nodes, intermediate_nodes, \
-                           map_entries, map_exits, do_not_override = []):
-        # TODO: ready to delete
-        # better preprocessing which allows for non-transient in between nodes
-        ''' creates transients for every in-between node that has exit connections or that is non-transient (or both)
-            the resulting transient can then later be pushed into the map
-        '''
-
-        def redirect(redirect_node, original_node):
-            # redirect all traffic to original node to redirect node
-            # and then create a path from redirect to original
-            # outgoing edges to other maps in our subset should be originated from the clone
-            # similar to utils.change_edge_dest(graph, original_node, redirect_node)
-            # but only when edge comes from a map exit
-            edges = list(graph.in_edges(original_node))
-            for e in edges:
-                if e.src in map_exits:
-                    graph.remove_edge(e)
-                    if isinstance(e, dace.sdfg.graph.MultiConnectorEdge):
-                        graph.add_edge(e.src, e.src_conn, redirect_node, e.dst_conn, e.data)
-                    else:
-                        graph.add_edge(e.src, redirect_node, e.data)
-
-
-            graph.add_edge(redirect_node,
-                           None,
-                           original_node,
-                           None,
-                           Memlet())
-            for edge in graph.out_edges(original_node):
-                if edge.dst in map_entries:
-                    #edge.src = redirect_node
-                    self.redirect_edge(graph, edge, new_src = redirect_node)
-
-
-        transients_created = {}
-        for node in (intermediate_nodes):
-            if node in out_nodes \
-               or node in do_not_override \
-               or not sdfg.data(node.data).transient:
-
-                data_ref = sdfg.data(node.data)
-                trans_data_name = node.data + '__trans'
-
-                data_trans = sdfg.add_transient(name=trans_data_name,
-                                                shape= data_ref.shape,
-                                                dtype= data_ref.dtype,
-                                                storage= data_ref.storage,
-                                                offset= data_ref.offset)
-                node_trans = graph.add_access(trans_data_name)
-                redirect(node_trans, node)
-                transients_created[node_trans] = node
-
-        return transients_created
-
-
     def apply(self, sdfg, subgraph, **kwargs):
         self.subgraph = subgraph
 
