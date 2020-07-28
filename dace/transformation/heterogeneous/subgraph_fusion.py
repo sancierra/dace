@@ -334,8 +334,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         # finally: If intermediate_counter and global counter match and if the array
         # is declared transient, it is fully contained by the subgraph
-        for data in data_intermediate:
-            print(data, "|", data_counter[data], ")|", intermediate_data_counter[data])
 
         subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
                                         and sdfg.data(data).transient \
@@ -421,7 +419,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         graph = subgraph.graph
 
-        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        map_entries = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
         self.fuse(sdfg, graph, map_entries, **kwargs)
 
     def fuse(self, sdfg, graph, map_entries, **kwargs):
@@ -572,9 +570,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     in_conn = None; out_conn = None
                     if src in inconnectors_dict:
                         if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
-                            if debug:
+                            if self.debug:
                                 print("SubgraphFusion::Extend range")
-                            inconnectors_dict[edge.data.data][0].subset = edge.data.subset
+                            subset = inconnectors_dict[src][0].data.subset
+                            subset = subsets.union(subset, edge.data.subset)
+                            #inconnectors_dict[src][0].data.subset = subsets.union(edge.data.subset
 
                         in_conn = inconnectors_dict[src][1]
                         out_conn = inconnectors_dict[src][2]
@@ -707,6 +707,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
 
         ### do one pass to adjust in-transients and their corresponding memlets
+        transients_adjusted = set()
         for node in intermediate_nodes:
             # all incoming edges to node
             in_edges = graph.in_edges(node)
@@ -745,29 +746,32 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if subgraph_contains_data[node.data]:
                 # array data can be modified
                 # and pushed into the subgraph
-                sizes = target_subset.bounding_box_size()
-                new_data_shape = [sz for (sz, s) in zip(sizes, target_subset)]
-                new_data_strides = [data._prod(new_data_shape[i+1:])
-                                    for i in range(len(new_data_shape))]
+                if node.data not in transients_adjusted:
+                    sizes = target_subset.bounding_box_size()
+                    new_data_shape = [sz for (sz, s) in zip(sizes, target_subset)]
+                    new_data_strides = [data._prod(new_data_shape[i+1:])
+                                        for i in range(len(new_data_shape))]
 
-                new_data_totalsize = data._prod(new_data_shape)
-                new_data_offset = [0]*len(new_data_shape)
+                    new_data_totalsize = data._prod(new_data_shape)
+                    new_data_offset = [0]*len(new_data_shape)
 
-                transient_to_transform = sdfg.data(node.data)
-                transient_to_transform.shape   = new_data_shape
-                transient_to_transform.strides = new_data_strides
-                transient_to_transform.total_size = new_data_totalsize
-                transient_to_transform.offset  = new_data_offset
+                    transient_to_transform = sdfg.data(node.data)
+                    transient_to_transform.shape   = new_data_shape
+                    transient_to_transform.strides = new_data_strides
+                    transient_to_transform.total_size = new_data_totalsize
+                    transient_to_transform.offset  = new_data_offset
 
-                if schedule == dtypes.ScheduleType.GPU_Device:
-                    if self.cuda_transient_allocation == 'local':
-                        transient_to_transform.storage = dtypes.StorageType.Register
-                    if self.cuda_transient_allocation == 'shared':
-                        transient_to_transform.storage = dtypes.StorageType.GPU_Shared
-                    if self.cuda_transient_allocation == 'default':
-                        transient_to_transform.storage = dtypes.StorageType.Default
-                    if self.cuda_transient_allocation == 'auto':
-                        transient_to_transform.storage = self.storage_type_inference(node)
+                    if schedule == dtypes.ScheduleType.GPU_Device:
+                        if self.cuda_transient_allocation == 'local':
+                            transient_to_transform.storage = dtypes.StorageType.Register
+                        if self.cuda_transient_allocation == 'shared':
+                            transient_to_transform.storage = dtypes.StorageType.GPU_Shared
+                        if self.cuda_transient_allocation == 'default':
+                            transient_to_transform.storage = dtypes.StorageType.Default
+                        if self.cuda_transient_allocation == 'auto':
+                            transient_to_transform.storage = self.storage_type_inference(node)
+
+                    transients_adjusted.add(node.data)
 
                 # offset memlets where necessary
                 for iedge in in_edges:
@@ -797,7 +801,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 # of subgraph.
 
                 # hack: set lifetime to State | TODO: verify
-                sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
+                if sdfg.data(node.data).lifetime == dtypes.AllocationLifetime.Scope:
+                    sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
 
             # also correct memlets of created transient
             if node in transients_created:
