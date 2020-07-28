@@ -151,6 +151,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
             dims_to_inspect = set()
+            subset_length = -1
             for in_edge in graph.in_edges(node):
                 if in_edges.src in map_exits:
                     other_edge = graph.memlet_path(in_edge)[-2]
@@ -159,12 +160,21 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             dims_to_inspect.add(idx)
                 else:
                     raise NotImplementedError("TODO")
+
+                if subset_length < 0:
+                    subset_length = other_edge.subset.dims()
+                else:
+                    assert other_edge.subset.dims() == subset_length
+
             for out_edge in graph.out_edges(node):
                 for other_edge in graph.memlet_tree(out_edge):
                     for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.subset, other_edge.subset)):
                         if sbs1 != sbs2:
                             dims_to_inspect.add(idx)
+                    assert other_edge.subset.dims() == subset_length
 
+
+            dims_to_discard = list(set([i for i in range(subset_length)]) - dims_to_inspect)
             # TODO: continue
             # find upper_subsets
             for in_edge in graph.in_edges(node):
@@ -173,7 +183,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     return False
                 if in_edge.src in map_exits:
                     edge = graph.memlet_path(in_edge)[-2]
-                    upper_subsets.add(edge.data.subset)
+                    subset_to_add = dcpy(edge.data.subset)
+                    subset_to_add.pop(dims_to_discard)
                 else:
                     raise NotImplementedError("TODO")
 
@@ -184,7 +195,9 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     # not just one map succedding. Do it manually
                     for oedge in graph.out_edges(out_edge.dst):
                         if oedge.src_conn[3:] == out_edge.dst_conn[2:]:
-                            lower_subsets.add(oedge.data.subset)
+                            subset_to_add = dcpy(oedge.data.subset)
+                            subset_to_add.pop(dims_to_discard)
+                            lower_subsets.add(subset_to_add)
 
             print("upper_subsets:", upper_subsets)
             print("lower_subsets:", lower_subsets)
@@ -194,7 +207,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             for subs in upper_iter:
                 union_upper = subsets.union(union_upper, subs)
                 if not union_upper:
-                    # something went wrong
+                    # something went wrong using union -- we'd rather abort
                     return False
 
             lower_iter = iter(lower_subsets)
@@ -203,7 +216,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             for subs in lower_iter:
                 union_lower = subsets.union(union_lower, subs)
                 if not union_lower:
-                    # something went wrong
+                    # something went wrong using union -- we'd rather abort
                     return False
 
             print("union_upper:",union_upper)

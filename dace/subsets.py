@@ -791,6 +791,12 @@ class Indices(Subset):
         for i, ind in enumerate(self.indices):
             self.indices[i] = (ind.subs(repl_dict)
                                if symbolic.issymbolic(ind) else ind)
+    def pop(self, dimensions):
+        new_indices = []
+        for i in range(len(self.indices)):
+            if i not in dimensions:
+                new_indices.append(self.indices[i])
+        self.indices = new_indices
 
 
 def bounding_box_union(subset_a: Subset, subset_b: Subset) -> Range:
