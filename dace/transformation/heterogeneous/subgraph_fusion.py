@@ -153,29 +153,41 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             dims_to_inspect = set()
             subset_length = -1
             for in_edge in graph.in_edges(node):
-                if in_edges.src in map_exits:
+                if in_edge.src in map_exits:
                     other_edge = graph.memlet_path(in_edge)[-2]
-                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.subset, other_edge.subset)):
+                    other_subset = other_edge.data.subset \
+                                   if other_edge.data.data == node.data \
+                                   else other_edge.data.other_subset
+                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.data.subset, other_subset)):
                         if sbs1 != sbs2:
+                            #print("(Up) Added to dims_to_inspect:")
+                            #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
                             dims_to_inspect.add(idx)
                 else:
                     raise NotImplementedError("TODO")
 
                 if subset_length < 0:
-                    subset_length = other_edge.subset.dims()
+                    subset_length = other_subset.dims()
                 else:
-                    assert other_edge.subset.dims() == subset_length
+                    assert other_subset.dims() == subset_length
 
             for out_edge in graph.out_edges(node):
-                for other_edge in graph.memlet_tree(out_edge):
-                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.subset, other_edge.subset)):
-                        if sbs1 != sbs2:
-                            dims_to_inspect.add(idx)
-                    assert other_edge.subset.dims() == subset_length
+                if out_edge.dst in map_entries:
+                    for other_edge in graph.out_edges(out_edge.dst):
+                        if other_edge.src_conn[3:] == out_edge.dst_conn[2:]:
+                            other_subset = other_edge.data.subset \
+                                           if other_edge.data.data == node.data \
+                                           else other_edge.data.other_subset
+                            for (idx, (sbs1, sbs2)) in enumerate(zip(out_edge.data.subset, other_subset)):
+                                if sbs1 != sbs2:
+                                        #print("(Down) Added to dims_to_inspect:")
+                                        #print(sbs1,"|", sbs2, ":", out_edge.src, "->", out_edge.dst)
+                                        dims_to_inspect.add(idx)
+                            assert other_subset.dims() == subset_length
 
 
             dims_to_discard = list(set([i for i in range(subset_length)]) - dims_to_inspect)
-            # TODO: continue
+
             # find upper_subsets
             for in_edge in graph.in_edges(node):
                 # first check for WCRs
@@ -183,8 +195,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     return False
                 if in_edge.src in map_exits:
                     edge = graph.memlet_path(in_edge)[-2]
-                    subset_to_add = dcpy(edge.data.subset)
+                    subset_to_add = dcpy(edge.data.subset\
+                                         if edge.data.data == node.data\
+                                         else edge.data.other_subset)
                     subset_to_add.pop(dims_to_discard)
+                    upper_subsets.add(subset_to_add)
                 else:
                     raise NotImplementedError("TODO")
 
@@ -195,12 +210,15 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     # not just one map succedding. Do it manually
                     for oedge in graph.out_edges(out_edge.dst):
                         if oedge.src_conn[3:] == out_edge.dst_conn[2:]:
-                            subset_to_add = dcpy(oedge.data.subset)
+                            subset_to_add = dcpy(oedge.data.subset \
+                                                 if edge.data.data == node.data \
+                                                 else edge.data.other_subset)
                             subset_to_add.pop(dims_to_discard)
                             lower_subsets.add(subset_to_add)
 
-            print("upper_subsets:", upper_subsets)
-            print("lower_subsets:", lower_subsets)
+
+            #print("upper_subsets:", upper_subsets)
+            #print("lower_subsets:", lower_subsets)
 
             upper_iter = iter(upper_subsets)
             union_upper = next(upper_iter)
@@ -211,7 +229,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     return False
 
             lower_iter = iter(lower_subsets)
-            #print("**********", lower_subsets)
             union_lower = next(lower_iter)
             for subs in lower_iter:
                 union_lower = subsets.union(union_lower, subs)
@@ -219,8 +236,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     # something went wrong using union -- we'd rather abort
                     return False
 
-            print("union_upper:",union_upper)
-            print("union_lower:",union_lower)
+            #print("union_upper:",union_upper)
+            #print("union_lower:",union_lower)
             # finally check coverage
             if not union_upper.covers(union_lower):
                 # TODO: Implement special case stencil smem.
