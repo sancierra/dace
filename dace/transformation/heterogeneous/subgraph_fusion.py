@@ -4,6 +4,7 @@ import dace
 
 from dace import dtypes, registry, symbolic, subsets, data
 from dace.sdfg import nodes, utils, replace, SDFG, scope_contains_scope
+from dace.sdfg.graph import SubgraphView
 from dace.memlet import Memlet
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
@@ -29,6 +30,8 @@ TODO:
 - StorageType Inference         [OK]   cancelled
 - cover intermediate nodes with incoming edges from outside
 - stencils
+- more class variables
+- delete counter and replace by true / false
 
 '''
 
@@ -150,7 +153,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             lower_subsets = set()
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
-            dims_to_discard = self.get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node)
+            dims_to_discard = self.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
 
             # find upper_subsets
             for in_edge in graph.in_edges(node):
@@ -223,13 +226,13 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         return True
 
-    def storage_type_inference(node):
+    def storage_type_inference(self, node):
         ''' on a fused graph, looks in which memory intermediate node
             needs to be pushed to
         '''
         raise NotImplementedError("WIP")
 
-    def get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node):
+    def get_invariant_dimensions(self, sdfg, graph, map_entries, map_exits, node):
         '''
         on a non-fused graph, return a set of
         indices that correspond to array dimensions that
@@ -248,7 +251,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
                 for (idx, (ssbs1, ssbs2)) \
                     in enumerate(zip(in_edge.data.subset, other_subset)):
-                    if sbs1 != sbs2:
+                    if ssbs1 != ssbs2:
                         #print("(Up) Added to dims_to_inspect:")
                         #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
                         variate_dimensions.add(idx)
@@ -274,8 +277,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                     variate_dimensions.add(idx)
                         assert other_subset.dims() == subset_length
 
-        invariate_dimensions = set([i for i in range(subset_length)]) - variate_dimensions
-        return invariate_dimensions
+        invariant_dimensions = set([i for i in range(subset_length)]) - variate_dimensions
+        return invariant_dimensions
 
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
@@ -370,23 +373,23 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         # finally, create dict for every array that for which
         # subgraph_contains_data is true that lists invariant axes.
-        invariate_dimensions = {}
+        invariant_dimensions = {}
         for node in intermediate_nodes:
-            if subgraph_contains_data[node]:
+            if subgraph_contains_data[node.data]:
                 # only need to check in this case
                 # else the array doesn't get modified and we don't
                 # need invariate dimensions
                 data = node.data
-                inv_dims = self.get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node)
-                if node in invariate_dimensions:
+                inv_dims = self.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
+                if node in invariant_dimensions:
                     # do a check -- we want the same result for each
                     # node containing the same data
-                    assert inv_dims == invariate_dimensions[node]
+                    assert inv_dims == invariant_dimensions[node]
                 else:
-                    invariate_dimensions[node] = inv_dims
+                    invariant_dimensions[node] = inv_dims
 
 
-        return (subgraph_contains_data, transients_created, invariate_dimensions)
+        return (subgraph_contains_data, transients_created, invariant_dimensions)
 
 
     def apply(self, sdfg, subgraph, **kwargs):
@@ -431,8 +434,28 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         if len(map_entries) == 0:
             return
 
+        # get maps and map exits
         maps = [map_entry.map for map_entry in map_entries]
         map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
+
+        # re-construct the map subgraph if necessary
+        try:
+            self.subgraph
+        except AttributeError:
+            subgraph_nodes = set()
+            scope_dict = graph.scope_dict(node_to_children = True)
+            for node in chain(map_entries, map_exits):
+                subgraph_nodes.add(node)
+                # add all border arrays
+                for e in chain(graph.in_edges(node), graph.out_edges(node)):
+                    subgraph_nodes.add(e.src)
+                    subgraph_nodes.add(e.dst)
+                try:
+                    subgraph_nodes |= set(scope_dict[node])
+                except KeyError:
+                    pass
+            self.subgraph = SubgraphView(graph, subgraph_nodes)
+
 
         # Nodes that flow into one or several maps but no data is flowed to them from any map
         in_nodes = set()
@@ -526,7 +549,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                                     intermediate_data_counter, \
                                                     do_not_override)
 
-        (subgraph_contains_data, transients_created, TODO) = node_info
+        (subgraph_contains_data, transients_created, invariant_dimensions) = node_info
         if self.debug:
             print("SubgraphFusion::Intermediate_nodes: subgraph_contains_data")
             print(subgraph_contains_data)
@@ -696,7 +719,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         data_intermediate = set([node.data for node in intermediate_nodes])
         for data_name in data_intermediate:
             if subgraph_contains_data[data_name]:
-                all_nodes = [n for n in self.subgraph.nodes() if isinstance(n, nodes.AccessNode) and n.data == node.data]
+                all_nodes = [n for n in self.subgraph.nodes() if isinstance(n, nodes.AccessNode) and n.data == data_name]
                 in_edges = list(chain(*(graph.in_edges(n) for n in all_nodes)))
                 #in_edges = [e for edge in graph.in_edges(n) if e.src in map_entries \
                 #            for n in all_nodes]
