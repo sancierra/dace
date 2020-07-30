@@ -150,43 +150,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             lower_subsets = set()
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
-            dims_to_inspect = set()
-            subset_length = -1
-            for in_edge in graph.in_edges(node):
-                if in_edge.src in map_exits:
-                    other_edge = graph.memlet_path(in_edge)[-2]
-                    other_subset = other_edge.data.subset \
-                                   if other_edge.data.data == node.data \
-                                   else other_edge.data.other_subset
-                    for (idx, (sbs1, sbs2)) in enumerate(zip(in_edge.data.subset, other_subset)):
-                        if sbs1 != sbs2:
-                            #print("(Up) Added to dims_to_inspect:")
-                            #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
-                            dims_to_inspect.add(idx)
-                else:
-                    raise NotImplementedError("TODO")
-
-                if subset_length < 0:
-                    subset_length = other_subset.dims()
-                else:
-                    assert other_subset.dims() == subset_length
-
-            for out_edge in graph.out_edges(node):
-                if out_edge.dst in map_entries:
-                    for other_edge in graph.out_edges(out_edge.dst):
-                        if other_edge.src_conn[3:] == out_edge.dst_conn[2:]:
-                            other_subset = other_edge.data.subset \
-                                           if other_edge.data.data == node.data \
-                                           else other_edge.data.other_subset
-                            for (idx, (sbs1, sbs2)) in enumerate(zip(out_edge.data.subset, other_subset)):
-                                if sbs1 != sbs2:
-                                        #print("(Down) Added to dims_to_inspect:")
-                                        #print(sbs1,"|", sbs2, ":", out_edge.src, "->", out_edge.dst)
-                                        dims_to_inspect.add(idx)
-                            assert other_subset.dims() == subset_length
-
-
-            dims_to_discard = list(set([i for i in range(subset_length)]) - dims_to_inspect)
+            dims_to_discard = self.get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node)
 
             # find upper_subsets
             for in_edge in graph.in_edges(node):
@@ -265,6 +229,55 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         '''
         raise NotImplementedError("WIP")
 
+    def get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node):
+        '''
+        on a non-fused graph, return a set of
+        indices that correspond to array dimensions that
+        change when we are entering maps
+        '''
+        variate_dimensions = set()
+        subset_length = -1
+
+        # TODO: implement via variables, not length
+        for in_edge in graph.in_edges(node):
+            if in_edge.src in map_exits:
+                other_edge = graph.memlet_path(in_edge)[-2]
+                other_subset = other_edge.data.subset \
+                               if other_edge.data.data == node.data \
+                               else other_edge.data.other_subset
+
+                for (idx, (ssbs1, ssbs2)) \
+                    in enumerate(zip(in_edge.data.subset, other_subset)):
+                    if sbs1 != sbs2:
+                        #print("(Up) Added to dims_to_inspect:")
+                        #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
+                        variate_dimensions.add(idx)
+            else:
+                raise NotImplementedError("TODO")
+
+            if subset_length < 0:
+                subset_length = other_subset.dims()
+            else:
+                assert other_subset.dims() == subset_length
+
+        for out_edge in graph.out_edges(node):
+            if out_edge.dst in map_entries:
+                for other_edge in graph.out_edges(out_edge.dst):
+                    if other_edge.src_conn[3:] == out_edge.dst_conn[2:]:
+                        other_subset = other_edge.data.subset \
+                                       if other_edge.data.data == node.data \
+                                       else other_edge.data.other_subset
+                        for (idx, (ssbs1, ssbs2)) in enumerate(zip(out_edge.data.subset, other_subset)):
+                            if ssbs1 != ssbs2:
+                                    #print("(Down) Added to dims_to_inspect:")
+                                    #print(sbs1,"|", sbs2, ":", out_edge.src, "->", out_edge.dst)
+                                    variate_dimensions.add(idx)
+                        assert other_subset.dims() == subset_length
+
+        invariate_dimensions = set([i for i in range(subset_length)]) - variate_dimensions
+        return invariate_dimensions
+
+
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
                                          new_dst = None, new_dst_conn = None, new_data = None ):
         if not(new_src or new_dst) or new_src and new_dst:
@@ -332,7 +345,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # set up data_counter
         search(sdfg, graph, data_intermediate, data_counter)
 
-        # finally: If intermediate_counter and global counter match and if the array
+        # next up: If intermediate_counter and global counter match and if the array
         # is declared transient, it is fully contained by the subgraph
 
         subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
@@ -355,7 +368,25 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             redirect(node_trans, node)
             transients_created[node] = node_trans
 
-        return (subgraph_contains_data, transients_created)
+        # finally, create dict for every array that for which
+        # subgraph_contains_data is true that lists invariant axes.
+        invariate_dimensions = {}
+        for node in intermediate_nodes:
+            if subgraph_contains_data[node]:
+                # only need to check in this case
+                # else the array doesn't get modified and we don't
+                # need invariate dimensions
+                data = node.data
+                inv_dims = self.get_invariate_dimensions(sdfg, graph, map_entries, map_exits, node)
+                if node in invariate_dimensions:
+                    # do a check -- we want the same result for each
+                    # node containing the same data
+                    assert inv_dims == invariate_dimensions[node]
+                else:
+                    invariate_dimensions[node] = inv_dims
+
+
+        return (subgraph_contains_data, transients_created, invariate_dimensions)
 
 
     def apply(self, sdfg, subgraph, **kwargs):
@@ -487,13 +518,15 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         ### in the subgraph or also somewhere else / as an input
         ### create new transients for nodes that are in out_nodes and
         ### intermediate_nodes simultaneously
+        ### also check which dimensions of each transient data element correspond
+        ### to map axes and write this information into a dict.
         node_info = self.prepare_intermediate_nodes(sdfg, graph, in_nodes, out_nodes, \
                                                     intermediate_nodes,\
                                                     map_entries, map_exits, \
                                                     intermediate_data_counter, \
                                                     do_not_override)
 
-        (subgraph_contains_data, transients_created) = node_info
+        (subgraph_contains_data, transients_created, TODO) = node_info
         if self.debug:
             print("SubgraphFusion::Intermediate_nodes: subgraph_contains_data")
             print(subgraph_contains_data)
@@ -650,7 +683,90 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # end main loop.
 
 
-        ### do one pass to adjust in-transients and their corresponding memlets
+
+
+        # TODO: do one pass for special case 1
+
+        # create a mapping from data arrays to offsets
+        # for later memlet adjustments later
+        min_offsets = dict()
+
+
+        ### do one pass to augment all transient arrays
+        data_intermediate = set([node.data for node in intermediate_nodes])
+        for data_name in data_intermediate:
+            if subgraph_contains_data[data_name]:
+                all_nodes = [n for n in self.subgraph.nodes() if isinstance(n, nodes.AccessNode) and n.data == node.data]
+                in_edges = list(chain(*(graph.in_edges(n) for n in all_nodes)))
+                #in_edges = [e for edge in graph.in_edges(n) if e.src in map_entries \
+                #            for n in all_nodes]
+
+                in_edges_iter = iter(in_edges)
+                in_edge = next(in_edges_iter)
+                target_subset = dcpy(in_edge.data.subset)
+                target_subset.pop(invariant_dimensions[data_name])
+                ######
+                while True:
+                    try: # executed if there are multiple in_edges
+                        in_edge = next(in_edges_iter)
+                        target_subset_curr = dcpy(in_edge.data.subset)
+                        target_subset_curr.pop(invariant_dimensions[data_name])
+                        target_subset = subsets.union(target_subset, \
+                                                      target_subset_curr)
+                    except StopIteration:
+                        break
+
+                min_offsets[data_name] = target_subset.min_element()
+
+                # calculate the new transient array size.
+                target_subset.offset(min_offsets[data_name], True)
+
+                # determine the shape of the new array.
+                new_data_shape = []
+                index = 0
+                for i, sz in enumerate(sdfg.data(data_name).shape):
+                    if idx in invariant_dimensions:
+                        new_data_shape.append(sz)
+                    else:
+                        new_data_shape.append(target_subset[index])
+                        index += 1
+
+                print("NEW_DATA_SHAPE=", new_data_shape)
+
+                new_data_strides = [data._prod(new_data_shape[i+1:])
+                                    for i in range(len(new_data_shape))]
+
+                new_data_totalsize = data._prod(new_data_shape)
+                new_data_offset = [0]*len(new_data_shape)
+                # augment.
+                transient_to_transform = sdfg.data(node.data)
+                transient_to_transform.shape   = new_data_shape
+                transient_to_transform.strides = new_data_strides
+                transient_to_transform.total_size = new_data_totalsize
+                transient_to_transform.offset  = new_data_offset
+
+                if schedule == dtypes.ScheduleType.GPU_Device:
+                    if self.cuda_transient_allocation == 'local':
+                        transient_to_transform.storage = dtypes.StorageType.Register
+                    if self.cuda_transient_allocation == 'shared':
+                        transient_to_transform.storage = dtypes.StorageType.GPU_Shared
+                    if self.cuda_transient_allocation == 'default':
+                        transient_to_transform.storage = dtypes.StorageType.Default
+                    if self.cuda_transient_allocation == 'auto':
+                        transient_to_transform.storage = self.storage_type_inference(node)
+
+                transients_adjusted.add(node.data)
+            else:
+                # don't modify data container - array is needed outside
+                # of subgraph.
+
+                # hack: set lifetime to State if allocation has only been
+                # scope so far to avoid scopoing issues (Tal)
+                if sdfg.data(node.data).lifetime == dtypes.AllocationLifetime.Scope:
+                    sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
+
+
+        ### do one pass to adjust and the memlets of in-between transients
         transients_adjusted = set()
         for node in intermediate_nodes:
             # all incoming edges to node
@@ -665,88 +781,30 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 else:
                     inter_edges.append(e)
 
-            # general case: multiple in_edges per in-between transient
-            # e.g different subsets written to it
-            in_edges_iter = iter(in_edges)
-            in_edge = next(in_edges_iter)
-            target_subset = dcpy(in_edge.data.subset)
-            base_offset = in_edge.data.subset.min_element()
-            ######
-            while True:
-                try: # executed if there are multiple in_edges
-                    in_edge = next(in_edges_iter)
-                    target_subset_curr = dcpy(in_edge.data.subset)
-                    base_offset_curr = in_edge.data.subset.min_element()
-
-                    target_subset = subsets.bounding_box_union(target_subset, \
-                                                               target_subset_curr)
-                    base_offset = [min(base_offset[i], base_offset_curr[i]) for i in range(len(base_offset))]
-                except StopIteration:
-                    break
-            ######
-
-            # Transient augmentation
-            # check whether array data has to be modified, if not, keep OG
+            # offset memlets where necessary
             if subgraph_contains_data[node.data]:
-                # array data can be modified
-                # and pushed into the subgraph
-                if node.data not in transients_adjusted:
-                    sizes = target_subset.bounding_box_size()
-                    new_data_shape = [sz for (sz, s) in zip(sizes, target_subset)]
-                    new_data_strides = [data._prod(new_data_shape[i+1:])
-                                        for i in range(len(new_data_shape))]
-
-                    new_data_totalsize = data._prod(new_data_shape)
-                    new_data_offset = [0]*len(new_data_shape)
-
-                    transient_to_transform = sdfg.data(node.data)
-                    transient_to_transform.shape   = new_data_shape
-                    transient_to_transform.strides = new_data_strides
-                    transient_to_transform.total_size = new_data_totalsize
-                    transient_to_transform.offset  = new_data_offset
-
-                    if schedule == dtypes.ScheduleType.GPU_Device:
-                        if self.cuda_transient_allocation == 'local':
-                            transient_to_transform.storage = dtypes.StorageType.Register
-                        if self.cuda_transient_allocation == 'shared':
-                            transient_to_transform.storage = dtypes.StorageType.GPU_Shared
-                        if self.cuda_transient_allocation == 'default':
-                            transient_to_transform.storage = dtypes.StorageType.Default
-                        if self.cuda_transient_allocation == 'auto':
-                            transient_to_transform.storage = self.storage_type_inference(node)
-
-                    transients_adjusted.add(node.data)
-
-                # offset memlets where necessary
+                min_offset = min_offsets[node.data]
                 for iedge in in_edges:
                     for edge in graph.memlet_tree(iedge):
                         if edge.data.data == node.data:
-                            edge.data.subset.offset(base_offset, True)
+                            edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
-                            edge.data.other_subset.offset(base_offset, True)
+                            edge.data.other_subset.offset(min_offset, True)
 
                 for cedge in inter_edges:
                     for edge in graph.memlet_tree(cedge):
                         if edge.data.data == node.data:
-                            edge.data.subset.offset(base_offset, True)
+                            edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
-                            edge.data.other_subset.offset(base_offset, True)
-
+                            edge.data.other_subset.offset(min_offset, True)
 
                 # if in_edges has several entries:
                 # put other_subset into out_edges for correctness
                 if len(in_edges) > 1:
                     for oedge in out_edges:
                         oedge.data.other_subset = dcpy(oedge.data.subset)
-                        oedge.data.other_subset.offset(base_offset, True)
+                        oedge.data.other_subset.offset(min_offset, True)
 
-            else:
-                # don't modify data container - array is needed outside
-                # of subgraph.
-
-                # hack: set lifetime to State | TODO: verify
-                if sdfg.data(node.data).lifetime == dtypes.AllocationLifetime.Scope:
-                    sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
 
             # also correct memlets of created transient
             if node in transients_created:
