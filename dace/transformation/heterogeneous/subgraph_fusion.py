@@ -386,7 +386,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     # node containing the same data
                     assert inv_dims == invariant_dimensions[node]
                 else:
-                    invariant_dimensions[node] = inv_dims
+                    invariant_dimensions[data] = inv_dims
 
 
         return (subgraph_contains_data, transients_created, invariant_dimensions)
@@ -748,21 +748,20 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 new_data_shape = []
                 index = 0
                 for i, sz in enumerate(sdfg.data(data_name).shape):
-                    if idx in invariant_dimensions:
+                    if i in invariant_dimensions[data_name]:
                         new_data_shape.append(sz)
                     else:
-                        new_data_shape.append(target_subset[index])
+                        new_data_shape.append(target_subset.size()[index])
                         index += 1
 
                 print("NEW_DATA_SHAPE=", new_data_shape)
-
                 new_data_strides = [data._prod(new_data_shape[i+1:])
                                     for i in range(len(new_data_shape))]
 
                 new_data_totalsize = data._prod(new_data_shape)
                 new_data_offset = [0]*len(new_data_shape)
                 # augment.
-                transient_to_transform = sdfg.data(node.data)
+                transient_to_transform = sdfg.data(data_name)
                 transient_to_transform.shape   = new_data_shape
                 transient_to_transform.strides = new_data_strides
                 transient_to_transform.total_size = new_data_totalsize
@@ -778,7 +777,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     if self.cuda_transient_allocation == 'auto':
                         transient_to_transform.storage = self.storage_type_inference(node)
 
-                transients_adjusted.add(node.data)
             else:
                 # don't modify data container - array is needed outside
                 # of subgraph.
@@ -790,7 +788,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
 
         ### do one pass to adjust and the memlets of in-between transients
-        transients_adjusted = set()
         for node in intermediate_nodes:
             # all incoming edges to node
             in_edges = graph.in_edges(node)
