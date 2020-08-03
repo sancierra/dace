@@ -100,6 +100,12 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if not map.range == base_map.range:
                 return False
 
+        # check whether all map entries have the same schedule
+        schedule = map_entries[0].schedule
+        if not all([entry.schedule == schedule for entry in map_entries]):
+            return False
+
+
         # 2. check intermediate feasiblility
         # see map_fusion.py for similar checks
         # we are being more relaxed here
@@ -527,8 +533,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             out_nodes.add(current_node)
                 for e in graph.in_edges(current_node):
                     if e.src not in map_exits:
-                        # TODO: cover this last special case as well
-                        raise NotImplementedError("Not implemented yet")
+                        raise NotImplementedError("TODO: Not implemented yet (*)")
 
         # any intermediate_nodes currently in in_nodes shouldnt be there
         in_nodes -= intermediate_nodes
@@ -546,7 +551,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         global_map_exit  = nodes.MapExit(global_map)
 
         ### assign correct schedule to global_map_entry
-        # TODO: move to can_be_applied
         schedule = map_entries[0].schedule
         if not all([entry.schedule == schedule for entry in map_entries]):
             raise RuntimeError("Not all the maps have the same schedule. Cannot fuse.")
