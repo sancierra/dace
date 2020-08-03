@@ -39,11 +39,6 @@ class ReduceMap(pattern_matching.Transformation):
                      dtype = bool,
                      default = True)
 
-    map_out_transient_to_registers = Property(desc="Push out-transient created inside"
-                                                "the reduction into register",
-                                                dtype = bool,
-                                                default = True)
-
     create_in_transient = Property(desc = "Create local in-transient in"
                                           "shared memory",
                                    dtype = bool,
@@ -216,12 +211,11 @@ class ReduceMap(pattern_matching.Transformation):
                 if current.data == out_storage_node.data:
                     # it suffices to find the first node
                     # no matter what access (ReadWrite or Read)
-                    # can't be Read only, else state would be ambiguous
                     array_closest_ancestor = current
                     break
             queue.extend([in_edge.src for in_edge in graph.in_edges(current)])
 
-        # if it doesnt exist:
+        # if ancestor doesn't exist:
         #           if non-transient: create data node accessing it
         #           if transient: ancestor_node = none, set_zero on outer node
 
@@ -252,11 +246,6 @@ class ReduceMap(pattern_matching.Transformation):
 
         # first, inline fuse back our NSDFG
         from dace.transformation.interstate import InlineSDFG
-        # debug
-        if InlineSDFG.can_be_applied(graph, \
-                                     {InlineSDFG._nested_sdfg: graph.nodes().index(nsdfg)}, \
-                                     0, sdfg) is False:
-            print("ERROR: This should not appear")
         inline_sdfg = InlineSDFG(sdfg.sdfg_list.index(sdfg),
                                  sdfg.nodes().index(graph),
                                  {InlineSDFG._nested_sdfg: graph.nodes().index(nsdfg)},
@@ -265,7 +254,7 @@ class ReduceMap(pattern_matching.Transformation):
 
 
         if not shortcut:
-            # TODO: also for other types of reductions
+
             deduction_type = detect_reduction_type(wcr)
             if deduction_type in ReduceMap.reduction_type_update:
                 code = ReduceMap.reduction_type_update[deduction_type]
