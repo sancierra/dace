@@ -26,12 +26,15 @@ TODO:
 
 - revamp                        [OK]   TEST: failed
 - other_subset                  [OK]   TEST: failed
-- can_be_applied()              [In progress]
+- can_be_applied()              [OK]
 - StorageType Inference         [OK]   cancelled
 - cover intermediate nodes with incoming edges from outside
 - stencils
 - more class variables
 - delete counter and replace by true / false
+- subset in_dict fix            [OK]
+- maybe: one intermediate data counter with out-conn:
+         -> direct connection
 
 '''
 
@@ -52,6 +55,12 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
     debug = Property(desc = "Show debug info",
                      dtype = bool,
                      default = True)
+
+    cpu_transient_allocation = Property(desc = "Storage Location to push"
+                                               "transients to in CPU environment",
+                                        dtype = str,
+                                        default = "default",
+                                        choices = ["auto", "register", "heap", "threadlocal", "default"])
 
     cuda_transient_allocation = Property(desc = "Storage Location to push"
                                                 "transients to in GPU environment",
@@ -209,20 +218,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if not union_upper.covers(union_lower):
                 # TODO: Implement special case stencil smem.
                 return False
-
-            '''
-            # TODO: The following restriction is too harsh,
-            # but relaxing it is hard to do in an elegant way.
-            for subs_lo in lower_subsets:
-                covered = False
-                for subs_hi in upper_subsets:
-                    if subs_hi.covers(subs_lo):
-                        covered = True
-                        break
-                if not covered:
-                    print('[WIP] WARNING: Please check subsets manually')
-                    return False
-            '''
 
         return True
 
@@ -570,12 +565,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 if src in in_nodes:
                     in_conn = None; out_conn = None
                     if src in inconnectors_dict:
-                        if not inconnectors_dict[src][0].data.subset.covers(edge.data.subset):
-                            if self.debug:
-                                print("SubgraphFusion::Extend range")
-                            subset = inconnectors_dict[src][0].data.subset
-                            subset = subsets.union(subset, edge.data.subset)
-                            #inconnectors_dict[src][0].data.subset = subsets.union(edge.data.subset
+                        # no need to augment subset of outer edge.
+                        # will do this at the end in one pass.
 
                         in_conn = inconnectors_dict[src][1]
                         out_conn = inconnectors_dict[src][2]
@@ -722,8 +713,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if subgraph_contains_data[data_name]:
                 all_nodes = [n for n in self.subgraph.nodes() if isinstance(n, nodes.AccessNode) and n.data == data_name]
                 in_edges = list(chain(*(graph.in_edges(n) for n in all_nodes)))
-                #in_edges = [e for edge in graph.in_edges(n) if e.src in map_entries \
-                #            for n in all_nodes]
 
                 in_edges_iter = iter(in_edges)
                 in_edge = next(in_edges_iter)
@@ -766,7 +755,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         new_data_shape.append(target_subset.size()[index])
                         index += 1
 
-                print("NEW_DATA_SHAPE=", new_data_shape)
                 new_data_strides = [data._prod(new_data_shape[i+1:])
                                     for i in range(len(new_data_shape))]
 
@@ -780,6 +768,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 transient_to_transform.offset  = new_data_offset
 
                 if schedule == dtypes.ScheduleType.GPU_Device:
+                    print("Global Schedule: GPU")
                     if self.cuda_transient_allocation == 'local':
                         transient_to_transform.storage = dtypes.StorageType.Register
                     if self.cuda_transient_allocation == 'shared':
@@ -788,6 +777,19 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         transient_to_transform.storage = dtypes.StorageType.Default
                     if self.cuda_transient_allocation == 'auto':
                         transient_to_transform.storage = self.storage_type_inference(node)
+                else:
+                    print("Global Schedule: CPU")
+                    if self.cpu_transient_allocation == 'register':
+                        transient_to_transform.storage = dtypes.StorageType.Register
+                    if self.cpu_transient_allocation == 'threadlocal':
+                        transient_to_transform.storage = dtypes.StorageType.CPU_ThreadLocal
+                    if self.cpu_transient_allocation == 'heap':
+                        transient_to_transform.storage = dtypes.StorageType.CPU_Heap
+                    if self.cpu_transient_allocation == 'default':
+                        transient_to_transform.storage = dtypes.StorageType.Default
+                    if self.cpu_transient_allocation == 'auto':
+                        transient_to_transform.storage = self.storage_type_inference(node)
+
 
             else:
                 # don't modify data container - array is needed outside
@@ -868,6 +870,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
             # override number of accesses
             in_edge.data.volume = memlet_out.volume
+            in_edge.data.subset = memlet_out.subset
 
         ### create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
