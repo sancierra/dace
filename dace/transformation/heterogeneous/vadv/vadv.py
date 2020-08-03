@@ -12,7 +12,7 @@ from dace.measure import Runner
 
 import itertools
 
-vadv_unfused = SDFG.from_file('vadv-input.sdfg')
+vadv_unfused = SDFG.from_file('vadv-input-fixed.sdfg')
 # apply state fusion exhaustively
 vadv_unfused.apply_transformations_repeated(StateFusion)
 vadv_fused_partial = SDFG.from_file('vadv-2part.sdfg')
@@ -89,9 +89,9 @@ def test_fuse_all_numerically():
               pipeline = [fusion],
               output = ['utens_stage', 'data_col'])
 
-view_all()
+#view_all()
 test_matching()
-#test_fuse_all()
+test_fuse_all()
 #test_fuse_all_numerically()
 #test_fuse_partial()
 
