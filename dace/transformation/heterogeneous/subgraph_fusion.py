@@ -162,6 +162,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             lower_subsets = set()
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
+            total_dims = len(sdfg.data(node.data).shape)
             dims_to_discard = SubgraphFusion.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
 
             # find upper_subsets
@@ -198,26 +199,54 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
             upper_iter = iter(upper_subsets)
             union_upper = next(upper_iter)
+
+            # check whether subsets in upper_subsets are adjacent.
+            # this is a requriement for the current implementation
+            #try:
+            # O(n^2*|dims|) but very small amount of subsets anyway
+            try:
+                for dim in range(total_dims - len(dims_to_discard)):
+                    ordered_list = [(-1,-1,-1)]
+                    for upper_subset in upper_subsets:
+                        lo = upper_subset[dim][0]
+                        hi = upper_subset[dim][1]
+                        for idx,element in enumerate(ordered_list):
+                            if element[0] <= lo and element[1] >= hi:
+                                break
+                            if element[0] > lo:
+                                ordered_list.insert(idx, (lo,hi))
+                    print("ORDERED LIST", ordered_list)
+                    ordered_list.pop(0)
+
+
+                    highest = ordered_list[0][1]
+                    for i in range(len(ordered_list)):
+                        if i < len(ordered_list)-1:
+                            current_range = ordered_list[i]
+                            if current_range[1] > highest:
+                                hightest = current_range[1]
+                            next_range = ordered_list[i+1]
+                            if highest < next_range[0] - 1:
+                                return False
+            except TypeError:
+                # FORNOW
+                # TODO: fix me
+                pass
+                #return False
+
+
+
+            # now take union of upper subsets
             for subs in upper_iter:
                 union_upper = subsets.union(union_upper, subs)
                 if not union_upper:
                     # something went wrong using union -- we'd rather abort
                     return False
 
-            lower_iter = iter(lower_subsets)
-            union_lower = next(lower_iter)
-            for subs in lower_iter:
-                union_lower = subsets.union(union_lower, subs)
-                if not union_lower:
-                    # something went wrong using union -- we'd rather abort
-                    return False
-
-            #print("union_upper:",union_upper)
-            #print("union_lower:",union_lower)
             # finally check coverage
-            if not union_upper.covers(union_lower):
-                # TODO: Implement special case stencil smem.
-                return False
+            for lower_subset in lower_subsets:
+                if not union_upper.covers(lower_subset):
+                    return False
 
         return True
 
