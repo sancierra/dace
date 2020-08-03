@@ -795,8 +795,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
                 # hack: set lifetime to State if allocation has only been
                 # scope so far to avoid scopoing issues (Tal)
-                if sdfg.data(node.data).lifetime == dtypes.AllocationLifetime.Scope:
-                    sdfg.data(node.data).lifetime = dtypes.AllocationLifetime.State
+                if sdfg.data(data_name).lifetime == dtypes.AllocationLifetime.Scope:
+                    sdfg.data(data_name).lifetime = dtypes.AllocationLifetime.State
 
 
         ### do one pass to adjust and the memlets of in-between transients
