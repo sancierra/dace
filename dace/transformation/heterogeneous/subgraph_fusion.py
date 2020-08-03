@@ -36,8 +36,9 @@ TODO:
 - maybe: one intermediate data
          counter with out-conn:
          -> direct connection
-- rewrite tests                         TODO
-- stencils 
+- rewrite tests                         TODO (pull branch)
+- maybe add more tests                  TODO (pull branch)
+- stencils
 
 '''
 
