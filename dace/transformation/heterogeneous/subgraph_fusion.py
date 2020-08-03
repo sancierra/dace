@@ -153,7 +153,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             lower_subsets = set()
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
-            dims_to_discard = self.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
+            dims_to_discard = SubgraphFusion.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
 
             # find upper_subsets
             for in_edge in graph.in_edges(node):
@@ -232,7 +232,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         '''
         raise NotImplementedError("WIP")
 
-    def get_invariant_dimensions(self, sdfg, graph, map_entries, map_exits, node):
+    @staticmethod
+    def get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node):
         '''
         on a non-fused graph, return a set of
         indices that correspond to array dimensions that
@@ -380,7 +381,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 # else the array doesn't get modified and we don't
                 # need invariate dimensions
                 data = node.data
-                inv_dims = self.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
+                inv_dims = SubgraphFusion.get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node)
                 if node in invariant_dimensions:
                     # do a check -- we want the same result for each
                     # node containing the same data
