@@ -739,10 +739,21 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     except StopIteration:
                         break
 
-                min_offsets[data_name] = target_subset.min_element()
-
+                min_offsets_cropped = target_subset.min_element()
                 # calculate the new transient array size.
-                target_subset.offset(min_offsets[data_name], True)
+                target_subset.offset(min_offsets_cropped, True)
+
+                # re-add invariant dimensions with offset 0 and save to min_offsets
+                min_offset = []
+                index = 0
+                for i in range(len(sdfg.data(data_name).shape)):
+                    if i in invariant_dimensions[data_name]:
+                        min_offset.append(0)
+                    else:
+                        min_offset.append(min_offsets_cropped[index])
+                        index += 1
+
+                min_offsets[data_name] = min_offset
 
                 # determine the shape of the new array.
                 new_data_shape = []
@@ -803,7 +814,9 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
             # offset memlets where necessary
             if subgraph_contains_data[node.data]:
+                # get min_offset
                 min_offset = min_offsets[node.data]
+                # re-add invariant dimensions with offset 0
                 for iedge in in_edges:
                     for edge in graph.memlet_tree(iedge):
                         if edge.data.data == node.data:
