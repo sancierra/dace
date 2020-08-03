@@ -24,17 +24,20 @@ from itertools import chain
 '''
 TODO:
 
-- revamp                        [OK]   TEST: failed
-- other_subset                  [OK]   TEST: failed
-- can_be_applied()              [OK]
-- StorageType Inference         [OK]   cancelled
-- cover intermediate nodes with incoming edges from outside
-- stencils
-- more class variables
-- delete counter and replace by true / false
-- subset in_dict fix            [OK]
-- maybe: one intermediate data counter with out-conn:
+- revamp                                [OK]
+- other_subset                          [OK]
+- can_be_applied()                      [OK]
+- StorageType Inference                 [OK]   cancelled
+- cover intermediate nodes with
+  incoming edges from outside           (*) (TODO)
+- delete counter and replace
+  by true / false                       TODO
+- subset in_dict fix                    [OK]
+- maybe: one intermediate data
+         counter with out-conn:
          -> direct connection
+- rewrite tests                         TODO
+- stencils 
 
 '''
 
@@ -184,7 +187,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     subset_to_add.pop(dims_to_discard)
                     upper_subsets.add(subset_to_add)
                 else:
-                    raise NotImplementedError("TODO")
+                    raise NotImplementedError("TODO (*)")
 
             # find lower_subsets
             for out_edge in graph.out_edges(node):
@@ -287,7 +290,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
                         variate_dimensions.add(idx)
             else:
-                raise NotImplementedError("TODO")
+                raise NotImplementedError("TODO(*)")
 
             if subset_length < 0:
                 subset_length = other_subset.dims()
@@ -733,7 +736,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
 
 
-        # TODO: do one pass for special case 1
+        # TODO: do one pass for special case (*)
 
         # create a mapping from data arrays to offsets
         # for later memlet adjustments later
