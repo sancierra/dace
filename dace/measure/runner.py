@@ -18,6 +18,8 @@ from copy import deepcopy as dcpy
 
 from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 
+import dace.symbolic as sym
+
 from collections import OrderedDict
 from typing import List
 
@@ -140,11 +142,7 @@ class Runner():
                  array, in_dict all the input arguments found (except symbols)
         """
         arglist = sdfg.arglist()
-        free_symbols = sdfg.free_symbols
-        for symbol in free_symbols:
-            if symbol not in symbols_dict:
-                raise RuntimeError("Not all Symbols defined! \
-                                    Need complete symbol dict for operation")
+
         result_input = {}
         result_output = {}
         for (argument, array_reference) in arglist.items():
@@ -155,9 +153,7 @@ class Runner():
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
-            array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol)) \
-                                 else e \
-                                 for e in array_reference.shape])
+            array_shape = tuple([sym.evaluate(e, symbols_dict) for e in array_reference.shape])
             if argument in outputs:
                 if outputs_setzero:
                     new_array= np.zeros(shape=array_shape, dtype = array_dtype)
