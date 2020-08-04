@@ -804,10 +804,38 @@ def bounding_box_union(subset_a: Subset, subset_b: Subset) -> Range:
     if subset_a.dims() != subset_b.dims():
         raise ValueError('Dimension mismatch between %s and %s' %
                          (str(subset_a), str(subset_b)))
-
+    '''
     result = [(min(arb, brb), max(are, bre), 1) for arb, brb, are, bre in zip(
         subset_a.min_element(), subset_b.min_element(), subset_a.max_element(),
         subset_b.max_element())]
+    return Range(result)
+    '''
+
+    result = []
+    for arb, brb, are, bre in zip(subset_a.min_element(), subset_b.min_element(),
+                                  subset_a.max_element(), subset_b.max_element()):
+        try:
+            minrb = min(arb, brb)
+        except TypeError:
+            if len(arb.free_symbols) == 0:
+                minrb = arb
+            elif len(brb.free_symbols) == 0:
+                minrb = brb
+            else:
+                raise
+
+        try:
+            maxre = max(are, bre)
+        except TypeError:
+            if len(are.free_symbols) == 0:
+                maxre = bre
+            elif len(bre.free_symbols) == 0:
+                maxre = are
+            else:
+                raise
+        result.append((minrb, maxre, 1))
+
+
     return Range(result)
 
 
