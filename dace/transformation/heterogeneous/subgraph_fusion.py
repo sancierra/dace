@@ -30,8 +30,7 @@ TODO:
 - StorageType Inference                 [OK]   cancelled
 - cover intermediate nodes with
   incoming edges from outside           (*) (TODO)
-- delete counter and replace
-  by true / false                       TODO
+- counter fix                           TODO
 - subset in_dict fix                    [OK]
 - maybe: one intermediate data
          counter with out-conn:
@@ -276,7 +275,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         variate_dimensions = set()
         subset_length = -1
 
-        # TODO: implement via variables, not length
         for in_edge in graph.in_edges(node):
             if in_edge.src in map_exits:
                 other_edge = graph.memlet_path(in_edge)[-2]
@@ -332,7 +330,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
     def prepare_intermediate_nodes(self, sdfg, graph, in_nodes, out_nodes,
                                     intermediate_nodes, map_entries, map_exits,
-                                    intermediate_data_counter,
                                     do_not_override = []):
 
         def redirect(redirect_node, original_node):
@@ -353,40 +350,30 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # first search whether intermediate_nodes appear outside of subgraph
         # and store it in dict
         data_counter = defaultdict(int)
+        data_counter_subgraph = defaultdict(int)
+
+        data_intermediate = set([node.data for node in intermediate_nodes])
+
+
         # do a full global search and count each data from each intermediate node
         scope_dict = graph.scope_dict()
-        data_intermediate = set([node.data for node in intermediate_nodes])
-        def search(sdfg, graph, data_intermediate, data_counter):
-            for state in sdfg.nodes():
-                for node in state.nodes():
-                    if isinstance(node, nodes.AccessNode) and \
-                                node.data in data_intermediate:
-                        data_counter[node.data] += 1
-                    if isinstance(node, nodes.NestedSDFG):
-                        # check whether NestedSDFG is part of our subgraph
-                        # if so, we can pass
-                        nestedSearch = False
-                        if state != graph:
-                            nestedSearch = True
-                        else:
-                            if self.subgraph and node not in self.subgraph:
-                                # if called via apply() just use self.subgraph
-                                nestedSearch = True
-                            elif not self.subgraph and \
-                                 any([scope_contains_scope(scope_dict, map_entry, node) \
-                                      for map_entry in map_entries]):
-                                nestedSearch = True
-                        if nestedSearch:
-                            search(node.sdfg, graph, intermediate_nodes, data_counter)
+        for state in sdfg.nodes():
+            for node in state.nodes():
+                if isinstance(node, nodes.AccessNode) and node.data in data_intermediate:
+                    # add them to the counter set in all cases
+                    data_counter[node.data] += 1
+                    # see whether we are inside the subgraph scope
+                    # if so, add to data_counter_subgraph
+                    # DO NOT add if it is in out_nodes
+                    if state == graph and \
+                       (node in intermediate_nodes or scope_dict[node] in map_entries):
+                        data_counter_subgraph[node.data] += 1
 
-
-        # set up data_counter
-        search(sdfg, graph, data_intermediate, data_counter)
 
         # next up: If intermediate_counter and global counter match and if the array
         # is declared transient, it is fully contained by the subgraph
 
-        subgraph_contains_data = {data: data_counter[data] == intermediate_data_counter[data] \
+        subgraph_contains_data = {data: data_counter[data] == data_counter_subgraph[data] \
                                         and sdfg.data(data).transient \
                                         and data not in do_not_override \
                                   for data in data_intermediate}
@@ -511,9 +498,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
           and from outside, but it is just treated as intermediate_node and handled
           automatically.
         """
-        # needed later for determining whether data is contained in
-        # subgraph
-        intermediate_data_counter = defaultdict(int)
 
         for map_entry, map_exit in zip(map_entries, map_exits):
             for edge in graph.in_edges(map_entry):
@@ -525,10 +509,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 else:
                     for dst_edge in graph.out_edges(current_node):
                         if dst_edge.dst in map_entries:
-                            if current_node not in intermediate_nodes:
-                                # add to data counter
-                                intermediate_data_counter[current_node.data] += 1
-
                             # add to intermediate_nodes
                             intermediate_nodes.add(current_node)
 
@@ -579,7 +559,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         node_info = self.prepare_intermediate_nodes(sdfg, graph, in_nodes, out_nodes, \
                                                     intermediate_nodes,\
                                                     map_entries, map_exits, \
-                                                    intermediate_data_counter, \
                                                     do_not_override)
 
         (subgraph_contains_data, transients_created, invariant_dimensions) = node_info
