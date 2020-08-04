@@ -15,8 +15,12 @@ import itertools
 vadv_unfused = SDFG.from_file('vadv-input-fixed.sdfg')
 # apply state fusion exhaustively
 vadv_unfused.apply_transformations_repeated(StateFusion)
+for node in vadv_unfused.nodes()[0].nodes():
+    if isinstance(node, dace.sdfg.nodes.MapEntry):
+        node.map.schedule = dace.dtypes.ScheduleType.Default
 vadv_fused_partial = SDFG.from_file('vadv-2part.sdfg')
 vadv_fused_full = SDFG.from_file('vadv-fused.sdfg')
+
 
 
 def view_all():
@@ -90,9 +94,9 @@ def test_fuse_all_numerically():
               output = ['utens_stage', 'data_col'])
 
 #view_all()
-test_matching()
-test_fuse_all()
-#test_fuse_all_numerically()
+#test_matching()
+#test_fuse_all()
+test_fuse_all_numerically()
 #test_fuse_partial()
 
 
