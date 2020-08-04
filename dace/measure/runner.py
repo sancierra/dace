@@ -154,17 +154,25 @@ class Runner():
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
             array_shape = tuple([sym.evaluate(e, symbols_dict) for e in array_reference.shape])
-            if argument in outputs:
+            print(argument, "|", array_shape,"|", type(sdfg.data(argument)))
+            if isinstance(sdfg.data(argument), dace.data.Array):
+                new_data = np.random.random(size = array_shape).astype(array_dtype)
                 if outputs_setzero:
-                    new_array= np.zeros(shape=array_shape, dtype = array_dtype)
-                else:
-                    new_array = np.random.random(size=array_shape).astype(array_dtype)
+                    new_data = np.zeros(shape = array_shape, dtype = array_dtype)
 
-                result_output[argument] = new_array
-                result_input[argument] = new_array
+            #if isinstance(sdfg.data(argument), dace.data.Scalar):
+            elif isinstance(sdfg.data(argument), dace.data.Scalar):
+                new_data = np.random.rand()
+                if outputs_setzero:
+                    new_data = 0
             else:
+                # fornow: just set to one
+                new_data = 1
 
-                result_input[argument] = np.random.random(size=array_shape).astype(array_dtype)
+            result_input[argument] = new_data
+            if argument in outputs:
+                result_output[argument] = new_data
+
 
         return (result_input, result_output)
 
