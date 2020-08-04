@@ -4,9 +4,11 @@ from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import ReduceMap
 from dace.transformation.heterogeneous.helpers import *
 import dace.sdfg.nodes as nodes
+from dace.sdfg.graph import SubgraphView
 import numpy as np
 
-from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
+from dace.measure import Runner
+from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion, go
 
 
 import sys
@@ -93,21 +95,22 @@ def TEST(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
         out = in1 * 42
 
 def test_qualitatively(sdfg, graph):
+    sdfg.view()
     expand_reduce(sdfg, graph)
+    sdfg.view()
     expand_maps(sdfg, graph)
+    sdfg.view()
     fusion(sdfg, graph)
     sdfg.view()
     sdfg.validate()
     print("PASS")
 
 def test_quantitatively(sdfg, graph):
-    runner = dace.measure.Runner(view_all = True)
+    runner = Runner(sequential = True, view = True, view_roofline = False)
     runner.go(sdfg, graph, None,
               M, N, O,
               output = ["OUT1", "OUT2", "OUT3"],
-              performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK
-              )
-
+              performance_spec = dace.perf.specs.PERF_CPU_CRAPBOOK)
 
 
 if __name__ == "__main__":
@@ -115,6 +118,9 @@ if __name__ == "__main__":
     sdfg = TEST.to_sdfg()
     #sdfg.apply_strict_transformations()
     #sdfg.apply_gpu_transformations()
-
-    test_qualitatively(sdfg, sdfg.nodes()[0])
-    #test_quantitatively(sdfg, sdfg.nodes()[0])
+    #expand_reduce(sdfg, sdfg.nodes()[0])
+    #expand_maps(sdfg, sdfg.nodes()[0])
+    #subgraph = SubgraphView(sdfg.nodes()[0], [node for node in sdfg.nodes()[0].nodes()])
+    #print(SubgraphFusion.match(sdfg, subgraph))
+    #test_qualitatively(sdfg, sdfg.nodes()[0])
+    test_quantitatively(sdfg, sdfg.nodes()[0])

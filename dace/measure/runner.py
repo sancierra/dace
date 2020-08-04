@@ -18,6 +18,8 @@ from copy import deepcopy as dcpy
 
 from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 
+import dace.symbolic as sym
+
 from collections import OrderedDict
 from typing import List
 
@@ -140,11 +142,7 @@ class Runner():
                  array, in_dict all the input arguments found (except symbols)
         """
         arglist = sdfg.arglist()
-        free_symbols = sdfg.free_symbols
-        for symbol in free_symbols:
-            if symbol not in symbols_dict:
-                raise RuntimeError("Not all Symbols defined! \
-                                    Need complete symbol dict for operation")
+
         result_input = {}
         result_output = {}
         for (argument, array_reference) in arglist.items():
@@ -155,20 +153,26 @@ class Runner():
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
-            array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol)) \
-                                 else e \
-                                 for e in array_reference.shape])
-            if argument in outputs:
+            array_shape = tuple([sym.evaluate(e, symbols_dict) for e in array_reference.shape])
+            print(argument, "|", array_shape,"|", type(sdfg.data(argument)))
+            if isinstance(sdfg.data(argument), dace.data.Array):
+                new_data = np.random.random(size = array_shape).astype(array_dtype)
                 if outputs_setzero:
-                    new_array= np.zeros(shape=array_shape, dtype = array_dtype)
-                else:
-                    new_array = np.random.random(size=array_shape).astype(array_dtype)
+                    new_data = np.zeros(shape = array_shape, dtype = array_dtype)
 
-                result_output[argument] = new_array
-                result_input[argument] = new_array
+            #if isinstance(sdfg.data(argument), dace.data.Scalar):
+            elif isinstance(sdfg.data(argument), dace.data.Scalar):
+                new_data = np.random.rand()
+                if outputs_setzero:
+                    new_data = 0
             else:
+                # fornow: just set to one
+                new_data = 1
 
-                result_input[argument] = np.random.random(size=array_shape).astype(array_dtype)
+            result_input[argument] = new_data
+            if argument in outputs:
+                result_output[argument] = new_data
+
 
         return (result_input, result_output)
 

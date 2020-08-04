@@ -62,8 +62,8 @@ if __name__ == '__main__':
     dace.sdfg.utils.change_edge_src(sdfg.nodes()[0], C2, C1)
     sdfg.nodes()[0].remove_node(C2)
     sdfg.validate()
-    test_quantitatively(sdfg)
-    sys.exit(0)
+
+    sdfg.view()
 
     dace.transformation.heterogeneous.pipeline.fusion(sdfg, sdfg.nodes()[0])
     sdfg.view()

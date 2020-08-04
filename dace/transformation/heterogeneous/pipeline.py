@@ -19,6 +19,9 @@ TRANSFORMATION_TIMER = True
 
 """
 #################
+An alternative, convenient method to call ReduceMap, MultiExpansion
+and SubgraphFusion on a subgraph.
+
 Usual Pipeline:
     - Expand all desired Reduce Nodes using ReduceMap transformation
       (source found in reduce_map.py)
@@ -30,7 +33,6 @@ Usual Pipeline:
       (source found in subgraph_fusion.py)
 #################
 """
-
 
 
 def expand_reduce(sdfg: dace.SDFG,
