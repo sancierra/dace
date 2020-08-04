@@ -210,6 +210,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             upper_iter = iter(upper_subsets)
             union_upper = next(upper_iter)
 
+            # TODO: add this check at a later point
+            # We assume that upper_subsets for each data array
+            # are contiguous
+            # or do the full check if possible (intersection needed)
+            '''
             # check whether subsets in upper_subsets are adjacent.
             # this is a requriement for the current implementation
             #try:
@@ -225,7 +230,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                 break
                             if element[0] > lo:
                                 ordered_list.insert(idx, (lo,hi))
-                    print("ORDERED LIST", ordered_list)
                     ordered_list.pop(0)
 
 
@@ -239,12 +243,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             if highest < next_range[0] - 1:
                                 return False
             except TypeError:
-                # FORNOW
-                # TODO: fix me
-                pass
                 #return False
-
-
+            '''
 
             # now take union of upper subsets
             for subs in upper_iter:
@@ -411,7 +411,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     if not inv_dims == invariant_dimensions[node]:
                         print(f"WARNING: Invariant dimensions differ for {node.data}")
                         invariant_dimensions[data] |= inv_dims
-                        
+
                 else:
                     invariant_dimensions[data] = inv_dims
 
