@@ -30,14 +30,14 @@ TODO:
 - StorageType Inference                 [OK]   cancelled
 - cover intermediate nodes with
   incoming edges from outside           (*) (TODO)
-- counter fix                           TODO
+- counter fix                           [OK]
 - subset in_dict fix                    [OK]
 - maybe: one intermediate data
          counter with out-conn:
-         -> direct connection
+         -> direct connection           (**) (TODO)
 - rewrite tests                         TODO (pull branch)
 - maybe add more tests                  TODO (pull branch)
-- stencils
+- stencils                              next
 
 '''
 
@@ -81,6 +81,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # 3. The exiting memlets' subsets to an intermediate edge must cover
         #    the respective incoming memlets' subset into the next map
 
+        # get graph
         graph = subgraph.graph
         for node in subgraph.nodes():
             if node not in graph.nodes():
@@ -103,7 +104,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             if not map.range == base_map.range:
                 return False
 
-        # check whether all map entries have the same schedule
+        # 1.1 check whether all map entries have the same schedule
         schedule = map_entries[0].schedule
         if not all([entry.schedule == schedule for entry in map_entries]):
             return False
@@ -270,7 +271,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         '''
         on a non-fused graph, return a set of
         indices that correspond to array dimensions that
-        change when we are entering maps
+        do not change when we are entering maps
+        for an access node
         '''
         variate_dimensions = set()
         subset_length = -1
@@ -406,7 +408,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 if node in invariant_dimensions:
                     # do a check -- we want the same result for each
                     # node containing the same data
-                    assert inv_dims == invariant_dimensions[node]
+                    if not inv_dims == invariant_dimensions[node]:
+                        print(f"WARNING: Invariant dimensions differ for {node.data}")
+                        invariant_dimensions[data] |= inv_dims
+                        
                 else:
                     invariant_dimensions[data] = inv_dims
 
@@ -879,11 +884,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 if oedge.src_conn == out_connector:
                     out_edge = oedge
             # do memlet propagation
+
             memlet_out = propagate_memlet(dfg_state = graph,
                                           memlet = out_edge.data,
                                           scope_node = global_map_entry,
                                           union_inner_edges = True)
-
             # override number of accesses
             in_edge.data.volume = memlet_out.volume
             in_edge.data.subset = memlet_out.subset
