@@ -3,7 +3,7 @@ import numpy as np
 import sys
 
 
-from dace.transformation.heterogeneous import ReduceMap
+from dace.transformation.heterogeneous import ReduceExpansion
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
 

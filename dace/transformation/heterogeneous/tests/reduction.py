@@ -4,7 +4,7 @@ import numpy as np
 from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
 from dace.transformation.heterogeneous.reduce.cuda_block import CUDABlockAllReduce
 
-from dace.transformation.heterogeneous import ReduceMap
+from dace.transformation.heterogeneous import ReduceExpansion
 
 from dace.libraries.standard.nodes.reduce import Reduce
 N = dace.symbol('N')
@@ -38,9 +38,9 @@ if __name__ == '__main__':
 
     sdfg_id = 0
     state_id = 0
-    subgraph = {ReduceMap._reduce: graph.nodes().index(reduce_node)}
+    subgraph = {ReduceExpansion._reduce: graph.nodes().index(reduce_node)}
     # expand first
-    transform = ReduceMap(sdfg_id, state_id, subgraph, 0)
+    transform = ReduceExpansion(sdfg_id, state_id, subgraph, 0)
     transform.cuda_expand = False
     transform.reduce_implementation = 'CUDA (block)'
     transform.apply(sdfg)

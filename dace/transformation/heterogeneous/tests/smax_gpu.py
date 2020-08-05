@@ -5,7 +5,7 @@ from dace.perf.roofline import Roofline
 from dace.perf.specs import *
 from dace.perf.optimizer import SDFGRooflineOptimizer
 
-from dace.transformation.heterogeneous import ReduceMap
+from dace.transformation.heterogeneous import ReduceExpansion
 from dace.transformation.heterogeneous import SubgraphFusion
 from dace.transformation.heterogeneous import MultiExpansion
 from dace.transformation.heterogeneous import pipeline
