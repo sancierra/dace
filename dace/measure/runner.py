@@ -5,10 +5,6 @@ from dace.perf.roofline import Roofline
 from dace.perf.specs import *
 from dace.perf.optimizer import SDFGRooflineOptimizer
 
-from dace.transformation.heterogeneous import ReduceMap
-from dace.transformation.heterogeneous import SubgraphFusion
-from dace.transformation.heterogeneous import MultiExpansion
-
 import dace.libraries.standard as stdlib
 import dace.sdfg.nodes as nodes
 
@@ -16,9 +12,12 @@ import timeit
 import sympy
 from copy import deepcopy as dcpy
 
-from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
+from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps, fusion
+
+import dace.symbolic as sym
 
 from collections import OrderedDict
+from typing import List
 
 class Runner():
     # A measurement and correctness checker for an SDFG
@@ -35,13 +34,13 @@ class Runner():
     def __init__(self,
                  debug = True, verbose = False,
                  measure_mode = ['median', 'avg', 'max', 'std'],
-                 view = False, view_all = False,
+                 view = False,
                  view_roofline = True, save_roofline = False,
                  error_tol_abs = 1e-6, error_tol_rel = 1e-7,
-                 sequential = True):
+                 sequential = False):
 
         """ A runner wrapper for DaCe programs for testing runtimes and
-            correctness of heterogeneous transformations.
+            correctness of subgraph transformations.
             :param debug: display additional information
             :param verbose: display a lot of information, print all arrays
             :param measure_mode: statistical parameters for runtime analysis.
@@ -49,7 +48,6 @@ class Runner():
                                  The first element of the vector will also go into the general
                                  summary at the end.
             :param view: view graph at the beginning and at the end
-            :param view_all: view graph at every transformation
             :param view_roofline: view graph at end with roofline plot
             :param error_tol_abs: absolut error tolerance for array checks
             :param error_tol_rel: relative error tolerance for array checks
@@ -63,7 +61,6 @@ class Runner():
         self.measure_mode = measure_mode
 
         self.view = view
-        self.view_all = view_all
         self.view_roofline = view_roofline
 
         self.error_tol_abs = error_tol_abs
@@ -141,11 +138,7 @@ class Runner():
                  array, in_dict all the input arguments found (except symbols)
         """
         arglist = sdfg.arglist()
-        free_symbols = sdfg.free_symbols
-        for symbol in free_symbols:
-            if symbol not in symbols_dict:
-                raise RuntimeError("Not all Symbols defined! \
-                                    Need complete symbol dict for operation")
+
         result_input = {}
         result_output = {}
         for (argument, array_reference) in arglist.items():
@@ -156,20 +149,26 @@ class Runner():
             # infer numpy dtype
             array_dtype = array_reference.dtype.type
             # infer shape with the aid of symbols_dict
-            array_shape = tuple([symbols_dict[str(e)] if isinstance(e, (str, dace.symbol)) \
-                                 else e \
-                                 for e in array_reference.shape])
-            if argument in outputs:
+            array_shape = tuple([sym.evaluate(e, symbols_dict) for e in array_reference.shape])
+            print(argument, "|", array_shape,"|", type(sdfg.data(argument)))
+            if isinstance(sdfg.data(argument), dace.data.Array):
+                new_data = np.random.random(size = array_shape).astype(array_dtype)
                 if outputs_setzero:
-                    new_array= np.zeros(shape=array_shape, dtype = array_dtype)
-                else:
-                    new_array = np.random.random(size=array_shape).astype(array_dtype)
+                    new_data = np.zeros(shape = array_shape, dtype = array_dtype)
 
-                result_output[argument] = new_array
-                result_input[argument] = new_array
+            #if isinstance(sdfg.data(argument), dace.data.Scalar):
+            elif isinstance(sdfg.data(argument), dace.data.Scalar):
+                new_data = np.random.rand()
+                if outputs_setzero:
+                    new_data = 0
             else:
+                # fornow: just set to one
+                new_data = 1
 
-                result_input[argument] = np.random.random(size=array_shape).astype(array_dtype)
+            result_input[argument] = new_data
+            if argument in outputs:
+                result_output[argument] = new_data
+
 
         return (result_input, result_output)
 
@@ -179,6 +178,7 @@ class Runner():
                  subgraph = None,
                  roofline = None,
                  pipeline = [expand_reduce, expand_maps, fusion],
+                 pipeline_args = None,
                  report = False):
 
         """ Test a pipeline specified as the argument 'pipeline'.
@@ -198,7 +198,7 @@ class Runner():
             :param roofline: Roofline object that can be passed along. At every
                              transformation step the roofline model is evaluated
                              and the corresponding runtime added.
-            :param pipeline: Pipeline to be tested. Default is heterogeneous
+            :param pipeline: Pipeline to be tested. Default is subgraph
                              fusion pipeline (one by one), there is also a
                              combined version to be found in pipeline.py
         """
@@ -208,7 +208,15 @@ class Runner():
         if '__return' in sdfg.arglist():
             outputs['__return'] = None
 
-        if self.view or self.view_all:
+        if not pipeline_args:
+            pipeline_args = []
+            for element in pipeline:
+                if isinstance(element, List):
+                    pipeline_args.append([{}]*len(element))
+                else:
+                    pipeline_args.append({})
+
+        if self.view:
             sdfg.view()
 
         if not self.sequential:
@@ -218,6 +226,7 @@ class Runner():
                 subgraph_index = [graph.nodes().index(e) for e in subgraph.nodes()]
 
         # name and lists used for storing all the results
+        names = ['baseline']
         runtimes = []
         diffs_abs = []
         diffs_rel = []
@@ -257,14 +266,31 @@ class Runner():
                 print(f"WARNING: NaN detected in output {current} in Baseline")
                 nan_detected = True
 
-        for fun in pipeline:
+        for fun, args in zip(pipeline, pipeline_args):
             if not self.sequential:
                 sdfg = dcpy(sdfg_base)
                 graph = sdfg.nodes()[graph_index]
                 if subgraph:
                     subgraph = nodes.SubgraphView([graph.nodes()[i] for i in subgraph_index])
+
+            # determine name of transformation
+            if isinstance(fun, List):
+                name = ''
+                for index,func in enumerate(fun):
+                    if index > 0:
+                        name += '|'
+                    name += func.__name__[0:3]
+            else:
+                name = fun.__name__
+            names.append(name)
+
             # apply transformation
-            fun(sdfg, graph, subgraph)
+            if isinstance(fun, List):
+                for func, arg in zip(fun, args):
+                    func(sdfg, graph, subgraph, **arg)
+            else:
+                fun(sdfg, graph, subgraph, **args)
+
 
             self._setzero_outputs(outputs)
             result = self._run(sdfg, **inputs, **symbols)
@@ -274,16 +300,16 @@ class Runner():
             runtimes.append(self._get_runtime_stats(current_runtimes))
 
             if roofline:
-                roofline.evaluate(fun.__name__,
+                roofline.evaluate(name,
                                   graph,
                                   runtimes = current_runtimes)
 
             # process outputs
             if self.debug:
-                print(f"{fun.__name__} Norms:")
+                print(f"{name} Norms:")
                 self._print_norms(outputs, result)
                 if self.verbose:
-                    print(f"{fun.__name__} Arrays:")
+                    print(f"{name} Arrays:")
                     self._print_arrays(outputs, result)
 
             # see whether equality with baseline holds
@@ -294,7 +320,7 @@ class Runner():
                 current = outputs[element] if outputs[element] is not None else result
                 # NaN check
                 if np.isnan(current).any():
-                    print(f"WARNING: NaN detected in output {element} in {fun.__name__}")
+                    print(f"WARNING: NaN detected in output {element} in {name}")
                     nan_detected = True
 
                 try:
@@ -315,7 +341,7 @@ class Runner():
             diffs_rel.append(difference_dict_rel)
             verdicts.append(verdicts_dict)
 
-            if self.view_all:
+            if self.view:
                 sdfg.view()
 
 
@@ -334,13 +360,12 @@ class Runner():
               "Verdict")
         if len(outputs) == 0:
             print("                      No Outputs specified                      " )
-        for transformation, diff_abs_dict, diff_rel_dict, verdicts_dict \
-                        in zip(pipeline, diffs_abs, diffs_rel, verdicts):
+        for idx, (transformation, diff_abs_dict, diff_rel_dict, verdicts_dict) \
+                        in enumerate(zip(pipeline, diffs_abs, diffs_rel, verdicts)):
 
             arrays = sorted(list(diff_abs_dict.keys()))
             for array in arrays:
-                print(transformation.__name__.ljust(15,' '),
-                      array.ljust(15,' '),
+                print("transformation"+str(idx),
                       f"{diff_abs_dict[array]:.6g}".ljust(12,' '),
                       f"{diff_rel_dict[array]:.6g}".ljust(12,' '),
                       verdicts_dict[array])
@@ -359,9 +384,7 @@ class Runner():
             print(measure.ljust(12,' '), end='')
         print('\n')
 
-        for transformation, runtime_list in zip(['baseline'] + pipeline, runtimes):
-            transformation_name = transformation.__name__ if not isinstance(transformation, str) \
-                                  else transformation
+        for idx, (transformation_name, runtime_list) in enumerate(zip(names, runtimes)):
             print(transformation_name.ljust(15,' '), end='')
             for runtime in runtime_list:
                 print(f"{runtime:.6g}".ljust(12,' '), end='')
@@ -374,17 +397,12 @@ class Runner():
                   "Op. Intensity".ljust(15,' '),
                   "GFLOP Median".ljust(15,' '),
                   "GFLOP Roofline")
-            for transformation, runtime_list in zip((['baseline'] + pipeline), runtimes):
-                if isinstance(transformation, str):
-                    print(transformation.ljust(15,' '),
-                          f"{roofline.data[transformation]:.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_measured[transformation]):.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_roof[transformation]):.6g}")
-                else:
-                    print(transformation.__name__.ljust(15,' '),
-                          f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_measured[transformation.__name__]):.6g}".ljust(15,' '),
-                          f"{np.median(roofline.gflops_roof[transformation.__name__]):.6g}")
+            for transformation_name, runtime_list in zip(names, runtimes):
+                if isinstance(transformation_name, str):
+                    print(transformation_name.ljust(15,' '),
+                          f"{roofline.data[transformation_name]:.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_measured[transformation_name]):.6g}".ljust(15,' '),
+                          f"{np.median(roofline.gflops_roof[transformation_name]):.6g}")
 
         print("################################################################")
         print("########################### SUMMARY ############################")
@@ -396,29 +414,24 @@ class Runner():
               f"Runtime {self.measure_mode[0]}".ljust(20, ' '),
               "Verdict")
 
-        for transformation, runtime_list, verdicts_dict in zip(['baseline'] + pipeline, runtimes, ['_'] + verdicts):
-            if isinstance(transformation, str):
-                print(transformation.ljust(15,' '),
-                      f"{roofline.data[transformation]:.6g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.6g}".ljust(20,' '),
-                      '----')
-            else:
-                print(transformation.__name__.ljust(15,' '),
-                      f"{roofline.data[transformation.__name__]:.6g}".ljust(15,' ') if roofline else '',
-                      f"{runtime_list[0]:.6g}".ljust(20,' '),
-                      'PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
+        for transformation_name, runtime_list, verdicts_dict in zip(names, runtimes, ['_'] + verdicts):
+            print(transformation_name.ljust(15,' '),
+                  f"{roofline.data[transformation_name]:.6g}".ljust(15,' ') if roofline else '',
+                  f"{runtime_list[0]:.6g}".ljust(20,' '), end='')
+            if transformation_name == 'baseline':
+                print('----')
+            if transformation_name != 'baseline':
+                print('PASS' if all([v == 'PASS' for v in verdicts_dict.values()]) else 'FAIL')
 
         print("################################################################")
 
-        if self.view and self.sequential or self.view_all:
-            sdfg.view()
 
         if roofline:
             if self.view_roofline:
                 roofline.plot(show = True, save_path = '' if self.save_roofline else None)
 
 
-        for transformation in ['baseline']+pipeline:
+        for verdicts_dict in verdicts:
             if not all([v == 'PASS' for v in verdicts_dict.values()]):
                 return False
 
@@ -426,6 +439,7 @@ class Runner():
 
     def go(self, sdfg, graph, subgraph, *symbols,
         pipeline = [expand_reduce, expand_maps, fusion],
+        pipeline_args = None,
         performance_spec = dace.perf.specs.PERF_GPU_DAVINCI,
         output = [],
         name = "Runner::Go",
@@ -458,4 +472,5 @@ class Runner():
                       symbols = symbols_dict,
                       inputs = input_dict, outputs = output_dict,
                       roofline = roofline, pipeline = pipeline,
+                      pipeline_args = pipeline_args,
                       report = report)

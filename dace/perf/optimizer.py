@@ -12,7 +12,7 @@ from dace.sdfg.graph import SubgraphView
 from dace.transformation import pattern_matching
 
 # register all the transformations
-from dace.transformation import dataflow, interstate #, heterogeneous
+from dace.transformation import dataflow, interstate #, subgraph
 from dace.transformation.optimizer import SDFGOptimizer
 
 # perf stuff

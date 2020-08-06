@@ -251,7 +251,7 @@ class SDFG(OrderedDiGraph):
 
     @property
     def sdfg_id(self):
-        """ 
+        """
         Returns the unique index of the current SDFG within the current
         tree of SDFGs (top-level SDFG is 0, nested SDFGs are greater).
         """
@@ -842,9 +842,7 @@ class SDFG(OrderedDiGraph):
             formatted as a list of C definitions.
             :param with_types: If True, includes argument types in the result.
             :param for_call: If True, returns arguments that can be used when
-                             calling the SDFG. This means that immaterial data
-                             will generate "nullptr" arguments instead of the
-                             argument names.
+                             calling the SDFG.
             :return: A list of strings. For example: `['float *A', 'int b']`.
         """
         return [
@@ -859,9 +857,7 @@ class SDFG(OrderedDiGraph):
                                include argument names (can be used for function
                                calls).
             :param for_call: If True, returns arguments that can be used when
-                             calling the SDFG. This means that immaterial data
-                             will generate "nullptr" arguments instead of the
-                             argument names.
+                             calling the SDFG.
         """
         return ", ".join(self.signature_arglist(with_types, for_call))
 
@@ -1104,7 +1100,6 @@ class SDFG(OrderedDiGraph):
                   shape,
                   dtype,
                   storage=dtypes.StorageType.Default,
-                  materialize_func=None,
                   transient=False,
                   strides=None,
                   offset=None,
@@ -1132,7 +1127,6 @@ class SDFG(OrderedDiGraph):
         desc = dt.Array(dtype,
                         shape,
                         storage=storage,
-                        materialize_func=materialize_func,
                         allow_conflicts=allow_conflicts,
                         transient=transient,
                         strides=strides,
@@ -1148,7 +1142,6 @@ class SDFG(OrderedDiGraph):
     def add_stream(self,
                    name: str,
                    dtype,
-                   veclen=1,
                    buffer_size=1,
                    shape=(1, ),
                    storage=dtypes.StorageType.Default,
@@ -1163,9 +1156,8 @@ class SDFG(OrderedDiGraph):
             dtype = dtypes.typeclass(dtype)
 
         desc = dt.Stream(
-            dtype,
-            veclen,
-            buffer_size,
+            dtype=dtype,
+            buffer_size=buffer_size,
             shape=shape,
             storage=storage,
             transient=transient,
@@ -1204,7 +1196,6 @@ class SDFG(OrderedDiGraph):
                       shape,
                       dtype,
                       storage=dtypes.StorageType.Default,
-                      materialize_func=None,
                       strides=None,
                       offset=None,
                       lifetime=dace.dtypes.AllocationLifetime.Scope,
@@ -1220,7 +1211,6 @@ class SDFG(OrderedDiGraph):
                               shape,
                               dtype,
                               storage,
-                              materialize_func,
                               True,
                               strides,
                               offset,
@@ -1247,7 +1237,6 @@ class SDFG(OrderedDiGraph):
                            shape,
                            dtype,
                            storage=dtypes.StorageType.Default,
-                           materialize_func=None,
                            strides=None,
                            offset=None,
                            lifetime=dace.dtypes.AllocationLifetime.Scope,
@@ -1262,7 +1251,6 @@ class SDFG(OrderedDiGraph):
                               shape,
                               dtype,
                               storage,
-                              materialize_func,
                               True,
                               strides,
                               offset,

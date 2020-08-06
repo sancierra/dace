@@ -26,7 +26,7 @@ class MemletPattern(object):
 
 @registry.make_registry
 class SeparableMemletPattern(object):
-    """ Memlet pattern that can be applied to each of the dimensions 
+    """ Memlet pattern that can be applied to each of the dimensions
         separately. """
     def match(self, dim_exprs, variable_context, node_range, orig_edges,
               dim_index, total_dims):
@@ -132,15 +132,6 @@ class AffineSMemlet(SeparableMemletPattern):
         self.add_max = None
         self.constant_min = None
         self.constant_max = None
-
-        # Obtain vector length
-        self.veclen = None
-        if dim_index == total_dims - 1:
-            for e in orig_edges:
-                self.veclen = e.veclen
-        if self.veclen is None:
-            self.veclen = 1
-        ######################
 
         # Special case: Get the total internal access range
         # If this range matches (0, rs), we say that the propagated skip is 1
@@ -255,7 +246,7 @@ class AffineSMemlet(SeparableMemletPattern):
         # This should be using sympy.floor
         memlet_start_pts = ((re - rt + 1 - rb) / rs) + 1
         memlet_rlen = memlet_start_pts.expand() * rt
-        interval_len = (result_end - result_begin + 1) * self.veclen
+        interval_len = (result_end - result_begin + 1)
         num_elements = node_rlen * memlet_rlen
 
         if (interval_len == num_elements
@@ -356,7 +347,7 @@ class ModuloSMemlet(SeparableMemletPattern):
 
 @registry.autoregister
 class ConstantSMemlet(SeparableMemletPattern):
-    """ Separable memlet pattern that matches constant (i.e., unrelated to 
+    """ Separable memlet pattern that matches constant (i.e., unrelated to
         current scope) expressions.
     """
     def match(self, dim_exprs, variable_context, node_range, orig_edges,
@@ -401,7 +392,7 @@ class ConstantSMemlet(SeparableMemletPattern):
 
 @registry.autoregister
 class GenericSMemlet(SeparableMemletPattern):
-    """ Separable memlet pattern that detects any expression, and propagates 
+    """ Separable memlet pattern that detects any expression, and propagates
         interval bounds. Used as a last resort. """
     def match(self, dim_exprs, variable_context, node_range, orig_edges,
               dim_index, total_dims):
@@ -539,7 +530,7 @@ class ConstantRangeMemlet(MemletPattern):
 
 
 def propagate_memlets_sdfg(sdfg):
-    """ Propagates memlets throughout an entire given SDFG. 
+    """ Propagates memlets throughout an entire given SDFG.
         @note: This is an in-place operation on the SDFG.
     """
     for state in sdfg.nodes():
@@ -547,7 +538,7 @@ def propagate_memlets_sdfg(sdfg):
 
 
 def _propagate_labels(g, sdfg):
-    """ Propagates memlets throughout one SDFG state. 
+    """ Propagates memlets throughout one SDFG state.
         :param g: The state to propagate in.
         :param sdfg: The SDFG in which the state is situated.
         @note: This is an in-place operation on the SDFG state.
@@ -639,8 +630,8 @@ def propagate_memlet(dfg_state,
                      scope_node: nodes.EntryNode,
                      union_inner_edges: bool,
                      arr=None):
-    """ Tries to propagate a memlet through a scope (computes the image of 
-        the memlet function applied on an integer set of, e.g., a map range) 
+    """ Tries to propagate a memlet through a scope (computes the image of
+        the memlet function applied on an integer set of, e.g., a map range)
         and returns a new memlet object.
         :param dfg_state: An SDFGState object representing the graph.
         :param memlet: The memlet adjacent to the scope node from the inside.
@@ -723,7 +714,8 @@ def propagate_memlet(dfg_state,
                 if new_subset is None:
                     warnings.warn('Subset union failed between %s and %s ' %
                                   (old_subset, tmp_subset))
-
+                    break
+                    
         # Some unions failed
         if new_subset is None:
             new_subset = subsets.Range.from_array(arr)
