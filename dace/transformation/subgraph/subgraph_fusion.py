@@ -10,7 +10,7 @@ from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
-from dace.transformation.heterogeneous import helpers
+from dace.transformation.subgraph import helpers
 
 
 from copy import deepcopy as dcpy
@@ -387,10 +387,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             data_ref = sdfg.data(node.data)
             out_trans_data_name = node.data + '_OUT'
             data_trans = sdfg.add_transient(name = out_trans_data_name,
-                                            shape = data_ref.shape,
-                                            dtype = data_ref.dtype,
-                                            storage= data_ref.storage,
-                                            offset = data_ref.offset)
+                                            shape = dcpy(data_ref.shape),
+                                            dtype = dcpy(data_ref.dtype),
+                                            storage= dcpy(data_ref.storage),
+                                            offset = dcpy(data_ref.offset))
             node_trans = graph.add_access(out_trans_data_name)
             redirect(node_trans, node)
             transients_created[node] = node_trans

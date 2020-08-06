@@ -2,9 +2,9 @@ import dace
 import numpy as np
 
 
-from dace.transformation.heterogeneous import ReduceExpansion
-from dace.transformation.heterogeneous import SubgraphFusion
-from dace.transformation.heterogeneous import MultiExpansion
+from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph import SubgraphFusion
+from dace.transformation.subgraph import MultiExpansion
 
 from typing import Union, List
 

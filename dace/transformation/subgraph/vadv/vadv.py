@@ -2,11 +2,11 @@ import dace
 from dace.sdfg import SDFG
 import dace.sdfg
 
-from dace.transformation.heterogeneous.pipeline import fusion, expand_maps, expand_reduce
+from dace.transformation.subgraph.pipeline import fusion, expand_maps, expand_reduce
 from dace.transformation.interstate import StateFusion, NestSDFG
 from dace.transformation.helpers import nest_state_subgraph
 
-import dace.transformation.heterogeneous as heterogeneous
+import dace.transformation.subgraph as subgraph
 
 from dace.measure import Runner
 
@@ -33,17 +33,17 @@ def test_matching():
     graph = vadv_unfused.nodes()[0]
     # should yield True
     subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
-    expansion = heterogeneous.MultiExpansion()
-    print("True  ==", heterogeneous.MultiExpansion.match(vadv_unfused,subgraph))
-    fusion = heterogeneous.SubgraphFusion()
-    print("True  ==", heterogeneous.SubgraphFusion.match(vadv_unfused,subgraph))
+    expansion = subgraph.MultiExpansion()
+    print("True  ==", subgraph.MultiExpansion.match(vadv_unfused,subgraph))
+    fusion = subgraph.SubgraphFusion()
+    print("True  ==", subgraph.SubgraphFusion.match(vadv_unfused,subgraph))
 
 def test_fuse_all(view = True):
     if view:
         vadv_unfused.view()
     graph = vadv_unfused.nodes()[0]
     subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
-    fusion = heterogeneous.SubgraphFusion()
+    fusion = subgraph.SubgraphFusion()
     fusion.apply(vadv_unfused, subgraph)
     if view:
         vadv_unfused.view()
@@ -76,7 +76,7 @@ def test_fuse_partial(view = False):
     subgraph2 = dace.sdfg.graph.SubgraphView(graph, list(set2))
     print(list(set1))
     print(list(set2))
-    fusion = heterogeneous.SubgraphFusion()
+    fusion = subgraph.SubgraphFusion()
     fusion.apply(vadv_unfused, subgraph1)
     fusion.apply(vadv_unfused, subgraph2)
     vadv_unfused.view()
@@ -93,10 +93,10 @@ def test_fuse_all_numerically():
               pipeline = [fusion],
               output = ['utens_stage', 'data_col'])
 
-#view_all()
+view_all()
 #test_matching()
 #test_fuse_all()
-test_fuse_all_numerically()
+#test_fuse_all_numerically()
 #test_fuse_partial()
 
 
@@ -115,7 +115,7 @@ def test_fuse_all_state_push(view = True):
     scope_dict = graph.scope_dict(node_to_children=True)
     print("SCOPE_DICT", scope_dict)
 
-    map_entries = heterogeneous.helpers.get_lowest_scope_maps(vadv_unfused, graph)
+    map_entries = subgraph.helpers.get_lowest_scope_maps(vadv_unfused, graph)
 
     for parent in scope_dict.keys():
         if parent in map_entries:
@@ -129,7 +129,7 @@ def test_fuse_all_state_push(view = True):
             nest_state_subgraph(vadv_unfused, graph, subgraph)
 
     subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
-    fusion = heterogeneous.SubgraphFusion()
+    fusion = subgraph.SubgraphFusion()
     fusion.apply(vadv_unfused, subgraph)
     vadv_unfused.apply_transformations_repeated(NestSDFG)
     if view:

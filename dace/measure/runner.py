@@ -12,7 +12,7 @@ import timeit
 import sympy
 from copy import deepcopy as dcpy
 
-from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
+from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps, fusion
 
 import dace.symbolic as sym
 
@@ -40,7 +40,7 @@ class Runner():
                  sequential = False):
 
         """ A runner wrapper for DaCe programs for testing runtimes and
-            correctness of heterogeneous transformations.
+            correctness of subgraph transformations.
             :param debug: display additional information
             :param verbose: display a lot of information, print all arrays
             :param measure_mode: statistical parameters for runtime analysis.
@@ -198,7 +198,7 @@ class Runner():
             :param roofline: Roofline object that can be passed along. At every
                              transformation step the roofline model is evaluated
                              and the corresponding runtime added.
-            :param pipeline: Pipeline to be tested. Default is heterogeneous
+            :param pipeline: Pipeline to be tested. Default is subgraph
                              fusion pipeline (one by one), there is also a
                              combined version to be found in pipeline.py
         """

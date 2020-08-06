@@ -1,10 +1,10 @@
 import dace
 import numpy as np
 
-from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion
-from dace.transformation.heterogeneous.reduce.cuda_block import CUDABlockAllReduce
+from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps, fusion
+from dace.transformation.subgraph.reduce.cuda_block import CUDABlockAllReduce
 
-from dace.transformation.heterogeneous import ReduceExpansion
+from dace.transformation.subgraph import ReduceExpansion
 
 from dace.libraries.standard.nodes.reduce import Reduce
 N = dace.symbol('N')

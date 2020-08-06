@@ -1,14 +1,14 @@
 import dace
-from dace.transformation.heterogeneous import MultiExpansion
-from dace.transformation.heterogeneous import SubgraphFusion
-from dace.transformation.heterogeneous import ReduceExpansion
-from dace.transformation.heterogeneous.helpers import *
+from dace.transformation.subgraph import MultiExpansion
+from dace.transformation.subgraph import SubgraphFusion
+from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph.helpers import *
 import dace.sdfg.nodes as nodes
 from dace.sdfg.graph import SubgraphView
 import numpy as np
 
 from dace.measure import Runner
-from dace.transformation.heterogeneous.pipeline import expand_reduce, expand_maps, fusion, go
+from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps, fusion, go
 
 
 import sys

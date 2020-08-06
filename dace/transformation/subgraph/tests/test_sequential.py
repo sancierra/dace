@@ -1,13 +1,13 @@
 
 import dace
-from dace.transformation.heterogeneous import MultiExpansion, SubgraphFusion, pipeline
-from dace.transformation.heterogeneous.helpers import *
+from dace.transformation.subgraph import MultiExpansion, SubgraphFusion, pipeline
+from dace.transformation.subgraph.helpers import *
 from dace.measure import Runner
 import dace.sdfg.nodes as nodes
 from dace.sdfg.graph import SubgraphView
 import numpy as np
 
-import sys 
+import sys
 
 N = dace.symbol('N')
 

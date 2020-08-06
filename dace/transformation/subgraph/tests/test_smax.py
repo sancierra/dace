@@ -3,10 +3,10 @@ import numpy as np
 import sys
 
 
-from dace.transformation.heterogeneous import ReduceExpansion
-from dace.transformation.heterogeneous import SubgraphFusion
-from dace.transformation.heterogeneous import MultiExpansion
-import dace.transformation.heterogeneous.pipeline as pipeline
+from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph import SubgraphFusion
+from dace.transformation.subgraph import MultiExpansion
+import dace.transformation.subgraph.pipeline as pipeline
 from dace.sdfg.graph import SubgraphView
 
 import dace.libraries.standard as stdlib
