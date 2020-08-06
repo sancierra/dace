@@ -24,10 +24,9 @@ def test():
         if isinstance(node, Reduce):
             reduce_node = node
     reduce_node.implementation = 'CUDA (device)'
-    sdfg.view()
 
-    #csdfg = sdfg.compile()
-    #result1 = csdfg(A=A,M=M,N=N)
+    csdfg = sdfg.compile()
+    result1 = csdfg(A=A,M=M,N=N)
     print(reduce_node)
 
     sdfg_id = 0
@@ -38,13 +37,10 @@ def test():
     transform.reduce_implementation = 'CUDA (block allreduce)'
     transform.apply(sdfg)
     transform._new_reduce.implementation = 'CUDA (block allreduce)'
-    sdfg.view()
-    #csdfg = sdfg.compile()
-    #result2 = csdfg(A=A,M=M,N=N)
+    csdfg = sdfg.compile()
+    result2 = csdfg(A=A,M=M,N=N)
 
-    #assert np.allclose(result1, result2)
-    sdfg.expand_library_nodes()
-    sdfg.view()
+    assert np.allclose(result1, result2)
 
     print("PASS")
 

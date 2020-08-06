@@ -21,19 +21,19 @@ from dace.measure.runner import Runner
 from dace.sdfg.graph import SubgraphView
 import dace.sdfg.nodes as nodes
 
-dace_dtype = dace.float32
+dace_dtype = dace.float16
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 
 @dace.program
-def softmax(X_in: dace_dtype[H, B, SN, 256]):
+def softmax(X_in: dace_dtype[H, B, SN, 512]):
     tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3, identity = 0)
-
-    tmp_out = np.ndarray([H, B, SN, 256], dtype=dace_dtype)
-    out = np.ndarray([H, B, SN, 256], dtype=dace_dtype)
+    #TEST[:] = tmp_max
+    tmp_out = np.ndarray([H, B, SN, 512], dtype=dace_dtype)
+    out = np.ndarray([H, B, SN, 512], dtype=dace_dtype)
 
     # No broadcasting rules
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:256]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:512]:
         with dace.tasklet:
             inp << X_in[i, j, k, l]
             mx << tmp_max[i, j, k]
@@ -42,7 +42,7 @@ def softmax(X_in: dace_dtype[H, B, SN, 256]):
     #tmp_out = np.exp(X_in - tmp_max)
 
     tmp_sum = dace.reduce(lambda a, b: a + b, tmp_out, identity=0, axis=3)
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:256]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:512]:
         with dace.tasklet:
             inp << tmp_out[i, j, k, l]
             sm << tmp_sum[i, j, k]
@@ -52,7 +52,7 @@ def softmax(X_in: dace_dtype[H, B, SN, 256]):
     return out
 
 
-H.set(32); B.set(16); SN.set(256); SM.set(256)
+H.set(16); B.set(8); SN.set(512); SM.set(512)
 
 def test_graph():
     sdfg = softmax.to_sdfg()
@@ -92,7 +92,6 @@ def test_result(debug = False):
 
 def load_old_configuration(sdfg):
     # loads old configuration
-    # sdfg._name has to be set already
     binary_filename = compiler.get_binary_name(sdfg.build_folder, sdfg.name)
     return compiler.load_from_file(sdfg, binary_filename)
 
@@ -127,15 +126,20 @@ def test_allfuse():
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
    
-    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
+    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float16)
     
+    for node in graph.nodes():
+        if isinstance(node, stdlib.nodes.reduce.Reduce):
+            node.implementation = 'CUDA (device)'
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
     result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
 
-
+    for node in graph.nodes():
+        if isinstance(node, stdlib.nodes.reduce.Reduce):
+            node.implementation = 'pure'
     ####################################################
-    pipeline.expand_reduce(sdfg, graph)
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = False)
     
     ## Manually fix codegen bug ## 
     sdfg.expand_library_nodes()
@@ -152,7 +156,7 @@ def test_allfuse():
     sdfg._name = 'reduce'
     csdfg = sdfg.compile_directly()
     result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-
+    
     ######################################################
     pipeline.expand_maps(sdfg, graph)
     sdfg.view()
@@ -167,20 +171,11 @@ def test_allfuse():
     sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
-    pipeline.expand_reduce(sdfg, graph)
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'CUDA (block)')
     pipeline.expand_maps(sdfg, graph)
     pipeline.fusion(sdfg, graph)
     
     sdfg.apply_strict_transformations()
-    sdfg.expand_library_nodes()
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            for state in node.sdfg.nodes():
-                for snode in state.nodes():
-                    for e in state.out_edges(snode):
-                        e.data.wcr_conflict = False
-                        if isinstance(snode, dace.sdfg.nodes.MapEntry):
-                            snode.schedule = dace.dtypes.ScheduleType.Sequential
     sdfg.view()
     
     sdfg._name = 'fusion'
@@ -211,14 +206,15 @@ def test_partialfuse():
     graph = sdfg.nodes()[0]
     subgraph = get_partition(sdfg, graph)
     A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
-    
+    #TEST = np.random.rand(H.get(), B.get(), SN.get()).astype(np.float32)
+
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
     result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
 
 
     ####################################################
-    pipeline.expand_reduce(sdfg, graph, subgraph)
+    pipeline.expand_reduce(sdfg, graph, subgraph, cuda_expand = False, )
     
     ## Manually fix codegen bug ## 
     sdfg.expand_library_nodes()
@@ -235,7 +231,7 @@ def test_partialfuse():
     sdfg._name = 'reduce'
     csdfg = sdfg.compile_directly()
     result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-
+    #TEST_ref = TEST.copy()
     ######################################################
     pipeline.expand_maps(sdfg, graph, subgraph)
     sdfg.view()
@@ -243,7 +239,7 @@ def test_partialfuse():
     sdfg._name = 'expansion'
     csdfg = sdfg.compile_directly()
     result2 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-
+    #TEST_ref2 = TEST.copy()
     ######################################################
     
 
@@ -251,21 +247,11 @@ def test_partialfuse():
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
     subgraph = get_partition(sdfg, graph)
-    pipeline.expand_reduce(sdfg, graph, subgraph)
+    pipeline.expand_reduce(sdfg, graph, subgraph, cuda_expand = True, reduce_implementation = 'CUDA (block)' )
     pipeline.expand_maps(sdfg, graph, subgraph)
     pipeline.fusion(sdfg, graph, subgraph)
     
     sdfg.apply_strict_transformations()
-    sdfg.expand_library_nodes()
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            for state in node.sdfg.nodes():
-                for snode in state.nodes():
-                    for e in state.out_edges(snode):
-                        e.data.wcr_conflict = False
-                        if isinstance(snode, dace.sdfg.nodes.MapEntry):
-                            snode.schedule = dace.dtypes.ScheduleType.Sequential
-    sdfg.view()
     
     sdfg._name = 'fusion'
     csdfg = sdfg.compile_directly()
@@ -282,6 +268,10 @@ def test_partialfuse():
     print(np.linalg.norm(result1))
     print(np.linalg.norm(result2))
     print(np.linalg.norm(result3))
+    #print("TEST")
+    #print(np.linalg.norm(TEST_ref))
+    #print(np.linalg.norm(TEST_ref2))
+    #print(np.linalg.norm(TEST))
     #print(result_base)
     #print(result3)
     assert np.allclose(result_base, result1)
@@ -290,6 +280,6 @@ def test_partialfuse():
 
 
 if __name__ == "__main__":
-    test_partialfuse()
+    test_allfuse()
     
     
