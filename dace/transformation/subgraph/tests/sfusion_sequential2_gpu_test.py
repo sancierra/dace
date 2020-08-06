@@ -34,16 +34,15 @@ if __name__ == "__main__":
     state = sdfg.nodes()[0]
 
     A = np.random.rand(N.get()).astype(np.float64)
-    B = np.random.rand(N.get()).astype(np.float64)
     C1 = np.random.rand(N.get()).astype(np.float64)
     C2 = np.random.rand(N.get()).astype(np.float64)
 
-    #csdfg = sdfg.compile()
-    #csdfg(A=A,B=B,C=C1,N=N)
-    sdfg.view()
+    csdfg = sdfg.compile()
+    csdfg(A=A,C=C1,N=N)
     fusion(sdfg, state)
-    sdfg.view()
-    #csdfg = sdfg.compile()
-    #csdfg(A=A,B=B,C=C2,N=N)
-
+    csdfg = sdfg.compile()
+    csdfg(A=A,C=C2,N=N)
+    
+    print(np.linalg.norm(C1))
+    print(np.linalg.norm(C2))
     assert np.allclose(C1, C2)

@@ -41,12 +41,12 @@ if __name__ == "__main__":
     C1 = np.random.rand(N.get()).astype(np.float64)
     C2 = np.random.rand(N.get()).astype(np.float64)
 
-    #csdfg = sdfg.compile()
-    #csdfg(A=A,B=B,C=C1,N=N)
+    csdfg = sdfg.compile()
+    csdfg(A=A,B=B,C=C1,N=N)
     sdfg.view()
     fusion(sdfg, state)
     sdfg.view()
-    #csdfg = sdfg.compile()
-    #csdfg(A=A,B=B,C=C2,N=N)
+    csdfg = sdfg.compile()
+    csdfg(A=A,B=B,C=C2,N=N)
 
     assert np.allclose(C1, C2)
