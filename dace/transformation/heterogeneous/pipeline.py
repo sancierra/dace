@@ -24,7 +24,7 @@ and SubgraphFusion on a subgraph.
 
 Usual Pipeline:
     - Expand all desired Reduce Nodes using ReduceExpansion transformation
-      (source found in reduce_map.py)
+      (source found in reduce_expansion.py)
     - Expand all maps (including previously expanded Reduces)
       into outer and inner maps using MultiExpansion
       (source found in expansion.py)
