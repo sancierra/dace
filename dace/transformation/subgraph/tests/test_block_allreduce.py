@@ -27,7 +27,6 @@ def test():
 
     csdfg = sdfg.compile()
     result1 = csdfg(A=A,M=M,N=N)
-    print(reduce_node)
 
     sdfg_id = 0
     state_id = 0
@@ -36,7 +35,6 @@ def test():
     transform = ReduceExpansion(sdfg_id, state_id, subgraph, 0)
     transform.reduce_implementation = 'CUDA (block allreduce)'
     transform.apply(sdfg)
-    transform._new_reduce.implementation = 'CUDA (block allreduce)'
     csdfg = sdfg.compile()
     result2 = csdfg(A=A,M=M,N=N)
 
