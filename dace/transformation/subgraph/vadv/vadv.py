@@ -90,9 +90,13 @@ def test_fuse_all_numerically(gpu = False, view = False):
     i, j = (dace.symbol(s) for s in 'ij')
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
-
     sdfg = vadv_unfused
     graph = sdfg.nodes()[0]
+
+    if gpu:
+        for array in sdfg.arrays.values():
+            array.storage = dace.dtypes.StorageType.Default
+        sdfg.apply_gpu_transformations()
 
     strides = {}
     for aname, arr in sdfg.arrays.items():
@@ -169,10 +173,11 @@ def test_fuse_all_numerically(gpu = False, view = False):
     sdfg.specialize(dict(I=I, J=J, K=K))
     #dace.Config.set('compiler', 'use_cache', value=True)
 
-    csdfg = sdfg.compile(optimizer=False)
-    csdfg(**args1)
     if view:
         sdfg.view()
+    csdfg = sdfg.compile(optimizer=False)
+    csdfg(**args1)
+
 
     fusion(sdfg, graph)
 
@@ -192,9 +197,13 @@ def test_fuse_partial_numerically(gpu = False, view = False):
     i, j = (dace.symbol(s) for s in 'ij')
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
-
     sdfg = vadv_unfused
     graph = sdfg.nodes()[0]
+
+    if gpu:
+        for array in sdfg.arrays.values():
+            array.storage = dace.dtypes.StorageType.Default
+        sdfg.apply_gpu_transformations()
 
     set1 = set()
     set2 = set()
@@ -296,10 +305,11 @@ def test_fuse_partial_numerically(gpu = False, view = False):
     sdfg.specialize(dict(I=I, J=J, K=K))
     #dace.Config.set('compiler', 'use_cache', value=True)
 
-    csdfg = sdfg.compile(optimizer=False)
-    csdfg(**args1)
     if view:
         sdfg.view()
+    csdfg = sdfg.compile(optimizer=False)
+    csdfg(**args1)
+
 
     fusion(sdfg, graph, subgraph1)
     fusion(sdfg, graph, subgraph2)
@@ -317,8 +327,8 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 #view_all()
 #test_matching()
 #test_fuse_all()
-test_fuse_all_numerically(view = False)
-test_fuse_partial_numerically(view = False)
+test_fuse_all_numerically(view = False, gpu = False )
+test_fuse_partial_numerically(view = False, gpu = False)
 
 #test_fuse_partial()
 
