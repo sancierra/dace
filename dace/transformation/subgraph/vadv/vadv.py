@@ -96,6 +96,9 @@ def test_fuse_all_numerically(gpu = False, view = False):
     if gpu:
         for array in sdfg.arrays.values():
             array.storage = dace.dtypes.StorageType.Default
+        for node in graph.nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                node.schedule = dace.dtypes.ScheduleType.Default
         sdfg.apply_gpu_transformations()
 
     strides = {}
@@ -327,8 +330,8 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 #view_all()
 #test_matching()
 #test_fuse_all()
-test_fuse_all_numerically(view = False, gpu = False )
-test_fuse_partial_numerically(view = False, gpu = False)
+test_fuse_all_numerically(view = False, gpu = True )
+#test_fuse_partial_numerically(view = False, gpu = False)
 
 #test_fuse_partial()
 
