@@ -100,6 +100,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
             if isinstance(node, dace.sdfg.nodes.NestedSDFG):
                 node.schedule = dace.dtypes.ScheduleType.Default
         sdfg.apply_gpu_transformations()
+        graph = sdfg.nodes()[0]
 
     strides = {}
     for aname, arr in sdfg.arrays.items():
@@ -161,7 +162,8 @@ def test_fuse_all_numerically(gpu = False, view = False):
     utens_stage = np.random.rand(I, J, K).astype(np.float32)
     u_pos = np.random.rand(I, J, K).astype(np.float32)
     utens = np.random.rand(I, J, K).astype(np.float32)
-
+    
+    
     args1 = dict(_gt_loc__dtr_stage=np.float32(1.424242424242),
                 I=np.int32(I),
                 J=np.int32(J),
@@ -183,13 +185,23 @@ def test_fuse_all_numerically(gpu = False, view = False):
 
 
     fusion(sdfg, graph)
-
+    
+    sdfg._name = 'fused'
     csdfg = sdfg.compile(optimizer = False)
     csdfg(**args2)
     if view:
         sdfg.view()
+    
 
     assert np.allclose(args1['utens_stage'], args2['utens_stage'])
+    print(np.linalg.norm(utens_stage))
+    print("__________________")
+    print(np.linalg.norm(args1['utens_stage']))
+    print(np.linalg.norm(args2['utens_stage'])) 
+    if gpu:
+        print("GPU PASS")
+    else:
+        print("CPU PASS")
 
 
 
