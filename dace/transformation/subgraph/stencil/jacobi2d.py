@@ -119,7 +119,11 @@ def pre_tiling(sdfg, graph, tile_size = 64):
 
 def fuse(sdfg, graph, view = False, compile = False, gpu = False):
     if gpu:
-        sdfg.apply_gpu_transformations()
+        sdfg.apply_gpu_transformations(options={'sequential_innermaps': False})
+        sdfg.apply_strict_transformations()
+        for g in sdfg.nodes():
+            if len(g.nodes()) > 5:
+                graph = g
 
     if view:
         sdfg.view()
@@ -162,4 +166,4 @@ if __name__ == '__main__':
             break
 
     pre_tiling(sdfg, graph)
-    fuse(sdfg, graph, compile = True)
+    fuse(sdfg, graph, compile = False, gpu = True, view = False)
