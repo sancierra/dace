@@ -8,7 +8,7 @@ from dace.sdfg.graph import SubgraphView
 from dace.memlet import Memlet
 from dace.transformation import pattern_matching
 from dace.properties import make_properties, Property
-from dace.symbolic import symstr
+from dace.symbolic import symstr, overapproximate
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
 from dace.transformation.subgraph import helpers
 
@@ -79,6 +79,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                          dtype = str,
                                          default = "local",
                                          choices = ["auto", "shared", "local", "default"])
+
+    experimental_mode = Property(desc = "Unlock Experimental Bonus Features",
+                                 dtype = bool,
+                                 default = False)
+
     @staticmethod
     def match(sdfg, subgraph):
         '''
@@ -415,6 +420,8 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                             storage= dcpy(data_ref.storage),
                                             offset = dcpy(data_ref.offset))
             node_trans = graph.add_access(out_trans_data_name)
+            if node.setzero:
+                node_trans.setzero = True
             redirect(node_trans, node)
             transients_created[node] = node_trans
 
@@ -661,6 +668,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     dst = out_edge.dst
 
                     if dst in intermediate_nodes & out_nodes:
+
                         # create connection thru global map from
                         # dst to dst_transient that was created
                         dst_transient = transients_created[dst]
@@ -772,7 +780,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     except StopIteration:
                         break
 
-                min_offsets_cropped = target_subset.min_element()
+                min_offsets_cropped = target_subset.min_element_approx()
                 # calculate the new transient array size.
                 target_subset.offset(min_offsets_cropped, True)
 
@@ -898,22 +906,32 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         ### do one last pass to correct outside memlets adjacent to global map
         for out_connector in global_map_entry.out_connectors:
             # find corresponding in_connector
+            # and the in-connecting edge
             in_connector = 'IN' + out_connector[3:]
             for iedge in graph.in_edges(global_map_entry):
                 if iedge.dst_conn == in_connector:
                     in_edge = iedge
+
+            # find corresponding out_connector
+            # and all out-connecting edges that belong to it
+            # count them
+            oedge_counter = 0
             for oedge in graph.out_edges(global_map_entry):
                 if oedge.src_conn == out_connector:
                     out_edge = oedge
-            # do memlet propagation
+                    oedge_counter += 1
 
-            memlet_out = propagate_memlet(dfg_state = graph,
-                                          memlet = out_edge.data,
-                                          scope_node = global_map_entry,
-                                          union_inner_edges = True)
-            # override number of accesses
-            in_edge.data.volume = memlet_out.volume
-            in_edge.data.subset = memlet_out.subset
+            # do memlet propagation
+            # if there are several out edges, else there is no need
+
+            if oedge_counter > 1:
+                memlet_out = propagate_memlet(dfg_state = graph,
+                                              memlet = out_edge.data,
+                                              scope_node = global_map_entry,
+                                              union_inner_edges = True)
+                # override number of accesses
+                in_edge.data.volume = memlet_out.volume
+                in_edge.data.subset = memlet_out.subset
 
         ### create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
