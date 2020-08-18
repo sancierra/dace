@@ -1835,7 +1835,8 @@ class SDFG(OrderedDiGraph):
                                   states=None,
                                   validate=True,
                                   validate_all=False,
-                                  strict=True):
+                                  strict=True,
+                                  options=None):
         """ Applies a series of transformations on the SDFG for it to
             generate GPU code.
             :note: It is recommended to apply redundant array removal
@@ -1848,6 +1849,7 @@ class SDFG(OrderedDiGraph):
 
         self.apply_transformations(GPUTransformSDFG,
                                    validate=validate,
+                                   options=options,
                                    validate_all=validate_all,
                                    strict=strict,
                                    states=states)
