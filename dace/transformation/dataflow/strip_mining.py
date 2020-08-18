@@ -143,6 +143,9 @@ class StripMining(pattern_matching.Transformation):
                            default="",
                            desc="Stride between two tiles of the "
                            "strip-mined dimension")
+    tile_offset = Property(dtype=str,
+                           default="0",
+                           desc="Tile stride offset (negative)")
     divides_evenly = Property(dtype=bool,
                               default=False,
                               desc="Tile size divides dimension range evenly?")
@@ -229,6 +232,7 @@ class StripMining(pattern_matching.Transformation):
         tile_size = self.tile_size
         divides_evenly = self.divides_evenly
         strided = self.strided
+        offset = self.tile_offset
 
         tile_stride = self.tile_stride
         if tile_stride is None or len(tile_stride) == 0:
@@ -261,18 +265,42 @@ class StripMining(pattern_matching.Transformation):
             td_from_new = symbolic.pystr_to_symbolic(new_dim)
             td_to_new_approx = td_to
             td_step = symbolic.pystr_to_symbolic(tile_size)
-        else:
+
+        elif offset == '0':
             td_from_new = symbolic.pystr_to_symbolic(
                 '%s + %s * %s' %
                 (symbolic.symstr(td_from), str(new_dim), tile_stride))
             td_to_new_exact = symbolic.pystr_to_symbolic(
-                'min(%s + 1, %s + %s * %s + %s) - 1' %
+                'min(%s, %s + %s * %s + %s) - 1' %
                 (symbolic.symstr(td_to), symbolic.symstr(td_from), tile_stride,
                  str(new_dim), tile_size))
             td_to_new_approx = symbolic.pystr_to_symbolic(
                 '%s + %s * %s + %s - 1' %
                 (symbolic.symstr(td_from), tile_stride, str(new_dim),
                  tile_size))
+
+        else:
+            # include offset
+            td_from_new_exact = symbolic.pystr_to_symbolic(
+                'max(%s,%s + %s * %s - %s)' %
+                (symbolic.symstr(td_from), symbolic.symstr(td_from), tile_stride,
+                str(new_dim), offset))
+            td_from_new_approx = symbolic.pystr_to_symbolic(
+                '%s + %s * %s - %s ' %
+                (symbolic.symstr(td_from), tile_stride, str(new_dim),
+                offset))
+            td_from_new = dace.symbolic.SymExpr(td_from_new_exact, td_from_new_approx)
+
+            td_to_new_exact = symbolic.pystr_to_symbolic(
+                'min(%s, %s + %s * %s + %s - %s) -1' %
+                (symbolic.symstr(td_to), symbolic.symstr(td_from), tile_stride,
+                str(new_dim), tile_size, offset))
+            td_to_new_approx = symbolic.pystr_to_symbolic(
+                '%s + %s * %s + %s - %s - 1' %
+                (symbolic.symstr(td_from), tile_stride, str(new_dim),
+                tile_size, offset))
+
+
         if divides_evenly or strided:
             td_to_new = td_to_new_approx
         else:
