@@ -227,6 +227,9 @@ class Range(Subset):
     def max_element_approx(self):
         return [_approx(x[1]) for x in self.ranges]
 
+    def min_element_approx(self):
+        return [_approx(x[0]) for x in self.ranges]
+
     def coord_at(self, i):
         """ Returns the offseted coordinates of this subset at
             the given index tuple.
@@ -670,6 +673,9 @@ class Indices(Subset):
         return self.indices
 
     def max_element_approx(self):
+        return [_approx(ind) for ind in self.indices]
+
+    def min_element_approx(self):
         return [_approx(ind) for ind in self.indices]
 
     def data_dims(self):
