@@ -1130,11 +1130,11 @@ class SDFGState(OrderedMultiDiConnectorGraph, StateGraphView):
 
         # Create appropriate dictionaries from inputs
         tinputs = {
-            k: self.parent.arrays[v.data].dtype
+            k: None
             for k, v in inputs.items()
         }
         toutputs = {
-            k: self.parent.arrays[v.data].dtype
+            k: None
             for k, v in outputs.items()
         }
 
@@ -1526,6 +1526,9 @@ class SDFGState(OrderedMultiDiConnectorGraph, StateGraphView):
                     if propagate:
                         cur_memlet = propagate_memlet(self, cur_memlet, snode,
                                                       True)
+        # Try to initialize memlets
+        for edge in edges:
+            edge.data.try_initialize(self.parent, self, edge)
 
     # DEPRECATED FUNCTIONS
     ######################################
