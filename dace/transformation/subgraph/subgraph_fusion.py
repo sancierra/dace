@@ -80,9 +80,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                          default = "local",
                                          choices = ["auto", "shared", "local", "default"])
 
-    experimental_mode = Property(desc = "Unlock Experimental Bonus Features",
-                                 dtype = bool,
-                                 default = False)
 
     @staticmethod
     def match(sdfg, subgraph):
