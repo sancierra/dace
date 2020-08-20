@@ -48,13 +48,13 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                                "transients to in CPU environment",
                                         dtype = str,
                                         default = "default",
-                                        choices = ["auto", "register", "heap", "threadlocal", "default"])
+                                        choices = ["register", "heap", "threadlocal", "default"])
 
     cuda_transient_allocation = Property(desc = "Storage Location to push"
                                                 "transients to in GPU environment",
                                          dtype = str,
                                          default = "local",
-                                         choices = ["auto", "shared", "local", "default"])
+                                         choices = ["shared", "local", "default"])
 
 
     @staticmethod
@@ -254,11 +254,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         return True
 
-    def storage_type_inference(self, node):
-        ''' on a fused graph, looks in which memory intermediate node
-            needs to be pushed to
-        '''
-        raise NotImplementedError("WIP")
 
     @staticmethod
     def get_invariant_dimensions(sdfg, graph, map_entries, map_exits, node):
@@ -790,8 +785,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         transient_to_transform.storage = dtypes.StorageType.GPU_Shared
                     if self.cuda_transient_allocation == 'default':
                         transient_to_transform.storage = dtypes.StorageType.Default
-                    if self.cuda_transient_allocation == 'auto':
-                        transient_to_transform.storage = self.storage_type_inference(node)
+
                 else:
                     if self.cpu_transient_allocation == 'register':
                         transient_to_transform.storage = dtypes.StorageType.Register
@@ -801,8 +795,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         transient_to_transform.storage = dtypes.StorageType.CPU_Heap
                     if self.cpu_transient_allocation == 'default':
                         transient_to_transform.storage = dtypes.StorageType.Default
-                    if self.cpu_transient_allocation == 'auto':
-                        transient_to_transform.storage = self.storage_type_inference(node)
 
 
             else:
