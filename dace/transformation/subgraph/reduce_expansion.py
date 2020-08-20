@@ -270,10 +270,10 @@ class ReduceExpansion(pattern_matching.Transformation):
         if not shortcut:
 
             reduction_type = detect_reduction_type(wcr)
-            if reduction_type in ReduceExpansion.reduction_type_update:
+            try:
                 code = ReduceExpansion.reduction_type_update[reduction_type]
-            else:
-                raise RuntimeError("Not yet implemented for custom reduction")
+            except KeyError:
+                raise NotImplementedError("Not yet implemented for custom reduction")
 
 
             new_tasklet = graph.add_tasklet(name = "reduction_transient_update",

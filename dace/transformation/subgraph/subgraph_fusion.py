@@ -175,7 +175,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     subset_to_add.pop(dims_to_discard)
                     upper_subsets.add(subset_to_add)
                 else:
-                    raise NotImplementedError("TODO (*)")
+                    raise NotImplementedError("TODO (*) Not implemented yet")
 
             # find lower_subsets
             for out_edge in graph.out_edges(node):
@@ -278,7 +278,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     if ssbs1 != ssbs2:
                         variate_dimensions.add(idx)
             else:
-                raise NotImplementedError("TODO(*)")
+                raise NotImplementedError("TODO(*) Not implemented yet")
 
             if subset_length < 0:
                 subset_length = other_subset.dims()
@@ -303,8 +303,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
     def redirect_edge(self, graph, edge, new_src = None, new_src_conn = None ,
                                          new_dst = None, new_dst_conn = None, new_data = None ):
-        if not(new_src or new_dst) or new_src and new_dst:
-            raise RuntimeError("Redirect Edge has been used wrongly")
+        
         data = new_data if new_data else edge.data
         if new_src:
             ret = graph.add_edge(new_src, new_src_conn, edge.dst, edge.dst_conn, data)
@@ -508,7 +507,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             out_nodes.add(current_node)
                 for e in graph.in_edges(current_node):
                     if e.src not in map_exits:
-                        raise NotImplementedError("TODO: Not implemented yet (*)")
+                        raise NotImplementedError("TODO: Not implemented yet.")
 
         # any intermediate_nodes currently in in_nodes shouldnt be there
         in_nodes -= intermediate_nodes
