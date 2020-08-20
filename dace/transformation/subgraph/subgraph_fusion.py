@@ -21,33 +21,9 @@ import dace.libraries.standard as stdlib
 from collections import defaultdict
 from itertools import chain
 
-'''
-Current State:
+# For current state and TODOs:
+# see https://docs.google.com/document/d/1B9PIRupHbbNB2R6Pnmu_Uau6JSrQ8wlNfZ8FBj0wSDw/edit?usp=sharing
 
-- revamp                                [OK]
-- other_subset fix                      [OK]
-- match()                               [OK]
-- StorageType Inference                 [OK]   cancelled
-- cover special case:
-  intermediate nodes with
-  incoming edges from outside           (*) (TODO)
-  the subgraph
-- counter / subset in_dict fix          [OK]
-- maybe implement: for nodes that are
-  in intermediate_nodes and out_nodes,
-  don't create new out_transient based  (**) (TODO)
-  on the order of the access nodes
-  to that data in the fused subgraph
-- rewrite tests                         [OK]
-- add more (+GPU) tests                 [OK]
-- fix ugly subset check mess in match   ![TODO]
-- print warning fornow if subset
-  check is ambiguous                    [OK]
-- docstrings                            [OK]
-- fix unittests                         [OK]
-- stencils                              next
-
-'''
 
 @make_properties
 class SubgraphFusion(pattern_matching.SubgraphTransformation):
@@ -215,9 +191,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             lower_subsets.add(subset_to_add)
 
 
-            #print("upper_subsets:", upper_subsets)
-            #print("lower_subsets:", lower_subsets)
-
             upper_iter = iter(upper_subsets)
             union_upper = next(upper_iter)
 
@@ -308,8 +281,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 for (idx, (ssbs1, ssbs2)) \
                     in enumerate(zip(in_edge.data.subset, other_subset)):
                     if ssbs1 != ssbs2:
-                        #print("(Up) Added to dims_to_inspect:")
-                        #print(sbs1,"|", sbs2, ":", in_edge.src, "->", in_edge.dst)
                         variate_dimensions.add(idx)
             else:
                 raise NotImplementedError("TODO(*)")
@@ -328,8 +299,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                                        else other_edge.data.other_subset
                         for (idx, (ssbs1, ssbs2)) in enumerate(zip(out_edge.data.subset, other_subset)):
                             if ssbs1 != ssbs2:
-                                    #print("(Down) Added to dims_to_inspect:")
-                                    #print(sbs1,"|", sbs2, ":", out_edge.src, "->", out_edge.dst)
                                     variate_dimensions.add(idx)
                         assert other_subset.dims() == subset_length
 
@@ -436,7 +405,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     # do a check -- we want the same result for each
                     # node containing the same data
                     if not inv_dims == invariant_dimensions[node]:
-                        print(f"WARNING: Invariant dimensions differ for {node.data}")
+                        print(f"WARNING: Data dimensions that are not propagated through differ"
+                                "across multiple instances of access nodes for data {node.data}"
+                                "Please check whether all memlets to AccessNodes containing"
+                                "this data are sound.")
                         invariant_dimensions[data] |= inv_dims
 
                 else:
@@ -558,10 +530,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         global_map_entry = nodes.MapEntry(global_map)
         global_map_exit  = nodes.MapExit(global_map)
 
-        ### assign correct schedule to global_map_entry
-        schedule = map_entries[0].schedule
-        if not all([entry.schedule == schedule for entry in map_entries]):
-            raise RuntimeError("Not all the maps have the same schedule. Cannot fuse.")
 
         global_map_entry.schedule = schedule
         graph.add_node(global_map_entry)
@@ -587,7 +555,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         (subgraph_contains_data, transients_created, invariant_dimensions) = node_info
         if self.debug:
-            print("SubgraphFusion::Intermediate_nodes: subgraph_contains_data")
+            print("SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict")
             print(subgraph_contains_data)
 
         inconnectors_dict = {}
@@ -754,7 +722,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         # for later memlet adjustments later
         min_offsets = dict()
 
-
         ### do one pass to augment all transient arrays
         data_intermediate = set([node.data for node in intermediate_nodes])
         for data_name in data_intermediate:
@@ -817,7 +784,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                 transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
 
                 if schedule == dtypes.ScheduleType.GPU_Device:
-                    print("Global Schedule: GPU")
                     if self.cuda_transient_allocation == 'local':
                         transient_to_transform.storage = dtypes.StorageType.Register
                     if self.cuda_transient_allocation == 'shared':
@@ -827,7 +793,6 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     if self.cuda_transient_allocation == 'auto':
                         transient_to_transform.storage = self.storage_type_inference(node)
                 else:
-                    print("Global Schedule: CPU")
                     if self.cpu_transient_allocation == 'register':
                         transient_to_transform.storage = dtypes.StorageType.Register
                     if self.cpu_transient_allocation == 'threadlocal':
