@@ -8,37 +8,44 @@ import numpy as np
 import unittest
 import sys
 
-from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps, fusion
 from dace.transformation.subgraph import MultiExpansion, SubgraphFusion
+
+from typing import Union, List
+from dace.sdfg.graph import SubgraphView
+from dace.transformation.subgraph.helpers import *
 
 N = dace.symbol('N')
 N.set(1000)
+
+
 @dace.program
-def TEST(A: dace.float64[N], B: dace.float64[N], C:dace.float64[N], D:dace.float64[N]):
+def TEST(A: dace.float64[N], B: dace.float64[N], C: dace.float64[N],
+         D: dace.float64[N]):
 
-    for i in dace.map[0:N//2]:
+    for i in dace.map[0:N // 2]:
         with dace.tasklet:
-            in1 << A[2*i]
-            in2 << A[2*i+1]
-            out >> C[2*i]
+            in1 << A[2 * i]
+            in2 << A[2 * i + 1]
+            out >> C[2 * i]
 
             out = in1 + in2
 
-    for i in dace.map[0:N//2]:
+    for i in dace.map[0:N // 2]:
         with dace.tasklet:
-            in1 << B[2*i]
-            in2 << B[2*i+1]
-            out >> C[2*i+1]
+            in1 << B[2 * i]
+            in2 << B[2 * i + 1]
+            out >> C[2 * i + 1]
 
             out = in1 + in2
 
-    for i in dace.map[0:N//2]:
+    for i in dace.map[0:N // 2]:
         with dace.tasklet:
-            in1 << C[2*i:2*i+2]
-            out1 >> D[2*i:2*i+2]
+            in1 << C[2 * i:2 * i + 2]
+            out1 >> D[2 * i:2 * i + 2]
 
-            out1[0] = in1[0]*in1[0]
-            out1[1] = in1[1]*in1[1]
+            out1[0] = in1[0] * in1[0]
+            out1[1] = in1[1] * in1[1]
+
 
 def test_quantitatively(sdfg):
     graph = sdfg.nodes()[0]
@@ -51,8 +58,6 @@ def test_quantitatively(sdfg):
 
     csdfg = sdfg.compile()
     csdfg(A=A, B=B, C=C1, D=D1, N=N)
-
-    expand_reduce(sdfg, graph)
 
     subgraph = SubgraphView(graph, [node for node in graph.nodes()])
     expansion = MultiExpansion()
@@ -69,13 +74,13 @@ def test_quantitatively(sdfg):
     assert np.allclose(D1, D2)
 
 
-
 if __name__ == '__main__':
     sdfg = TEST.to_sdfg()
     from dace.transformation.interstate.state_fusion import StateFusion
     sdfg.apply_transformations_repeated(StateFusion)
     # merge the C array
-    C1 = None; C2 = None
+    C1 = None
+    C2 = None
     for node in sdfg.nodes()[0].nodes():
         if isinstance(node, dace.sdfg.nodes.AccessNode) and node.data == 'C':
             if not C1:
