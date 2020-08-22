@@ -271,7 +271,7 @@ class StripMining(pattern_matching.Transformation):
                 '%s + %s * %s' %
                 (symbolic.symstr(td_from), str(new_dim), tile_stride))
             td_to_new_exact = symbolic.pystr_to_symbolic(
-                'min(%s, %s + %s * %s + %s) - 1' %
+                'min(%s + 1, %s + %s * %s + %s) - 1' %
                 (symbolic.symstr(td_to), symbolic.symstr(td_from), tile_stride,
                  str(new_dim), tile_size))
             td_to_new_approx = symbolic.pystr_to_symbolic(
@@ -292,7 +292,7 @@ class StripMining(pattern_matching.Transformation):
             td_from_new = dace.symbolic.SymExpr(td_from_new_exact, td_from_new_approx)
 
             td_to_new_exact = symbolic.pystr_to_symbolic(
-                'min(%s, %s + %s * %s + %s - %s) -1' %
+                'min(%s + 1, %s + %s * %s + %s - %s) -1' %
                 (symbolic.symstr(td_to), symbolic.symstr(td_from), tile_stride,
                 str(new_dim), tile_size, offset))
             td_to_new_approx = symbolic.pystr_to_symbolic(
