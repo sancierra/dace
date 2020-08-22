@@ -137,4 +137,4 @@ if __name__ == '__main__':
     N.set(20)
     T.set(1)
     sdfg.specialize({'N':N})
-    run(sdfg, TILE_SIZE, compile = True, gpu = False, view = True, sequential = False)
+    run(sdfg, TILE_SIZE, compile = True, gpu = False, view = False, sequential = True)
