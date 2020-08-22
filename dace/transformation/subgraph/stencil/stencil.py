@@ -39,7 +39,7 @@ def init_array(A):
     n = N.get()
     for i in range(n):
         for j in range(n):
-            A[i,j] = datatype(max(i-2,0) *(j+2) + 2)/n
+            A[i,j] = datatype(i * j + 2)/n
 
 
 def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (1,1), sequential = False):
@@ -65,7 +65,7 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (1,1), sequential = F
          sdfg.nodes().index(graph), d2, 0)
 
     t1.strides    = (tile_size, tile_size)
-    t1.tile_sizes = (tile_size, tile_size) ## !!
+    t1.tile_sizes = (tile_size + 2, tile_size + 2) ## !!
     t1.strides_offset = tile_offsets
 
     t2.strides    = (tile_size, tile_size)
@@ -115,17 +115,17 @@ def run(sdfg, tile_size, view = True, compile = False, gpu = False, sequential =
     # establish baseline
     R1 = evaluate(sdfg, graph, view, compile)
 
-    pre_tiling(sdfg, graph, tile_size, tile_offsets = (0,0), sequential = sequential)
+    pre_tiling(sdfg, graph, tile_size, sequential = sequential)
     R2 = evaluate(sdfg, graph, view, compile)
 
-    #fusion(sdfg, graph)
-    #R3 = evaluate(sdfg, graph, view, compile)
+    fusion(sdfg, graph)
+    R3 = evaluate(sdfg, graph, view, compile)
 
     if compile:
         #print(R1)
         #print(R2)
         assert np.allclose(R1,R2)
-        #assert np.allclose(R1,R3)
+        assert np.allclose(R1,R3)
 
 
 
@@ -137,4 +137,4 @@ if __name__ == '__main__':
     N.set(20)
     T.set(1)
     sdfg.specialize({'N':N})
-    run(sdfg, TILE_SIZE, compile = True, gpu = False, view = True, sequential = True)
+    run(sdfg, TILE_SIZE, compile = True, gpu = False, view = True, sequential = False)
