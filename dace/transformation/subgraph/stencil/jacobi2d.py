@@ -108,8 +108,8 @@ def pre_tiling(sdfg, graph, tile_size = 64):
          sdfg.nodes().index(graph), d2, 0)
 
     t1.strides    = (tile_size, tile_size)
-    t1.tile_sizes = (tile_size + 2, tile_size + 2) ## !!
-    t1.strides_offset = (1,1)
+    t1.tile_sizes = (tile_size, tile_size) ## !!
+    t1.strides_offset = (0,0)
 
     t2.strides    = (tile_size, tile_size)
     t2.tile_sizes = (tile_size, tile_size)
@@ -117,7 +117,7 @@ def pre_tiling(sdfg, graph, tile_size = 64):
     t1.apply(sdfg)
     t2.apply(sdfg)
 
-def fuse(sdfg, graph, view = False, compile = False, gpu = False):
+def run(sdfg, graph, view = False, compile = False, gpu = False):
     if gpu:
         sdfg.apply_gpu_transformations(options={'sequential_innermaps': False})
         sdfg.apply_strict_transformations()
@@ -139,19 +139,38 @@ def fuse(sdfg, graph, view = False, compile = False, gpu = False):
         csdfg(A=A1,N=N,tsteps=tsteps)
         print(np.linalg.norm(A))
 
+    pre_tiling(sdfg, graph)
+    if view:
+        sdfg.view()
+    if compile:
+        N.set(200)
+        tsteps.set(10)
+        sdfg.propagate = False
+        A = np.zeros([N.get(), N.get()], dtype = np.float64)
+        init_array(A)
+        A2 = A.copy()
+        csdfg = sdfg.compile()
+        csdfg(A=A2,N=N,tsteps=tsteps)
+        print(np.linalg.norm(A))
+
+    if compile:
+        assert np.allcose(A1, A2)
     fusion(sdfg, graph)
 
     if view:
         sdfg.view()
 
     if compile:
-        A2 = A.copy()
+        A3 = A.copy()
         csdfg = sdfg.compile()
-        csdfg(A=A2,N=N,tsteps=tsteps)
+        csdfg(A=A3,N=N,tsteps=tsteps)
+
         print(np.linalg.norm(A1))
         print(np.linalg.norm(A2))
-        assert np.allclose(A1, A2)
+        print(np.linalg.norm(A3))
+        assert np.allclose(A1, A3)
         print('PASS')
+
 
 
 
@@ -165,5 +184,4 @@ if __name__ == '__main__':
             graph = g
             break
 
-    pre_tiling(sdfg, graph)
-    fuse(sdfg, graph, compile = False, gpu = True, view = False)
+    run(sdfg, graph, compile = True, gpu = False, view = False)
