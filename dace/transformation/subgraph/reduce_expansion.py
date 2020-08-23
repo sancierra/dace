@@ -34,24 +34,25 @@ class ReduceExpansion(pattern_matching.Transformation):
 
     _reduce = stdlib.Reduce()
 
-    debug = Property(desc="Debug Info", dtype=bool, default=True)
+    debug = Property(desc="Debug Info", dtype=bool, default=False)
 
-    create_in_transient = Property(desc="Create local in-transient in"
-                                   "shared memory",
+    create_in_transient = Property(desc="Create local in-transient"
+                                        "in registers",
                                    dtype=bool,
                                    default=False)
 
     create_out_transient = Property(desc="Create local out-transient"
-                                    "in register",
+                                         "in registers",
                                     dtype=bool,
                                     default=False)
 
     reduce_implementation = Property(
-        desc="Reduce implementation of inner reduce",
+        desc="Reduce implementation of inner reduce. If specified,"
+             "overrides any existing implementations",
         dtype=str,
-        default='adopt',
+        default=None,
         choices=[
-            'adopt', 'pure', 'OpenMP', 'CUDA (device)', 'CUDA (block)',
+            'pure', 'OpenMP', 'CUDA (device)', 'CUDA (block)',
             'CUDA (block allreduce)', 'CUDA (warp)', 'CUDA (warp allreduce)'
         ],
         allow_none=True)
@@ -243,9 +244,9 @@ class ReduceExpansion(pattern_matching.Transformation):
 
             # push to shared memory / default
             nsdfg.sdfg.data(in_transient_node_inner.data
-                            ).storage = dtypes.StorageType.Default
+                            ).storage = dtypes.StorageType.Register
 
-        # first, inline fuse back our NSDFG
+        # first, inline fuse back our nested SDFG
         from dace.transformation.interstate import InlineSDFG
         inline_sdfg = InlineSDFG(
             sdfg.sdfg_list.index(sdfg),
@@ -324,7 +325,7 @@ class ReduceExpansion(pattern_matching.Transformation):
         # FORNOW: choose default schedule and implementation
         new_schedule = dtypes.ScheduleType.Default
         new_implementation = self.reduce_implementation \
-                             if self.reduce_implementation != 'adopt' \
+                             if self.reduce_implementation is not None \
                              else implementation
         new_axes = dcpy(reduce_node.axes)
 

@@ -27,9 +27,10 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
     Map access variables and memlets are changed accordingly
     '''
 
-    debug = Property(dtype=bool, desc="Debug Mode", default=True)
+    debug = Property(dtype=bool, desc="Debug Mode", default=False)
     sequential_innermaps = Property(dtype=bool,
-                                    desc="Sequential innermaps",
+                                    desc="Make all inner maps that are"
+                                         "created during expansion sequential",
                                     default=False)
 
     @staticmethod
@@ -45,7 +46,7 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
                 return False
 
         # next, get all the maps
-        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        maps = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
         brng = helpers.common_map_base_ranges(maps)
 
         # if leq than one map found -> fail
@@ -64,7 +65,7 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
         graph = subgraph.graph
 
         # next, get all the base maps and expand
-        maps = helpers.get_lowest_scope_maps(sdfg, graph, subgraph)
+        maps = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
         self.expand(sdfg, graph, maps, map_base_variables=map_base_variables)
 
     def expand(self, sdfg, graph, map_entries, map_base_variables=None):
@@ -250,5 +251,3 @@ class MultiExpansion(pattern_matching.SubgraphTransformation):
                                       memlet=edge.data,
                                       src_conn=edge.src_conn,
                                       dst_conn=edge.dst_conn)
-
-        return

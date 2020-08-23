@@ -12,6 +12,8 @@ import dace.dtypes as dtypes
 from dace.codegen.targets.framecode import set_default_schedule_and_storage_types
 import dace.transformation.subgraph.pipeline as pipeline
 from dace.sdfg.graph import SubgraphView
+from typing import List, Union
+
 
 import dace.libraries.standard as stdlib
 
@@ -54,8 +56,8 @@ def softmax(X_in: dace_dtype[H, B, SN, SM]):
 
 sdfg = softmax.to_sdfg()
 sdfg.apply_strict_transformations()
-H.set(10); B.set(10); SN.set(20); SM.set(20)
-A = np.ndarray((H.get(), B.get(), SN.get(), SM.get()), dtype = np.float32)
+H = 10; B = 10; SN = 20; SM = 20
+A = np.ndarray((H, B, SN, SM), dtype = np.float32)
 
 
 def get_partition(sdfg, graph):
@@ -83,7 +85,7 @@ def get_partition(sdfg, graph):
 
 def test_pipeline():
 
-    X_in = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
+    X_in = np.random.rand(H, B, SN, SM).astype(np.float32)
 
     csdfg = sdfg.compile()
     res1 = csdfg(X_in = X_in, H=H, B=B, SN=SN, SM=SM)

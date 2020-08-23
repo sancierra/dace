@@ -1,9 +1,10 @@
 import dace
 from dace.transformation.subgraph import SubgraphFusion
+import dace.transformation.subgraph.helpers as helpers
 from dace.sdfg.graph import SubgraphView
-from dace.transformation.subgraph.helpers import *
 import dace.sdfg.nodes as nodes
 import numpy as np
+from typing import List, Union
 
 N = dace.symbol('N')
 
@@ -22,7 +23,7 @@ def fusion(sdfg: dace.SDFG,
         setattr(map_fusion, property, val)
 
     for sg in subgraph:
-        map_entries = get_lowest_scope_maps(sdfg, graph, sg)
+        map_entries = helpers.get_highest_scope_maps(sdfg, graph, sg)
         # remove map_entries and their corresponding exits from the subgraph
         # already before applying transformation
         if isinstance(sg, SubgraphView):
@@ -37,7 +38,7 @@ def fusion(sdfg: dace.SDFG,
 
 
 @dace.program
-def TEST(A: dace.float64[N], C: dace.float64[N]):
+def test_program(A: dace.float64[N], C: dace.float64[N]):
     B = np.ndarray(shape=[N], dtype=np.float64)
     for i in dace.map[0:N]:
         with dace.tasklet:
@@ -53,21 +54,22 @@ def TEST(A: dace.float64[N], C: dace.float64[N]):
 
 
 if __name__ == "__main__":
-    N.set(1000)
+    N.set(50)
 
-    sdfg = TEST.to_sdfg()
+    sdfg = test_program.to_sdfg()
+    sdfg.apply_gpu_transformations()
     state = sdfg.nodes()[0]
 
     A = np.random.rand(N.get()).astype(np.float64)
-    B = np.random.rand(N.get()).astype(np.float64)
     C1 = np.random.rand(N.get()).astype(np.float64)
     C2 = np.random.rand(N.get()).astype(np.float64)
 
     csdfg = sdfg.compile()
-    csdfg(A=A, B=B, C=C1, N=N)
-
+    csdfg(A=A, C=C1, N=N)
     fusion(sdfg, state)
     csdfg = sdfg.compile()
-    csdfg(A=A, B=B, C=C2, N=N)
+    csdfg(A=A, C=C2, N=N)
 
+    print(np.linalg.norm(C1))
+    print(np.linalg.norm(C2))
     assert np.allclose(C1, C2)

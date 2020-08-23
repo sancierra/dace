@@ -120,7 +120,7 @@ def expand_maps(sdfg: dace.SDFG,
         start = timeit.default_timer()
 
     for sg in subgraph:
-        map_entries = get_lowest_scope_maps(sdfg, graph, sg)
+        map_entries = get_highest_scope_maps(sdfg, graph, sg)
         start = timeit.default_timer()
         trafo_expansion.expand(sdfg, graph, map_entries)
 
@@ -159,7 +159,7 @@ def fusion(sdfg: dace.SDFG,
         start = timeit.default_timer()
 
     for sg in subgraph:
-        map_entries = get_lowest_scope_maps(sdfg, graph, sg)
+        map_entries = get_highest_scope_maps(sdfg, graph, sg)
         # remove map_entries and their corresponding exits from the subgraph
         # already before applying transformation
         if isinstance(sg, SubgraphView):
@@ -194,7 +194,7 @@ def go(sdfg: dace.SDFG,
     expand_maps(sdfg, graph, subgraph)
     fusion(sdfg, graph, subgraph)
 
-def get_lowest_scope_maps(sdfg, graph, subgraph = None):
+def get_highest_scope_maps(sdfg, graph, subgraph = None):
     subgraph = graph if not subgraph else subgraph
     scope_dict = graph.scope_dict()
 

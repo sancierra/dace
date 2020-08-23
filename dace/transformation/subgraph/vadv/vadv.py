@@ -361,7 +361,7 @@ def test_fuse_all_state_push(view = True):
     scope_dict = graph.scope_dict(node_to_children=True)
     print("SCOPE_DICT", scope_dict)
 
-    map_entries = subgraph.helpers.get_lowest_scope_maps(vadv_unfused, graph)
+    map_entries = subgraph.helpers.get_highest_scope_maps(vadv_unfused, graph)
 
     for parent in scope_dict.keys():
         if parent in map_entries:
