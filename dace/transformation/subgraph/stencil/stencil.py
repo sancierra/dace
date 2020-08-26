@@ -131,7 +131,7 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     sdfg.specialize({'N':N})
     #propagate_memlets_sdfg(sdfg)
     sdfg.propagate = False
-    TILE_SIZE = 4
+    TILE_SIZE = 8
     N.set(13)
     T.set(1)
     sdfg.specialize({'N':N})
@@ -199,4 +199,4 @@ if __name__ == '__main__':
     TILE_SIZE = 8
     N.set(21)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = False, view = False, sequential = True, transient = False)
+    run(TILE_SIZE, compile = False, gpu = False, view = True, sequential = False, transient = False)

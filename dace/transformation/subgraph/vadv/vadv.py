@@ -44,8 +44,7 @@ def test_fuse_all(view = True):
         vadv_unfused.view()
     graph = vadv_unfused.nodes()[0]
     subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
-    fusion = subgraph.SubgraphFusion()
-    fusion.apply(vadv_unfused, subgraph)
+    fusion(vadv_unfused, graph)
     if view:
         vadv_unfused.view()
 
@@ -162,8 +161,8 @@ def test_fuse_all_numerically(gpu = False, view = False):
     utens_stage = np.random.rand(I, J, K).astype(np.float32)
     u_pos = np.random.rand(I, J, K).astype(np.float32)
     utens = np.random.rand(I, J, K).astype(np.float32)
-    
-    
+
+
     args1 = dict(_gt_loc__dtr_stage=np.float32(1.424242424242),
                 I=np.int32(I),
                 J=np.int32(J),
@@ -185,19 +184,19 @@ def test_fuse_all_numerically(gpu = False, view = False):
 
 
     fusion(sdfg, graph)
-    
+
     sdfg._name = 'fused'
     csdfg = sdfg.compile(optimizer = False)
     csdfg(**args2)
     if view:
         sdfg.view()
-    
+
 
     assert np.allclose(args1['utens_stage'], args2['utens_stage'])
     print(np.linalg.norm(utens_stage))
     print("__________________")
     print(np.linalg.norm(args1['utens_stage']))
-    print(np.linalg.norm(args2['utens_stage'])) 
+    print(np.linalg.norm(args2['utens_stage']))
     if gpu:
         print("GPU PASS")
     else:
@@ -341,8 +340,8 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 
 #view_all()
 #test_matching()
-#test_fuse_all()
-test_fuse_all_numerically(view = False, gpu = True )
+test_fuse_all()
+#test_fuse_all_numerically(view = False, gpu = True )
 #test_fuse_partial_numerically(view = False, gpu = False)
 
 #test_fuse_partial()
