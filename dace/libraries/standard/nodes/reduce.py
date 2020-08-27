@@ -636,16 +636,19 @@ class ExpandReduceCUDABlock(pm.ExpandTransformation):
 class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
     """ Implements the ExpandReduceCUDABlockAll transformation.
         Takes a cuda block reduce node, transforms it to a block reduce node,
-        warps it in outer maps and creates an if-output of thread0
+        wraps it in outer maps and outputs from the root thread
         to a newly created shared memory container
     """
 
     environments = [CUDA]
 
+<<<<<<< HEAD
     collapse = Property(desc="Collapse Reduction for better viewability",
                         dtype=bool,
                         default=False)
 
+=======
+>>>>>>> upstream/master
     @staticmethod
     def redirect_edge(graph,
                       edge,
@@ -752,7 +755,7 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         sdfg.data(out_transient.data).storage = dtypes.StorageType.Register
 
         # hack: swap edges as local_storage does not work correctly here
-        # TODO: NOTE: If local_storage ever changes, this will not work any more
+        # as subsets and data get assigned wrongly (should be swapped)
         e1 = graph.in_edges(out_transient)[0]
         e2 = graph.out_edges(out_transient)[0]
         e1.data.data = dcpy(e2.data.data)
@@ -761,7 +764,7 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         ### add an if tasket and diverge
         code = 'if '
         for (i, param) in enumerate(new_entry.map.params):
-            code += (param + '==0')
+            code += (param + '== 0')
             if i < len(axes) - 1:
                 code += ' and '
         code += ':\n'
@@ -790,9 +793,6 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         ### set reduce_node axes to all (needed)
         reduce_node.axes = None
 
-        if ExpandReduceCUDABlockAll.collapse:
-            #new_entry.is_collapsed = True
-            pass
         # fill scope connectors, done.
         sdfg.fill_scope_connectors()
 
