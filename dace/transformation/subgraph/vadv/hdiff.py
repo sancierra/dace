@@ -1,9 +1,8 @@
 import dace
 import math
 import numpy as np
-from dace.transformation.dataflow import MapFission
-from dace.transformation.dataflow import MapTiling
-
+from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
+from dace.transformation.subgraph import pipeline
 
 def get_sdfg():
     sdfg = dace.sdfg.SDFG.from_file('hdiff.sdfg')
@@ -26,19 +25,37 @@ def apply_pre_tiling(sdfg, tile_size = 32):
     graph = sdfg.nodes()[0]
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node
+            nsdfg = node.sdfg
             ngraph = nsdfg.nodes()[0]
     for node in ngraph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
-                        and node.lable != 'kmap_fission':
+                        and node.label != 'kmap_fission':
             subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
             transformation = MapTiling(0, 0, subgraph, 0)
             transformation.tile_sizes = (tile_size, 0, tile_size)
+            transformation.strides_offset = (1,1)
+            transformation.apply(nsdfg)
+    return
+
+
+def collapse_outer_maps(sdfg):
+    graph = sdfg.nodes()[0]
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            nsdfg = node.sdfg
+            ngraph = nsdfg.nodes()[0]
+    for outer_node in ngraph.nodes():
+        if isinstance(outer_node, dace.sdfg.nodes.MapEntry)\
+                    and outer_node.label == 'kmap_fission':
+            inner_node = ngraph.out_edges(outer_node)[0].dst
+            subgraph = \
+                {MapCollapse._outer_map_entry: ngraph.nodes().index(outer_node),
+                 MapCollapse._inner_map_entry: ngraph.nodes().index(inner_node)}
+            transformation = MapCollapse(0,0, subgraph, 0)
             transformation.apply(nsdfg)
 
-    # TODO
 
-def test(compile = True, view = True):
+def test(compile = True, view = True, tile_size = 32):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
@@ -90,6 +107,36 @@ def test(compile = True, view = True):
               I=I, J=J, K=K, halo = halo)
 
 
+    apply_pre_tiling(sdfg, tile_size)
+    if view:
+        sdfg.view()
+    if compile:
+        pp3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        w3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        v3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        u3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp = pp3, w = w3, v = v3, u = u3,
+              I=I, J=J, K=K, halo = halo)
+
+    collapse_outer_maps(sdfg)
+    if view:
+        sdfg.view()
+    if compile:
+        pp4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        w4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        v4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        u4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp = pp4, w = w4, v = v4, u = u4,
+              I=I, J=J, K=K, halo = halo)
+
     if compile:
         print(np.linalg.norm(pp1))
         print(np.linalg.norm(pp2))
@@ -104,6 +151,16 @@ def test(compile = True, view = True):
         assert np.allclose(w1, w2)
         assert np.allclose(v1, v2)
         assert np.allclose(u1, u2)
+
+        assert np.allclose(pp1, pp3)
+        assert np.allclose(w1, w3)
+        assert np.allclose(v1, v3)
+        assert np.allclose(u1, u3)
+
+        assert np.allclose(pp1, pp4)
+        assert np.allclose(w1, w4)
+        assert np.allclose(v1, v4)
+        assert np.allclose(u1, u4)
 
 
 
