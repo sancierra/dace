@@ -2,7 +2,7 @@ import dace
 import math
 import numpy as np
 from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
-from dace.transformation.subgraph import pipeline
+#from dace.transformation.subgraph import pipeline
 
 def get_sdfg():
     sdfg = dace.sdfg.SDFG.from_file('hdiff.sdfg')
