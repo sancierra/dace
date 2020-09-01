@@ -642,13 +642,10 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
 
     environments = [CUDA]
 
-<<<<<<< HEAD
     collapse = Property(desc="Collapse Reduction for better viewability",
                         dtype=bool,
                         default=False)
 
-=======
->>>>>>> upstream/master
     @staticmethod
     def redirect_edge(graph,
                       edge,
