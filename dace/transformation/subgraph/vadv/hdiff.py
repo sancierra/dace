@@ -2,6 +2,7 @@ import dace
 import math
 import numpy as np
 from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
+from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.sdfg.propagation import propagate_memlets_sdfg
 
@@ -19,15 +20,20 @@ def get_sdfg():
 def apply_map_fission(sdfg):
     sdfg.apply_transformations(MapFission)
 
-def apply_pre_tiling(sdfg, tile_size = 32):
-    # get nested sdfg
+def apply_pre_tiling(sdfg, nested = False, tile_size = 32):
     # for every map inside that is not kmap_fission
     # pre_tile it accordingly
     graph = sdfg.nodes()[0]
-    for node in graph.nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node.sdfg
-            ngraph = nsdfg.nodes()[0]
+    ngraph, nsdfg = None, None
+    if nested:
+        for node in graph.nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                nsdfg = node.sdfg
+                ngraph = nsdfg.nodes()[0]
+    else:
+        nsdfg = sdfg
+        ngraph = graph
+
     for node in ngraph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
                         and node.label != 'kmap_fission':
@@ -36,23 +42,31 @@ def apply_pre_tiling(sdfg, tile_size = 32):
                 subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
                 transformation = MapTiling(0, 0, subgraph, 0)
                 transformation.tile_sizes = (tile_size + 2, 1, tile_size + 2)
+                transformation.strides = (tile_size, 1, tile_size)
                 transformation.strides_offset = (0,0)
                 transformation.apply(nsdfg)
             else:
                 subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
                 transformation = MapTiling(0, 0, subgraph, 0)
                 transformation.tile_sizes = (tile_size, 1, tile_size)
+                transformation.strides = (tile_size, 1, tile_size)
                 transformation.strides_offset = (0,0)
                 transformation.apply(nsdfg)
     return
 
 
-def collapse_outer_maps(sdfg):
+def collapse_outer_maps(sdfg, nested = False):
     graph = sdfg.nodes()[0]
-    for node in graph.nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node.sdfg
-            ngraph = nsdfg.nodes()[0]
+    ngraph, nsdfg = None, None
+    if nested:
+        for node in graph.nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                nsdfg = node.sdfg
+                ngraph = nsdfg.nodes()[0]
+    else:
+        nsdfg = sdfg
+        ngraph = graph
+
     for outer_node in ngraph.nodes():
         if isinstance(outer_node, dace.sdfg.nodes.MapEntry)\
                     and outer_node.label == 'kmap_fission':
@@ -63,15 +77,25 @@ def collapse_outer_maps(sdfg):
             transformation = MapCollapse(0,0, subgraph, 0)
             transformation.apply(nsdfg)
 
-def fuse_stencils(sdfg):
+def fuse_stencils(sdfg, gpu, nested = False ):
     graph = sdfg.nodes()[0]
-    for node in graph.nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node.sdfg
-            ngraph = nsdfg.nodes()[0]
-    pipeline.fusion(nsdfg, ngraph)
+    ngraph, nsdfg = None, None
 
-def test(compile = True, compile_all = False, view = True, tile_size = 32):
+    if nested:
+        for node in graph.nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                nsdfg = node.sdfg
+                ngraph = nsdfg.nodes()[0]
+    else:
+        nsdfg = sdfg
+        ngraph = graph
+    if not gpu:
+        # default works
+        pipeline.fusion(nsdfg, ngraph)
+    else:
+        pipeline.fusion(nsdfg, ngraph, transient_allocation = dace.dtypes.StorageType.GPU_Shared)
+
+def test(compile = True, view = True, gpu = False, nested = False, tile_size = 32):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
@@ -94,6 +118,9 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
     sdfg = get_sdfg()
     sdfg._propagate = False
     sdfg.propagate = False
+    if gpu:
+        sdfg.apply_gpu_transformations()
+
     if view:
         sdfg.view()
 
@@ -112,6 +139,8 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
 
 
     apply_map_fission(sdfg)
+    if not nested:
+        sdfg.apply_strict_transformations()
     if view:
         sdfg.view()
     if compile:
@@ -128,7 +157,7 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
               I=I, J=J, K=K, halo = halo)
 
 
-    apply_pre_tiling(sdfg, tile_size)
+    apply_pre_tiling(sdfg, tile_size=tile_size, nested=nested)
     if view:
         sdfg.view()
     if compile:
@@ -143,7 +172,7 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
               pp = pp3, w = w3, v = v3, u = u3,
               I=I, J=J, K=K, halo = halo)
 
-    collapse_outer_maps(sdfg)
+    collapse_outer_maps(sdfg, nested=nested)
     if view:
         sdfg.view()
     if compile:
@@ -158,7 +187,7 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
 
-    fuse_stencils(sdfg)
+    fuse_stencils(sdfg, gpu=gpu, nested=nested)
     if view:
         sdfg.view()
     if compile:
@@ -197,4 +226,4 @@ def test(compile = True, compile_all = False, view = True, tile_size = 32):
 
 
 if __name__ == '__main__':
-    test(view = True, compile = True)
+    test(view = False, compile = True, nested = False)

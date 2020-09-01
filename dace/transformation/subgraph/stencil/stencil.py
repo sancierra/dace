@@ -12,53 +12,51 @@ T = dace.symbol('T')
 datatype = dace.float64
 
 @dace.program
-def stencil2d_nontransient(A:datatype[N,N],B:datatype[N,N]):
-    for t in range(T):
-        @dace.map
-        def a(i: _[1:N-1], j:_[1:N-1]):
-            a1 << A[i, j]
-            a2 << A[i, j - 1]
-            a3 << A[i, j + 1]
-            a4 << A[i + 1, j]
-            a5 << A[i - 1, j]
-            b >> B[i, j]
+def stencil2d_nontransient(A:datatype[N,N],B:datatype[N,N],C:datatype[N,N]):
+    @dace.map
+    def a(i: _[1:N-1], j:_[1:N-1]):
+        a1 << A[i, j]
+        a2 << A[i, j - 1]
+        a3 << A[i, j + 1]
+        a4 << A[i + 1, j]
+        a5 << A[i - 1, j]
+        b >> B[i, j]
 
-            b = 2*(a1+a2+a3+a4+a5)
-        @dace.map
-        def b(i: _[2:N-2], j:_[2:N-2]):
-            a1 << B[i, j]
-            a2 << B[i, j - 1]
-            a3 << B[i, j + 1]
-            a4 << B[i + 1, j]
-            a5 << B[i - 1, j]
-            b >> A[i, j]
+        b = 2*(a1+a2+a3+a4+a5)
+    @dace.map
+    def b(i: _[2:N-2], j:_[2:N-2]):
+        a1 << B[i, j]
+        a2 << B[i, j - 1]
+        a3 << B[i, j + 1]
+        a4 << B[i + 1, j]
+        a5 << B[i - 1, j]
+        b >> C[i, j]
 
-            b = 2*(a1+a2+a3+a4+a5)
+        b = 2*(a1+a2+a3+a4+a5)
 
 @dace.program
-def stencil2d_transient(A:datatype[N,N]):
+def stencil2d_transient(A:datatype[N,N], C:datatype[N,N]):
     B = np.ndarray([N,N], dtype = datatype)
-    for t in range(T):
-        @dace.map
-        def a(i: _[1:N-1], j:_[1:N-1]):
-            a1 << A[i, j]
-            a2 << A[i, j - 1]
-            a3 << A[i, j + 1]
-            a4 << A[i + 1, j]
-            a5 << A[i - 1, j]
-            b >> B[i, j]
+    @dace.map
+    def a(i: _[1:N-1], j:_[1:N-1]):
+        a1 << A[i, j]
+        a2 << A[i, j - 1]
+        a3 << A[i, j + 1]
+        a4 << A[i + 1, j]
+        a5 << A[i - 1, j]
+        b >> B[i, j]
 
-            b = 2*(a1+a2+a3+a4+a5)
-        @dace.map
-        def b(i: _[2:N-2], j:_[2:N-2]):
-            a1 << B[i, j]
-            a2 << B[i, j - 1]
-            a3 << B[i, j + 1]
-            a4 << B[i + 1, j]
-            a5 << B[i - 1, j]
-            b >> A[i, j]
+        b = 2*(a1+a2+a3+a4+a5)
+    @dace.map
+    def b(i: _[2:N-2], j:_[2:N-2]):
+        a1 << B[i, j]
+        a2 << B[i, j - 1]
+        a3 << B[i, j + 1]
+        a4 << B[i + 1, j]
+        a5 << B[i - 1, j]
+        b >> C[i, j]
 
-            b = 2*(a1+a2+a3+a4+a5)
+        b = 2*(a1+a2+a3+a4+a5)
 
 def init_array(A):
     n = N.get()
@@ -90,12 +88,12 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (1,1), sequential = F
          sdfg.nodes().index(graph), d2, 0)
 
     t1.strides    = (tile_size, tile_size)
-    t1.tile_sizes = (tile_size +2, tile_size +2) ## !!
-    t1.strides_offset = (1,1)#tile_offsets
+    t1.tile_sizes = (tile_size+2, tile_size+2) ## !!
+    t1.strides_offset = (0,0)#tile_offsets
 
     t2.strides    = (tile_size, tile_size)
     t2.tile_sizes = (tile_size, tile_size)
-    t2.strides_offset = (1,1)
+    t2.strides_offset = (0,0)
 
     t1.apply(sdfg)
     t2.apply(sdfg)
@@ -113,13 +111,14 @@ def evaluate(sdfg, graph, view = False, compile = False):
     if compile:
         A = np.zeros([N.get(), N.get()], dtype = np.float64)
         B = np.zeros([N.get(), N.get()], dtype = np.float64)
+        C = np.zeros([N.get(), N.get()], dtype = np.float64)
+
         init_array(A)
-        print(np.linalg.norm(A))
+        print(np.linalg.norm(C))
         csdfg = sdfg.compile()
-        csdfg(A=A,N=N,T=T,B=B)
+        csdfg(A=A,N=N,T=T,B=B, C=C)
         print(np.linalg.norm(A))
-        print(np.linalg.norm(B))
-    result = A if compile else None
+    result = C if compile else None
     return result
 
 
@@ -128,13 +127,13 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
         sdfg = stencil2d_transient.to_sdfg()
     else:
         sdfg = stencil2d_nontransient.to_sdfg()
-    sdfg.specialize({'N':N})
+    #sdfg.specialize({'N':N})
     #propagate_memlets_sdfg(sdfg)
     sdfg.propagate = False
     TILE_SIZE = 8
-    N.set(13)
+    N.set(45)
     T.set(1)
-    sdfg.specialize({'N':N})
+    #sdfg.specialize({'N':N})
     sdfg.apply_strict_transformations()
 
     graph = None
@@ -189,14 +188,14 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
         print(R1[16:20, 16:20])
         print(R2[16:20, 16:20])
         '''
-
+        print(np.linalg.norm(R1))
+        print(np.linalg.norm(R2))
+        print(np.linalg.norm(R3))
         assert np.allclose(R1,R2)
         assert np.allclose(R1,R3)
-
-
 
 if __name__ == '__main__':
     TILE_SIZE = 8
     N.set(21)
     T.set(1)
-    run(TILE_SIZE, compile = False, gpu = False, view = True, sequential = False, transient = False)
+    run(TILE_SIZE, compile = True, gpu = False, view = False, sequential = False, transient = True)

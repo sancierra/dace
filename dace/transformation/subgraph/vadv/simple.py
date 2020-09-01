@@ -15,10 +15,9 @@ halo = dace.symbol('halo')
 @dace.program
 def stencil_simple(w_in: datatype[J, K+1, I], crlatu: datatype[J], \
                    crlato: datatype[J], hdmask: datatype[J, K+1, I], \
-                   w: datatype[J, K+1, I], \
-                   __tmp_lap_910: datatype[J, K+1, I]):
+                   w: datatype[J, K+1, I]):
 
-    #__tmp_lap_910 = np.ndarray([J, K+1, I], datatype)
+    __tmp_lap_910 = np.ndarray([J, K+1, I], datatype)
     @dace.map
     def s1(k: _[0:K], x: _[halo-1:J-halo+1], z: _[halo-1:I-halo+1]):
         w_in_in << w_in[x-1:x+2, 0, z-1:z+2]
@@ -74,6 +73,7 @@ def apply_pre_tiling(sdfg, tile_size = 32):
             subgraph = {MapTiling._map_entry: graph.nodes().index(node)}
             transformation = MapTiling(0, 0, subgraph, 0)
             transformation.tile_sizes = (1, tile_size + 2, tile_size +2)
+            transformation.strides = (1, tile_size, tile_size)
             transformation.strides_offset = (0,0,0)
             transformation.apply(sdfg)
 
@@ -82,21 +82,26 @@ def apply_pre_tiling(sdfg, tile_size = 32):
             subgraph = {MapTiling._map_entry: graph.nodes().index(node)}
             transformation = MapTiling(0, 0, subgraph, 0)
             transformation.tile_sizes = (1, tile_size, tile_size)
+            transformation.strides = (1, tile_size, tile_size)
             transformation.strides_offset = (0,0,0)
             transformation.apply(sdfg)
     return
 
 
-def fuse_stencils(sdfg):
+def fuse_stencils(sdfg, gpu):
     graph = sdfg.nodes()[0]
-    pipeline.fusion(sdfg, graph)
+    if not gpu:
+        pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.CPU_Heap)
+    else:
+        pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared)
 
-def test(compile = True, compile_all = False, view = True, tile_size = 8):
+
+def test(compile = True, compile_all = False, view = True, gpu = False, tile_size = 8):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
-    I = 24
-    J = 24
+    I = 21
+    J = 21
     K = 1
     halo = 2
 
@@ -111,18 +116,20 @@ def test(compile = True, compile_all = False, view = True, tile_size = 8):
     sdfg = stencil_simple.to_sdfg()
     sdfg.apply_strict_transformations()
 
+    if gpu:
+        sdfg.apply_gpu_transformations()
+
     if view:
         sdfg.view()
 
     if compile:
         w1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        __tmp_lap_9101 = 2*np.zeros((J, K+1, I), dtype = np.float64)
 
         sdfg._name = 'basline'
         csdfg = sdfg.compile()
         csdfg(crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in,
-              w = w1, __tmp_lap_910 = __tmp_lap_9101,
+              w = w1,
               I=I, J=J, K=K, halo = halo)
 
     apply_pre_tiling(sdfg, tile_size)
@@ -130,26 +137,24 @@ def test(compile = True, compile_all = False, view = True, tile_size = 8):
         sdfg.view()
     if compile:
         w2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        __tmp_lap_9102 = np.zeros((J, K+1, I), dtype = np.float64)
         sdfg._name = 'pre_tiled'
         csdfg = sdfg.compile()
         csdfg(crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in,
-              w = w2, __tmp_lap_910 = __tmp_lap_9102,
+              w = w2,
               I=I, J=J, K=K, halo = halo)
 
 
-    fuse_stencils(sdfg)
+    fuse_stencils(sdfg, gpu)
     if view:
         sdfg.view()
     if compile:
         w3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        __tmp_lap_9103 = np.zeros((J, K+1, I), dtype = np.float64)
         sdfg._name = 'fused'
         csdfg = sdfg.compile()
         csdfg(crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in,
-              w = w3, __tmp_lap_910 = __tmp_lap_9103,
+              w = w3,
               I=I, J=J, K=K, halo = halo)
 
     if compile:
@@ -158,9 +163,6 @@ def test(compile = True, compile_all = False, view = True, tile_size = 8):
         print(np.linalg.norm(w2))
         print(np.linalg.norm(w3))
 
-        assert np.allclose(__tmp_lap_9101, __tmp_lap_9102)
-        assert np.allclose(__tmp_lap_9101, __tmp_lap_9103)
-        print(__tmp_lap_9103[:, 0, 8])
 
         assert np.allclose(w1, w2)
         assert np.allclose(w1, w3)
@@ -168,4 +170,4 @@ def test(compile = True, compile_all = False, view = True, tile_size = 8):
         print("PASS")
 
 if __name__ == '__main__':
-    test(compile = True, view = False)
+    test(compile = True, view = False, gpu = False)
