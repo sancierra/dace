@@ -2,7 +2,8 @@ import dace
 import math
 import numpy as np
 from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
-#from dace.transformation.subgraph import pipeline
+from dace.transformation.subgraph import pipeline
+from dace.sdfg.propagation import propagate_memlets_sdfg
 
 def get_sdfg():
     sdfg = dace.sdfg.SDFG.from_file('hdiff.sdfg')
@@ -30,11 +31,19 @@ def apply_pre_tiling(sdfg, tile_size = 32):
     for node in ngraph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
                         and node.label != 'kmap_fission':
-            subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
-            transformation = MapTiling(0, 0, subgraph, 0)
-            transformation.tile_sizes = (tile_size, 0, tile_size)
-            transformation.strides_offset = (1,1)
-            transformation.apply(nsdfg)
+            first = [1365, 1392, 1419, 1446]
+            if any([str(f) in node.label for f in first]):
+                subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
+                transformation = MapTiling(0, 0, subgraph, 0)
+                transformation.tile_sizes = (tile_size + 2, 1, tile_size + 2)
+                transformation.strides_offset = (0,0)
+                transformation.apply(nsdfg)
+            else:
+                subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
+                transformation = MapTiling(0, 0, subgraph, 0)
+                transformation.tile_sizes = (tile_size, 1, tile_size)
+                transformation.strides_offset = (0,0)
+                transformation.apply(nsdfg)
     return
 
 
@@ -54,8 +63,15 @@ def collapse_outer_maps(sdfg):
             transformation = MapCollapse(0,0, subgraph, 0)
             transformation.apply(nsdfg)
 
+def fuse_stencils(sdfg):
+    graph = sdfg.nodes()[0]
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            nsdfg = node.sdfg
+            ngraph = nsdfg.nodes()[0]
+    pipeline.fusion(nsdfg, ngraph)
 
-def test(compile = True, view = True, tile_size = 32):
+def test(compile = True, compile_all = False, view = True, tile_size = 32):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
@@ -76,14 +92,18 @@ def test(compile = True, view = True, tile_size = 32):
 
     # compile -- first without anyting
     sdfg = get_sdfg()
+    sdfg._propagate = False
+    sdfg.propagate = False
     if view:
         sdfg.view()
+
     if compile:
         pp1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         w1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         v1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         u1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
 
+        sdfg._name = 'baseline'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
@@ -100,6 +120,7 @@ def test(compile = True, view = True, tile_size = 32):
         v2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         u2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
 
+        sdfg._name = 'fission'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
@@ -115,7 +136,7 @@ def test(compile = True, view = True, tile_size = 32):
         w3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         v3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         u3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-
+        sdfg._name = 'pre_tiling'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
@@ -130,39 +151,50 @@ def test(compile = True, view = True, tile_size = 32):
         w4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         v4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         u4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-
+        sdfg._name = 'collapse_outer'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
 
+    fuse_stencils(sdfg)
+    if view:
+        sdfg.view()
     if compile:
-        print(np.linalg.norm(pp1))
-        print(np.linalg.norm(pp2))
-        print(np.linalg.norm(w1))
-        print(np.linalg.norm(w2))
-        print(np.linalg.norm(v1))
-        print(np.linalg.norm(v2))
-        print(np.linalg.norm(u1))
-        print(np.linalg.norm(u2))
+        pp5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        w5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        v5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        u5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        sdfg._name = 'fused'
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp = pp5, w = w5, v = v5, u = u5,
+              I=I, J=J, K=K, halo = halo)
 
-        assert np.allclose(pp1, pp2)
-        assert np.allclose(w1, w2)
-        assert np.allclose(v1, v2)
-        assert np.allclose(u1, u2)
-
-        assert np.allclose(pp1, pp3)
-        assert np.allclose(w1, w3)
-        assert np.allclose(v1, v3)
-        assert np.allclose(u1, u3)
-
-        assert np.allclose(pp1, pp4)
-        assert np.allclose(w1, w4)
-        assert np.allclose(v1, v4)
-        assert np.allclose(u1, u4)
-
+    if compile:
+        print("Fission")
+        print(np.allclose(pp1, pp2))
+        print(np.allclose(w1, w2))
+        print(np.allclose(v1, v2))
+        print(np.allclose(u1, u2))
+        print("Pre_tiling")
+        print(np.allclose(pp1, pp3))
+        print(np.allclose(w1, w3))
+        print(np.allclose(v1, v3))
+        print(np.allclose(u1, u3))
+        print("Collapse")
+        print(np.allclose(pp1, pp4))
+        print(np.allclose(w1, w4))
+        print(np.allclose(v1, v4))
+        print(np.allclose(u1, u4))
+        print("Fusion")
+        print(np.allclose(pp1, pp5))
+        print(np.allclose(w1, w5))
+        print(np.allclose(v1, v5))
+        print(np.allclose(u1, u5))
 
 
 if __name__ == '__main__':
-    test(view = False)
+    test(view = True, compile = True)
