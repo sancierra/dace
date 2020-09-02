@@ -47,6 +47,32 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         default=dtypes.StorageType.Default)
 
 
+    consolidate_source = Property(
+        desc = "Consolidate edges that go inside the fused map",
+        dtype = bool,
+        default = False
+    )
+
+
+    propagate_source = Property(
+        desc="Propagate memlets of edges that go inside the fused map"
+             "from source arrays in order to get a correct volume estiamte."
+             "Disable if this causes problems. (If memlet propagation does"
+             "not work correctly)",
+        dtype=bool,
+        default = True
+    )
+
+    create_in_transients = Property(
+        desc="Experimental: If there are several edges going inside the fused map"
+             "for the same array and if the subset of one of those edges covers"
+             "all other subsets, create in transient."
+             "Only works if consolidate_source is enabled.",
+        dtype=bool,
+        default = False
+    )
+
+
     @staticmethod
     def match(sdfg, subgraph):
         '''
@@ -848,6 +874,10 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                         if e.data.data == node.data:
                             e.data.data += '_OUT'
 
+        if self.consolidate_source:
+            consolidate_edges_scope(graph, global_map_entry)
+
+
         # do one last pass to correct outside memlets adjacent to global map
         for out_connector in global_map_entry.out_connectors:
             # find corresponding in_connector
@@ -861,22 +891,47 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # and all out-connecting edges that belong to it
             # count them
             oedge_counter = 0
+            oedge_set = set()
             for oedge in graph.out_edges(global_map_entry):
                 if oedge.src_conn == out_connector:
-                    out_edge = oedge
+                    oedge_set.add(oedge)
                     oedge_counter += 1
 
             # do memlet propagation
             # if there are several out edges, else there is no need
 
             if oedge_counter > 1:
-                memlet_out = propagate_memlet(dfg_state=graph,
-                                              memlet=out_edge.data,
-                                              scope_node=global_map_entry,
-                                              union_inner_edges=True)
-                # override number of accesses
-                in_edge.data.volume = memlet_out.volume
-                in_edge.data.subset = memlet_out.subset
+                if self.propagate_source:
+                    memlet_out = propagate_memlet(dfg_state=graph,
+                                                  memlet=next(iter(oedge_set)).data,
+                                                  scope_node=global_map_entry,
+                                                  union_inner_edges=True)
+                    #override number of accesses
+                    in_edge.data.volume = memlet_out.volume
+                    in_edge.data.subset = memlet_out.subset
+                if self.create_in_transients:
+                    # first check whether we have consolidated all edges
+                    if not self.consolidate_source:
+                        warnings.warn('Cannot create source in transients:'
+                                      'Please enable consolidate_source first!')
+                    else:
+                        # check whether one memlet covers all the others
+                        covering_edge = None
+                        for oedge in oedge_set:
+                            try:
+                                this_subset = oedge.data.subset
+                                for other_edge in oedge_set:
+                                    other_subset = other_edge.data.subset
+                                    if not this_subset.covers(other_subset):
+                                        break
+                                covering_edge = oedge
+                                break
+                            except TypeError:
+                                pass
+                        if covering_edge:
+                            #TODO: create local in transient
+                            raise NotImplementedError("TODO")
+
 
         # create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
