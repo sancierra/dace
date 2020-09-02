@@ -65,7 +65,7 @@ def init_array(A):
             A[i,j] = 1.0
 
 
-def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (1,1), sequential = False):
+def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, sequential = False):
 
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
@@ -97,11 +97,11 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (1,1), sequential = F
 
     t1.apply(sdfg)
     t2.apply(sdfg)
-
-    if sequential:
+    
+    if gpu:
         for node in graph.nodes():
-            if isinstance(node,dace.sdfg.nodes.MapEntry):
-                node.map.schedule = dace.dtypes.ScheduleType.Sequential
+            if isinstance(node,dace.sdfg.nodes.MapEntry) and node.label in ['a','b']:
+                node.map.schedule = dace.dtypes.ScheduleType.Default
 
 
 def evaluate(sdfg, graph, view = False, compile = False):
@@ -130,9 +130,6 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     #sdfg.specialize({'N':N})
     #propagate_memlets_sdfg(sdfg)
     sdfg.propagate = False
-    TILE_SIZE = 8
-    N.set(45)
-    T.set(1)
     #sdfg.specialize({'N':N})
     sdfg.apply_strict_transformations()
 
@@ -143,7 +140,7 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
             break
 
     if gpu:
-        sdfg.apply_gpu_transformations(options={'sequential_innermaps': False})
+        sdfg.apply_gpu_transformations(options={'sequential_innermaps': sequential})
         sdfg.apply_strict_transformations()
         for g in sdfg.nodes():
             if len(g.nodes()) > 5:
@@ -152,50 +149,25 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     # establish baseline
     R1 = evaluate(sdfg, graph, view, compile)
 
-    pre_tiling(sdfg, graph, tile_size, sequential = sequential)
+    pre_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
     R2 = evaluate(sdfg, graph, view, compile)
-
-    fusion(sdfg, graph)
+    
+    if gpu:
+        fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared if not sequential else dace.dtypes.StorageType.Register)
+    else:
+        fusion(sdfg, graph)
     R3 = evaluate(sdfg, graph, view, compile)
 
     if compile:
-        #print(R1)
-        #print(R2)
-        '''
-        print(R1[0:8, 0:8])
-        print(R2[0:8, 0:8])
-        print("--------------------------")
-        print(R1[0:8, 8:16])
-        print(R2[0:8, 8:16])
-        print("--------------------------")
-
-        print(R1[8:16, 0:8])
-        print(R2[8:16, 0:8])
-        print("--------------------------")
-
-        print(R1[8:16, 8:16])
-        print(R2[8:16, 8:16])
-        print("--------------------------")
-
-        print(R1[16:20, 0:8])
-        print(R2[16:20, 0:8])
-        print("--------------------------")
-
-        print(R1[16:20, 8:16])
-        print(R2[16:20, 8:16])
-        print("--------------------------")
-
-        print(R1[16:20, 16:20])
-        print(R2[16:20, 16:20])
-        '''
         print(np.linalg.norm(R1))
         print(np.linalg.norm(R2))
         print(np.linalg.norm(R3))
         assert np.allclose(R1,R2)
         assert np.allclose(R1,R3)
+        print('PASS')
 
 if __name__ == '__main__':
-    TILE_SIZE = 8
-    N.set(21)
+    TILE_SIZE =4
+    N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = False, view = False, sequential = False, transient = True)
+    run(TILE_SIZE, compile = True, gpu = True, view = False, sequential = True, transient = True)
