@@ -53,7 +53,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         default = False
     )
 
-
+    sequential_innermaps = Property(
+        desc = "Make all innermaps sequential",
+        dtype = bool,
+        default = False
+    )
     propagate_source = Property(
         desc="Propagate memlets of edges that go inside the fused map"
              "from source arrays in order to get a correct volume estiamte."
@@ -935,3 +939,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
         # create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
+        if self.sequential_innermaps:
+            for node in graph.scope_dict(graph)[global_map_entry]:
+                if isinstance(node, nodes.MapEntry):
+                    node.map.schedule = dtypes.ScheduleType.Sequential
