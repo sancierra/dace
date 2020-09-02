@@ -97,7 +97,7 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, s
 
     t1.apply(sdfg)
     t2.apply(sdfg)
-    
+
     if gpu:
         for node in graph.nodes():
             if isinstance(node,dace.sdfg.nodes.MapEntry) and node.label in ['a','b']:
@@ -151,11 +151,11 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
 
     pre_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
     R2 = evaluate(sdfg, graph, view, compile)
-    
+
     if gpu:
-        fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared if not sequential else dace.dtypes.StorageType.Register)
+        fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared if not sequential else dace.dtypes.StorageType.Register, sequential_innermaps = sequential)
     else:
-        fusion(sdfg, graph)
+        fusion(sdfg, graph, sequential_innermaps = sequential)
     R3 = evaluate(sdfg, graph, view, compile)
 
     if compile:
@@ -170,4 +170,4 @@ if __name__ == '__main__':
     TILE_SIZE =4
     N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = True, view = False, sequential = True, transient = True)
+    run(TILE_SIZE, compile = False, gpu = True, view = True, sequential = True, transient = True)
