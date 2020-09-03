@@ -89,7 +89,9 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
            There is at most one AccessNode only on a path between two maps,
            no other nodes are allowed
         3. The exiting memlets' subsets to an intermediate edge must cover
-           the respective incoming memlets' subset into the next map
+           the respective incoming memlets' subset into the next map.
+           Also, as a limitation, the union of all exiting memlets'
+           subsets must be contiguous.
         '''
         # get graph
         graph = subgraph.graph
