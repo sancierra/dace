@@ -823,8 +823,8 @@ def bounding_box_union(subset_a: Subset, subset_b: Subset) -> Range:
 
     else:
         result = []
-        for arb, brb, are, bre in zip(subset_a.min_element(), subset_b.min_element(),
-                                      subset_a.max_element(), subset_b.max_element()):
+        for arb, brb, are, bre in zip(subset_a.min_element_approx(), subset_b.min_element_approx(),
+                                      subset_a.max_element_approx(), subset_b.max_element_approx()):
             try:
                 minrb = min(arb, brb)
             except TypeError:
