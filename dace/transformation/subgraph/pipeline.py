@@ -112,7 +112,6 @@ def expand_maps(sdfg: dace.SDFG,
     if not isinstance(subgraph, List):
         subgraph = [subgraph]
 
-    trafo_expansion = MultiExpansion()
     for (property, val) in kwargs.items():
         setattr(trafo_expansion, property, val)
 
@@ -122,6 +121,8 @@ def expand_maps(sdfg: dace.SDFG,
     for sg in subgraph:
         map_entries = get_highest_scope_maps(sdfg, graph, sg)
         start = timeit.default_timer()
+        view = SubgraphView(graph, sg)
+        trafo_expansion = MultiExpansion(view, state_id = sdfg.nodes().index(graph))
         trafo_expansion.expand(sdfg, graph, map_entries)
 
     if transformation_timer:
@@ -151,7 +152,6 @@ def fusion(sdfg: dace.SDFG,
     if not isinstance(subgraph, List):
         subgraph = [subgraph]
 
-    map_fusion = SubgraphFusion()
     for (property, val) in kwargs.items():
         setattr(map_fusion, property, val)
 
@@ -168,10 +168,11 @@ def fusion(sdfg: dace.SDFG,
                 if graph.exit_node(map_entry) in sg.nodes():
                     sg.nodes().remove(graph.exit_node(map_entry))
         print(f"Subgraph Fusion on map entries {map_entries}")
+        view = SubgraphView(graph, sg)
+        map_fusion = SubgraphFusion(view, state_id = sdfg.nodes().index(graph))
         map_fusion.fuse(sdfg, graph, map_entries)
         if isinstance(sg, SubgraphView):
             sg.nodes().append(map_fusion._global_map_entry)
-            #TODO: also add all created in_between transients...
 
     if transformation_timer:
         end = timeit.default_timer()
