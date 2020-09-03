@@ -143,7 +143,8 @@ def get_highest_scope_maps(sdfg, graph, subgraph = None):
     return maps
 
 def find_contiguous_subsets(
-        subset_list: List[subsets.Subset]) -> Set[subsets.Subset]:
+        subset_list: Union(List[subsets.Subset], Set[subsets.Subset])
+            -> Set[subsets.Subset]:
     """
     Finds the set of largest contiguous subsets in a list of subsets.
     :param subsets: Iterable of subset objects.
