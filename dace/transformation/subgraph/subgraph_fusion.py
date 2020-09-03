@@ -11,6 +11,9 @@ from dace.properties import make_properties, Property
 from dace.symbolic import symstr, overapproximate
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
 from dace.transformation.subgraph import helpers
+from dace.transformation.subgraph.dedup_access import DeduplicateAccess
+from dace.transformation.dataflow import RedundantArray
+from dace.sdfg.utils import consolidate_edges_scope
 
 from copy import deepcopy as dcpy
 from typing import List, Union
@@ -67,11 +70,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
         default = True
     )
 
-    create_in_transients = Property(
-        desc="Experimental: If there are several edges going inside the fused map"
-             "for the same array and if the subset of one of those edges covers"
-             "all other subsets, create in transient."
-             "Only works if consolidate_source is enabled.",
+    deduplicate_source = Property(
+        desc="Experimental: If an out connector has several outgoing edges"
+             "after fusion and consolidation, try to create an in-transient"
+             "register access node in order to avoid duplicate access"
+             "to the outer array.",
         dtype=bool,
         default = False
     )
@@ -913,28 +916,17 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     #override number of accesses
                     in_edge.data.volume = memlet_out.volume
                     in_edge.data.subset = memlet_out.subset
-                if self.create_in_transients:
+                if self.deduplicate_source:
                     # first check whether we have consolidated all edges
                     if not self.consolidate_source:
                         warnings.warn('Cannot create source in transients:'
                                       'Please enable consolidate_source first!')
                     else:
-                        # check whether one memlet covers all the others
-                        covering_edge = None
-                        for oedge in oedge_set:
-                            try:
-                                this_subset = oedge.data.subset
-                                for other_edge in oedge_set:
-                                    other_subset = other_edge.data.subset
-                                    if not this_subset.covers(other_subset):
-                                        break
-                                covering_edge = oedge
-                                break
-                            except TypeError:
-                                pass
-                        if covering_edge:
-                            #TODO: create local in transient
-                            raise NotImplementedError("TODO")
+                        helpers.deduplicate(sdfg,
+                                            graph,
+                                            global_map_entry,
+                                            out_connector,
+                                            oedge_set)
 
 
         # create a hook for outside access to global_map

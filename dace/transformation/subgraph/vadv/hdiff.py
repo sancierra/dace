@@ -6,6 +6,10 @@ from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.sdfg.propagation import propagate_memlets_sdfg
 
+def view_graphs():
+    dace.sdfg.SDFG.from_file('hdiff.sdfg').view()
+    dace.sdfg.SDFG.from_file('hdiff_fused.sdfg').view()
+    dace.sdfg.SDFG.from_file('dedup.sdfg').view()
 def get_sdfg():
     sdfg = dace.sdfg.SDFG.from_file('hdiff.sdfg')
     sdfg.apply_strict_transformations()
@@ -77,10 +81,17 @@ def collapse_outer_maps(sdfg, nested = False):
             transformation = MapCollapse(0,0, subgraph, 0)
             transformation.apply(nsdfg)
 
-def fuse_stencils(sdfg, gpu, nested = False ):
+def fuse_stencils(sdfg, gpu, nested = False, deduplicate = False):
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
 
+    kwargs = {}
+    kwargs['propagate_source'] = False
+    if gpu:
+        kwargs['transient_allocation'] = dace.dtypes.StorageType.GPU_Shared
+    if deduplicate:
+        kwargs['consolidate_source'] = True
+        kwargs['deduplicate_source'] = True
     if nested:
         for node in graph.nodes():
             if isinstance(node, dace.sdfg.nodes.NestedSDFG):
@@ -89,20 +100,18 @@ def fuse_stencils(sdfg, gpu, nested = False ):
     else:
         nsdfg = sdfg
         ngraph = graph
-    if not gpu:
-        # default works
-        pipeline.fusion(nsdfg, ngraph)
-    else:
-        pipeline.fusion(nsdfg, ngraph, transient_allocation = dace.dtypes.StorageType.GPU_Shared)
 
-def test(compile = True, view = True, gpu = False, nested = False, tile_size = 32):
+    pipeline.fusion(nsdfg, ngraph, **kwargs)
+
+def test(compile = True, view = True, gpu = False, nested = False,
+         tile_size = 32, deduplicate = False):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
-    I = 48
-    J = 48
-    K = 48
-    halo = 2
+    I = np.int32(48)
+    J = np.int32(48)
+    K = np.int32(48)
+    halo = np.int32(2)
 
     # define arrays
     pp_in = np.random.rand(J, K + 1, I).astype(DATATYPE)
@@ -187,7 +196,7 @@ def test(compile = True, view = True, gpu = False, nested = False, tile_size = 3
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
 
-    fuse_stencils(sdfg, gpu=gpu, nested=nested)
+    fuse_stencils(sdfg, gpu=gpu, nested=nested, deduplicate = deduplicate)
     if view:
         sdfg.view()
     if compile:
@@ -226,4 +235,6 @@ def test(compile = True, view = True, gpu = False, nested = False, tile_size = 3
 
 
 if __name__ == '__main__':
-    test(view = False, compile = True, nested = False)
+    #view_graphs()
+    test(view = True, compile = False, nested = False,
+         gpu = False, deduplicate = True)
