@@ -219,58 +219,21 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             subset_to_add.pop(dims_to_discard)
                             lower_subsets.add(subset_to_add)
 
-            upper_iter = iter(upper_subsets)
-            union_upper = next(upper_iter)
 
-            # TODO: add this check at a later point
-            # We assume that upper_subsets for each data array
-            # are contiguous
-            # or do the full check if possible (intersection needed)
-            '''
-            # check whether subsets in upper_subsets are adjacent.
-            # this is a requriement for the current implementation
-            #try:
-            # O(n^2*|dims|) but very small amount of subsets anyway
+            # We assume that upper_subsets are contiguous
+            # Check for this.
             try:
-                for dim in range(total_dims - len(dims_to_discard)):
-                    ordered_list = [(-1,-1,-1)]
-                    for upper_subset in upper_subsets:
-                        lo = upper_subset[dim][0]
-                        hi = upper_subset[dim][1]
-                        for idx,element in enumerate(ordered_list):
-                            if element[0] <= lo and element[1] >= hi:
-                                break
-                            if element[0] > lo:
-                                ordered_list.insert(idx, (lo,hi))
-                    ordered_list.pop(0)
-
-
-                    highest = ordered_list[0][1]
-                    for i in range(len(ordered_list)):
-                        if i < len(ordered_list)-1:
-                            current_range = ordered_list[i]
-                            if current_range[1] > highest:
-                                hightest = current_range[1]
-                            next_range = ordered_list[i+1]
-                            if highest < next_range[0] - 1:
-                                return False
+                contiguous_upper = helpers.find_contiguous_subsets(upper_subsets)
+                if len(contiguous_upper) > 1:
+                    return False
             except TypeError:
-                #return False
-            '''
-            # FORNOW: just omit warning if unsure
-            for lower_subset in lower_subsets:
-                covers = False
-                for upper_subset in upper_subsets:
-                    if upper_subset.covers(lower_subset):
-                        covers = True
-                        break
-                if not covers:
-                    warnings.warn(
-                        f"WARNING: For node {node}, please check assure that"
-                        "incoming memlets cover outgoing ones. Ambiguous check (WIP)."
-                    )
+                warnings.warn('Could not determine whether subset is continuous.'
+                              'Aborting Check.')
+                return False
 
             # now take union of upper subsets
+            upper_iter = iter(upper_subsets)
+            union_upper = next(upper_iter)
             for subs in upper_iter:
                 union_upper = subsets.union(union_upper, subs)
                 if not union_upper:
@@ -278,6 +241,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     return False
 
             # finally check coverage
+            # every lower subset must be completely covered by union_upper
             for lower_subset in lower_subsets:
                 if not union_upper.covers(lower_subset):
                     return False
