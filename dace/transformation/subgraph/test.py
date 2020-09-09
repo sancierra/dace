@@ -20,6 +20,6 @@ if __name__ == '__main__':
     tiling = StencilTiling(0,0,subgraph, 0)
     tiling.tile_sizes = (1,1)
     tiling.stencil_size = ((-1,2),(-1,2))
-    tiling.reference_range = (dace.subsets.Range.from_string('1:N-1, 0:N'))
+    tiling.reference_range = (dace.subsets.Range.from_string('1:N-1, 0:N-1'))
     tiling.apply(sdfg)
     sdfg.view()

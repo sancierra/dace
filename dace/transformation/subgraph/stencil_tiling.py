@@ -38,25 +38,12 @@ class StencilTiling(pattern_matching.Transformation):
                             default = ((0,1),))
 
     prefix = Property(dtype=str,
-                      default="s",
+                      default="stencil",
                       desc="Prefix for new range symbols")
 
     strides = ShapeProperty(dtype=tuple,
                             default=(1,),
                             desc="Tile stride")
-    '''
-    #not needed any more
-
-    tile_sizes = ShapeProperty(
-        dtype=tuple,
-        default=tuple(),
-        desc="Tile size")
-
-    tile_offset = ShapeProperty(
-        dtype=tuple,
-        default=(0,0,0),
-        desc="Negative Tile offset")
-    '''
 
     divides_evenly = Property(dtype=bool,
                               default=False,
@@ -128,7 +115,8 @@ class StencilTiling(pattern_matching.Transformation):
         print(f"(stencil_hi, stencil lo) = ({stencil_hi}, {stencil_lo})")
 
         self.tile_sizes.append(stride + window * (stencil_hi - stencil_lo - 1))
-        self.tile_offset.append(pystr_to_symbolic(str(abs(window * stencil_lo))))
+        self.tile_offset_lower.append(pystr_to_symbolic(str(abs(window * stencil_lo))))
+        self.tile_offset_upper.append(pystr_to_symbolic(str(abs(window * stencil_hi))))
 
         return True
 
@@ -152,7 +140,8 @@ class StencilTiling(pattern_matching.Transformation):
 
         # TBD arrays
         self.tile_sizes = []
-        self.tile_offset = []
+        self.tile_offset_lower = []
+        self.tile_offset_upper = []
 
         # strip mining each dimension where necessary
 
@@ -174,12 +163,6 @@ class StencilTiling(pattern_matching.Transformation):
             target_range_current = subsets.Range((self.reference_range[dim_idx],))
 
             inner_trivial = False
-            '''
-            if not stencil_size_current \
-                or stencil_size_current == (0,1) \
-                or target_range_current == reference_range_current:
-                continue
-            '''
 
             # calculate parameters for this dimension
             success = self.calculate_stripmining_parameters(
@@ -192,7 +175,7 @@ class StencilTiling(pattern_matching.Transformation):
 
             # get calculated parameters
             tile_size = self.tile_sizes[-1]
-            offset = self.tile_offset[-1]
+            offset = self.tile_offset_lower[-1]
 
             dim_idx -= removed_maps
             # If tile size is trivial, skip strip-mining map dimension
@@ -222,15 +205,18 @@ class StencilTiling(pattern_matching.Transformation):
                 outer_map = stripmine.apply(sdfg)
 
             ## apply to the new map the schedule of the original one
-            #map_entry.schedule = original_schedule
-            #return
+            map_entry.schedule = original_schedule
+
             # correct the ranges of outer_map
             print("****")
             print(outer_map.range)
-            outer_map.range = dcpy(self.reference_range)
+            old_rng = outer_map.range[0]
+            outer_map.range[0] = (old_rng[0] + self.tile_offset_lower[-1], \
+                                  old_rng[1] - self.tile_offset_upper[-1], \
+                                  old_rng[2])
             print(outer_map.range)
 
-            # just take overapproximation
+            # just take overapproximation - strip the rest from outer
             if not inner_trivial:
                 print(map_entry.range[dim_idx])
                 map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
@@ -239,6 +225,7 @@ class StencilTiling(pattern_matching.Transformation):
                 print(map_entry.range[dim_idx])
                 print(type(map_entry.range[dim_idx]))
 
+            # usual tiling pipeline
             if last_map_entry:
                 new_map_entry = graph.in_edges(map_entry)[0].src
                 mapcollapse_subgraph = {
