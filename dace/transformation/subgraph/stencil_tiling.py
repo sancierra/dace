@@ -1,6 +1,7 @@
 """ This module contains classes and functions that implement the orthogonal
     stencil tiling transformation. """
 import math
+
 from dace import registry, symbolic
 from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
@@ -9,9 +10,10 @@ from dace.transformation import pattern_matching
 from dace.symbolic import pystr_to_symbolic
 from dace.subsets import Range
 
+from copy import deepcopy as dcpy
 
 import dace.subsets as subsets
-
+import dace.symbolic as symbolic
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
@@ -87,14 +89,25 @@ class StencilTiling(pattern_matching.Transformation):
             Iff successful (transformation posible), returns True
             Saves all parameters as class variable
         """
-        min_diff = target_range.min_element()[0] - reference_range.min_element()[0]
-        max_diff = reference_range.max_element()[0] - target_range.max_element()[0]
+        print(str(reference_range.strides()[0]))
+        print(target_range.strides())
+        if reference_range.strides()[0] != target_range.strides()[0]:
+            # different strides
+            return False
+        min_diff = symbolic.SymExpr(target_range.min_element()[0] \
+                        - reference_range.min_element()[0]) \
+                        / reference_range.strides()[0]
+        max_diff = symbolic.SymExpr(reference_range.max_element()[0] \
+                        - target_range.max_element()[0]) \
+                        / reference_range.strides()[0]
 
         stencil_lo = stencil_size[0]
         stencil_hi = stencil_size[1]
 
         assert stencil_lo <=0 and stencil_hi >=1
 
+        min_diff = symbolic.evaluate(min_diff, {})
+        max_diff = symbolic.evaluate(max_diff, {})
         if min_diff < 0 or max_diff < 0:
             return False
         if stencil_lo == 0 and min_diff > 0:
@@ -115,7 +128,7 @@ class StencilTiling(pattern_matching.Transformation):
         print(f"(stencil_hi, stencil lo) = ({stencil_hi}, {stencil_lo})")
 
         self.tile_sizes.append(stride + window * (stencil_hi - stencil_lo - 1))
-        self.tile_offset.append(pystr_to_symbolic(str(abs(stencil_lo))))
+        self.tile_offset.append(pystr_to_symbolic(str(abs(window * stencil_lo))))
 
         return True
 
@@ -141,6 +154,8 @@ class StencilTiling(pattern_matching.Transformation):
         self.tile_sizes = []
         self.tile_offset = []
 
+        # strip mining each dimension where necessary
+
         for dim_idx in range(len(map_entry.map.params)):
             # get current tile size
             if dim_idx >= len(self.strides):
@@ -152,14 +167,24 @@ class StencilTiling(pattern_matching.Transformation):
             stencil_size_current = self.stencil_size[dim_idx] \
                                    if dim_idx < len(self.stencil_size) \
                                    else self.stencil_size[-1]
+            stencil_size_current = (0,1) if stencil_size_current is None \
+                                   else stencil_size_current
 
-            if not stencil_size_current or stencil_size_current == (0,1):
+            reference_range_current = subsets.Range((map.range[dim_idx],))
+            target_range_current = subsets.Range((self.reference_range[dim_idx],))
+
+            inner_trivial = False
+            '''
+            if not stencil_size_current \
+                or stencil_size_current == (0,1) \
+                or target_range_current == reference_range_current:
                 continue
+            '''
 
             # calculate parameters for this dimension
             success = self.calculate_stripmining_parameters(
-                reference_range = subsets.Range((map.range[dim_idx],)),
-                target_range = subsets.Range((self.reference_range[dim_idx],)),
+                reference_range = reference_range_current,
+                target_range = target_range_current,
                 stencil_size = stencil_size_current,
                 stride = tile_stride)
 
@@ -178,6 +203,8 @@ class StencilTiling(pattern_matching.Transformation):
                                     self.expr_index)
             # Special case: Tile size of 1 should be omitted from inner map
             if tile_size == 1 and tile_stride == 1:
+                print("SC")
+                print(str(offset))
                 stripmine.dim_idx = dim_idx
                 stripmine.new_dim_prefix = ''
                 stripmine.tile_size = str(tile_size)
@@ -185,6 +212,7 @@ class StencilTiling(pattern_matching.Transformation):
                 stripmine.tile_offset = str(offset)
                 outer_map = stripmine.apply(sdfg)
                 removed_maps += 1
+                inner_trivial = True
             else:
                 stripmine.dim_idx = dim_idx
                 stripmine.new_dim_prefix = self.prefix
@@ -199,11 +227,17 @@ class StencilTiling(pattern_matching.Transformation):
             # correct the ranges of outer_map
             print("****")
             print(outer_map.range)
-            print(type(outer_map.range))
-            print(outer_map.range[0])
-            print(type(outer_map.range[0]))
-            #outer_map.range[0][0] -= self.stencil_size[dim_idx][0]
-            #outer_map.range[0][1] += self.stencil_size[dim_idx][1] - 1
+            outer_map.range = dcpy(self.reference_range)
+            print(outer_map.range)
+
+            # just take overapproximation
+            if not inner_trivial:
+                print(map_entry.range[dim_idx])
+                map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
+                                            if isinstance(el, symbolic.SymExpr) else el \
+                                            for el in map_entry.range[dim_idx])
+                print(map_entry.range[dim_idx])
+                print(type(map_entry.range[dim_idx]))
 
             if last_map_entry:
                 new_map_entry = graph.in_edges(map_entry)[0].src
