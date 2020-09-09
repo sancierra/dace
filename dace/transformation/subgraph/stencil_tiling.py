@@ -182,8 +182,14 @@ class StencilTiling(pattern_matching.Transformation):
             if tile_size == map_entry.map.range.size()[dim_idx]:
                 continue
 
+            # change map range to target reference.
+            # then perform strip mining on this and
+            # offset inner maps accordingly.
+            map.range[dim_idx] = dcpy(self.reference_range[dim_idx + removed_maps])
+            print("#######", map.range[dim_idx])
             stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
                                     self.expr_index)
+            sdfg.view()
             # Special case: Tile size of 1 should be omitted from inner map
             if tile_size == 1 and tile_stride == 1:
                 print("SC")
@@ -206,15 +212,6 @@ class StencilTiling(pattern_matching.Transformation):
 
             ## apply to the new map the schedule of the original one
             map_entry.schedule = original_schedule
-
-            # correct the ranges of outer_map
-            print("****")
-            print(outer_map.range)
-            old_rng = outer_map.range[0]
-            outer_map.range[0] = (old_rng[0] + self.tile_offset_lower[-1], \
-                                  old_rng[1] - self.tile_offset_upper[-1], \
-                                  old_rng[2])
-            print(outer_map.range)
 
             # just take overapproximation - strip the rest from outer
             if not inner_trivial:

@@ -18,8 +18,8 @@ if __name__ == '__main__':
                 for node in graph.nodes() \
                 if isinstance(node, dace.sdfg.nodes.MapEntry))}
     tiling = StencilTiling(0,0,subgraph, 0)
-    tiling.tile_sizes = (1,1)
+    tiling.strides = (2,2)
     tiling.stencil_size = ((-1,2),(-1,2))
-    tiling.reference_range = (dace.subsets.Range.from_string('1:N-1, 0:N-1'))
+    tiling.reference_range = (dace.subsets.Range.from_string('1:N-1, 1:N-1'))
     tiling.apply(sdfg)
     sdfg.view()
