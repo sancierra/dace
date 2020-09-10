@@ -3,6 +3,7 @@ from dace.transformation.dataflow.tiling import MapTiling
 from dace.transformation.subgraph.pipeline import fusion
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
+from dace.sdfg.graph import SubgraphView
 
 import dace.subsets as subsets
 import numpy as np
@@ -78,24 +79,12 @@ def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False)
     print(f"Operating on graph {graph}")
     print(f"with map entries {entry1} and {entry2}")
 
-    d1 = {StencilTiling._map_entry: graph.nodes().index(entry1)}
-    d2 = {StencilTiling._map_entry: graph.nodes().index(entry2)}
+    subgraph = SubgraphView(graph, graph.nodes())
+    t = StencilTiling(subgraph, sdfg.sdfg_id,
+                      sdfg.nodes().index(graph))
 
-    t1 = StencilTiling(sdfg.sdfg_id,
-         sdfg.nodes().index(graph), d1, 0)
-    t2 = StencilTiling(sdfg.sdfg_id,
-         sdfg.nodes().index(graph), d2, 0)
-
-    t1.strides    = (tile_size, tile_size)
-    t1.stencil_size = ((-1,2),)
-    t1.reference_range = entry2.map.range
-
-    t2.strides    = (tile_size, tile_size)
-    t2.stencil_size = ((-1,2),)
-    t2.reference_range = entry2.map.range
-
-    t1.apply(sdfg)
-    t2.apply(sdfg)
+    t.strides = (tile_size, tile_size)
+    t.apply(sdfg)
 
     if gpu:
         for node in graph.nodes():
