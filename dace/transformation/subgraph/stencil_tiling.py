@@ -29,8 +29,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         in every dimension of the matched Map.
     """
 
-    _map_entry = nodes.MapEntry(nodes.Map("", [], []))
-
     # Properties
     debug = Property(desc = "Debug mode",
                      dtype = bool,
@@ -54,17 +52,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         return True
 
     @staticmethod
-    def expressions():
-        return [sdutil.node_path_graph(StencilTiling._map_entry)]
-
-    @staticmethod
     def can_be_applied(graph, candidate, expr_index, sdfg, strict=False):
         return True
-
-    @staticmethod
-    def match_to_str(graph, candidate):
-        map_entry = graph.nodes()[candidate[StencilTiling._map_entry]]
-        return map_entry.map.label + ': ' + str(map_entry.map.params)
 
     @staticmethod
     def match(sdfg, subgraph):
@@ -144,8 +133,15 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         #                / reference_range.strides()[0]
 
 
-        min_diff = symbolic.evaluate(min_diff, {})
-        max_diff = symbolic.evaluate(max_diff, {})
+        try:
+            min_diff = symbolic.evaluate(min_diff, {})
+            max_diff = symbolic.evaluate(max_diff, {})
+        except TypeError:
+            print("TypeError in Symbolic Evaluation")
+            print("min_diff =", min_diff)
+            print("max_diff =", max_diff)
+            return False
+
         if min_diff < 0 or max_diff < 0:
             return False
 
@@ -165,7 +161,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         # O(n^2) slow, TODO: improve?
         for map_entry in map_entries:
             if all([m.range.covers(map_entry.range) for m in map_entries]):
-                self.reference_range = map_entry.range
+                self.reference_range = dcpy(map_entry.range)
                 break
         if self.debug:
             print("Operating with reference range", self.reference_range)
@@ -206,6 +202,9 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 inner_trivial = False
 
                 # calculate parameters for this dimension
+                print("*********************************************")
+                print(map_entry)
+                print(self.reference_range)
                 success = self.calculate_stripmining_parameters(
                     reference_range = reference_range_current,
                     target_range = target_range_current,
@@ -218,9 +217,12 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 offset = self.tile_offset_lower[-1]
 
                 # If tile size is trivial, skip strip-mining map dimension
-                if tile_size == map_entry.map.range.size()[dim_idx] \
-                    or map_entry.map.range.size()[dim_idx] in [0,1]:
+                if map_entry.map.range.size()[dim_idx] in [0,1]:
                     continue
+
+                if tile_size == map_entry.map.range.size()[dim_idx]:
+                    continue
+
 
                 # change map range to target reference.
                 # then perform strip mining on this and

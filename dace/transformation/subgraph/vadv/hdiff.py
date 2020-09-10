@@ -48,19 +48,13 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
     print("ref", reference_range)
 
     subgraph = SubgraphView(ngraph, ngraph.nodes())
-    print(StencilTiling.match(nsdfg, subgraph))
-    sys.exit(0)
-
-    for node in ngraph.nodes().copy():
-        if isinstance(node, dace.sdfg.nodes.MapEntry) \
-                        and node.label != 'kmap_fission':
-            print("STENCIL TILING on", node.label)
-            subgraph = {StencilTiling._map_entry: ngraph.nodes().index(node)}
-            transformation = StencilTiling(0, 0, subgraph, 0)
-            transformation.reference_range = reference_range
-            transformation.stencil_size = ((-1,2),)
-            transformation.strides = (tile_size,)
-            transformation.apply(nsdfg)
+    transformation = StencilTiling(subgraph, nsdfg.sdfg_id,
+                                   nsdfg.nodes().index(ngraph))
+    print(transformation.match(sdfg, subgraph), "==", True)
+    # TODO
+    K = dace.symbol('K')
+    transformation.strides = (K, tile_size)
+    transformation.apply(sdfg)
 
     return
 
@@ -207,6 +201,20 @@ def test(compile = True, view = True, gpu = False, nested = False,
               I=I, J=J, K=K, halo = halo)
 
     collapse_outer_maps(sdfg, nested=nested)
+    if view:
+        sdfg.view()
+    if compile:
+        pp4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        w4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        v4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        u4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        sdfg._name = 'collapse_outer'
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp = pp4, w = w4, v = v4, u = u4,
+              I=I, J=J, K=K, halo = halo)
+
     apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested)
     if view:
         sdfg.view()
@@ -222,20 +230,6 @@ def test(compile = True, view = True, gpu = False, nested = False,
               pp = pp3, w = w3, v = v3, u = u3,
               I=I, J=J, K=K, halo = halo)
 
-    collapse_outer_maps(sdfg, nested=nested)
-    if view:
-        sdfg.view()
-    if compile:
-        pp4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        sdfg._name = 'collapse_outer'
-        csdfg = sdfg.compile()
-        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp4, w = w4, v = v4, u = u4,
-              I=I, J=J, K=K, halo = halo)
 
     fuse_stencils(sdfg, gpu=gpu, nested=nested, deduplicate = deduplicate)
     if view:
@@ -277,5 +271,5 @@ def test(compile = True, view = True, gpu = False, nested = False,
 
 if __name__ == '__main__':
     #view_graphs()
-    test(view = False, compile = False, nested = True,
+    test(view = False, compile = False, nested = False,
          gpu = False, deduplicate = False)
