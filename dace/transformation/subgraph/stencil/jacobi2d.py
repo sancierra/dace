@@ -109,7 +109,7 @@ def pre_tiling(sdfg, graph, tile_size = 64):
 
     t1.strides    = (tile_size, tile_size)
     t1.tile_sizes = (tile_size, tile_size) ## !!
-    t1.strides_offset = (0,0)
+    t1.tile_offset = (0,0)
 
     t2.strides    = (tile_size, tile_size)
     t2.tile_sizes = (tile_size, tile_size)

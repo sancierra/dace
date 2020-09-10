@@ -9,6 +9,7 @@ from dace.sdfg import utils as sdutil
 from dace.transformation import pattern_matching
 from dace.symbolic import pystr_to_symbolic
 from dace.subsets import Range
+from dace.sdfg.propagation import _propagate_node
 
 from copy import deepcopy as dcpy
 
@@ -72,25 +73,22 @@ class StencilTiling(pattern_matching.Transformation):
             Iff successful (transformation posible), returns True
             Saves all parameters as class variable
         """
-        print(str(reference_range.strides()[0]))
-        print(target_range.strides())
+        map_stride = target_range.strides()[0]
         if reference_range.strides()[0] != target_range.strides()[0]:
             # different strides
             return False
         min_diff = symbolic.SymExpr(target_range.min_element()[0] \
-                        - reference_range.min_element()[0]) \
-                        / reference_range.strides()[0]
+                        - reference_range.min_element()[0])
+        #                / reference_range.strides()[0]
         max_diff = symbolic.SymExpr(reference_range.max_element()[0] \
-                        - target_range.max_element()[0]) \
-                        / reference_range.strides()[0]
+                        - target_range.max_element()[0])
+        #                / reference_range.strides()[0]
 
         stencil_lo = stencil_size[0]
         stencil_hi = stencil_size[1]
 
         assert stencil_lo <=0 and stencil_hi >=1
 
-        print("min_diff", min_diff)
-        print("max_diff", max_diff)
         min_diff = symbolic.evaluate(min_diff, {})
         max_diff = symbolic.evaluate(max_diff, {})
         if min_diff < 0 or max_diff < 0:
@@ -110,10 +108,10 @@ class StencilTiling(pattern_matching.Transformation):
 
         window = int(window_lower)
         print("WINDOW", window)
-        print(f"(stencil_hi, stencil lo) = ({stencil_hi}, {stencil_lo})")
 
         self.tile_sizes.append(stride + window * (stencil_hi - stencil_lo - 1))
         self.tile_offset_lower.append(pystr_to_symbolic(str(abs(window * stencil_lo))))
+        self.tile_offset_upper.append(pystr_to_symbolic(str(window * (stencil_hi - 1))))
 
 
         return True
@@ -139,6 +137,7 @@ class StencilTiling(pattern_matching.Transformation):
         # TBD arrays
         self.tile_sizes = []
         self.tile_offset_lower = []
+        self.tile_offset_upper = []
 
         # strip mining each dimension where necessary
 
@@ -187,39 +186,40 @@ class StencilTiling(pattern_matching.Transformation):
             stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
                                     self.expr_index)
             stripmine.skip_trivial_dims = False
-            # Special case: Tile size of 1 should be omitted from inner map
+
             if tile_size == 1 and tile_stride == 1:
-                print("SC")
-                print(str(offset))
-                stripmine.dim_idx = dim_idx
-                stripmine.new_dim_prefix = self.prefix
-                stripmine.tile_size = str(tile_size)
-                stripmine.tile_stride = str(tile_stride)
-                stripmine.tile_offset = str(offset)
-                outer_map = stripmine.apply(sdfg)
-                #removed_maps += 1
                 inner_trivial = True
                 map_entry.unroll = True
-                # TODO: offset
+            stripmine.dim_idx = dim_idx
+            stripmine.new_dim_prefix = self.prefix
+            # use tile_stride for both -- we will extend
+            # the inner tiles later
+            stripmine.tile_size = str(tile_stride)
+            stripmine.tile_stride = str(tile_stride)
+            outer_map = stripmine.apply(sdfg)
+            #removed_maps += 1
+            map_entry.unroll = True
 
-            else:
-                stripmine.dim_idx = dim_idx
-                stripmine.new_dim_prefix = self.prefix
-                stripmine.tile_size = str(tile_size)
-                stripmine.tile_stride = str(tile_stride)
-                stripmine.tile_offset = str(offset)
-                outer_map = stripmine.apply(sdfg)
-
-            ## apply to the new map the schedule of the original one
+            # apply to the new map the schedule of the original one
             map_entry.schedule = original_schedule
 
+            # if inner_trivial:
             # just take overapproximation - strip the rest from outer
-            print(map_entry.range[dim_idx])
-            map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
-                                        if isinstance(el, symbolic.SymExpr) else el \
-                                        for el in map_entry.range[dim_idx])
-            print(map_entry.range[dim_idx])
-            print(type(map_entry.range[dim_idx]))
+            if inner_trivial:
+                map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
+                                            if isinstance(el, symbolic.SymExpr) else el \
+                                            for el in map_entry.range[dim_idx])
+
+            # in map_entry: enlarge tiles by upper and lower offset
+            # doing it this way and not via stripmine strides ensures
+            # that the max gets changed as well
+            old_range = map_entry.range[dim_idx]
+            map_entry.range[dim_idx] = (old_range[0] - self.tile_offset_lower[-1], \
+                                        old_range[1] + self.tile_offset_upper[-1], \
+                                        old_range[2])
+            # FORNOW: propagate out to adust memlets
+            _propagate_node(graph, map_entry)
+            _propagate_node(graph, graph.exit_node(map_entry))
 
             # usual tiling pipeline
             if last_map_entry:

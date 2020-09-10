@@ -207,4 +207,4 @@ if __name__ == '__main__':
     TILE_SIZE = 1
     N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = False, view = True, sequential = True, transient = True)
+    run(TILE_SIZE, compile = True, gpu = False, view = False, sequential = True, transient = True)

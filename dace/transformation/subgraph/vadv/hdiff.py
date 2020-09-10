@@ -7,6 +7,8 @@ from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
 
+from copy import deepcopy as dcpy
+
 def view_graphs():
     dace.sdfg.SDFG.from_file('hdiff.sdfg').view()
     dace.sdfg.SDFG.from_file('hdiff_fused.sdfg').view()
@@ -38,21 +40,22 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
         ngraph = graph
 
     first = [1365, 1392, 1419, 1446]
-    reference_range = next((node for node in ngraph.nodes()
+    reference_range = dcpy(next((node for node in ngraph.nodes()
                 if isinstance(node, dace.sdfg.nodes.MapEntry)
                 and node.label != 'kmap_fission'
-                and not any([str(f) in node.label for f in first]))).range
+                and not any([str(f) in node.label for f in first]))).range)
+    print("ref", reference_range)
 
     for node in ngraph.nodes().copy():
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
                         and node.label != 'kmap_fission':
-
+            print("STENCIL TILING on", node.label)
             subgraph = {StencilTiling._map_entry: ngraph.nodes().index(node)}
             transformation = StencilTiling(0, 0, subgraph, 0)
             transformation.reference_range = reference_range
             transformation.stencil_size = ((-1,2),)
             transformation.strides = (tile_size,)
-            transformation.apply(sdfg)
+            transformation.apply(nsdfg)
 
     return
 
@@ -269,4 +272,4 @@ def test(compile = True, view = True, gpu = False, nested = False,
 if __name__ == '__main__':
     #view_graphs()
     test(view = True, compile = False, nested = False,
-         gpu = False, deduplicate = True)
+         gpu = False, deduplicate = False)
