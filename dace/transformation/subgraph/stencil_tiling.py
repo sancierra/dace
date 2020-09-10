@@ -7,7 +7,7 @@ from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
 from dace.sdfg import utils as sdutil
 from dace.transformation import pattern_matching
-from dace.symbolic import pystr_to_symbolic
+from dace.symbolic import pystr_to_symbolic, simplify_ext
 from dace.subsets import Range
 from dace.sdfg.propagation import _propagate_node
 
@@ -15,6 +15,9 @@ from copy import deepcopy as dcpy
 
 import dace.subsets as subsets
 import dace.symbolic as symbolic
+
+import sympy
+import itertools
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
@@ -175,7 +178,8 @@ class StencilTiling(pattern_matching.Transformation):
 
             dim_idx -= removed_maps
             # If tile size is trivial, skip strip-mining map dimension
-            if tile_size == map_entry.map.range.size()[dim_idx]:
+            if tile_size == map_entry.map.range.size()[dim_idx] \
+                or map_entry.map.range.size()[dim_idx] in [0,1]:
                 continue
 
             # change map range to target reference.
@@ -214,10 +218,11 @@ class StencilTiling(pattern_matching.Transformation):
             # doing it this way and not via stripmine strides ensures
             # that the max gets changed as well
             old_range = map_entry.range[dim_idx]
-            map_entry.range[dim_idx] = (old_range[0] - self.tile_offset_lower[-1], \
-                                        old_range[1] + self.tile_offset_upper[-1], \
+            map_entry.range[dim_idx] = (sympy.simplify(old_range[0] - self.tile_offset_lower[-1]), \
+                                        sympy.simplify(old_range[1] + self.tile_offset_upper[-1]), \
                                         old_range[2])
-            # FORNOW: propagate out to adust memlets
+
+            # We have to propagate here
             _propagate_node(graph, map_entry)
             _propagate_node(graph, graph.exit_node(map_entry))
 
