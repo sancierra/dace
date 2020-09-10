@@ -6,6 +6,7 @@ from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
+from dace.sdfg.graph import SubgraphView
 
 from copy import deepcopy as dcpy
 
@@ -45,6 +46,10 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
                 and node.label != 'kmap_fission'
                 and not any([str(f) in node.label for f in first]))).range)
     print("ref", reference_range)
+
+    subgraph = SubgraphView(ngraph, ngraph.nodes())
+    print(StencilTiling.match(nsdfg, subgraph))
+    sys.exit(0)
 
     for node in ngraph.nodes().copy():
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
@@ -162,11 +167,12 @@ def test(compile = True, view = True, gpu = False, nested = False,
     sdfg = get_sdfg()
     sdfg._propagate = False
     sdfg.propagate = False
+
     if gpu:
         sdfg.apply_gpu_transformations()
 
-    #if view:
-    #    sdfg.view()
+    if view:
+        sdfg.view()
 
     if compile:
         pp1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
@@ -185,8 +191,8 @@ def test(compile = True, view = True, gpu = False, nested = False,
     apply_map_fission(sdfg)
     if not nested:
         sdfg.apply_strict_transformations()
-    #if view:
-    #    sdfg.view()
+    if view:
+        sdfg.view()
     if compile:
         pp2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         w2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
@@ -200,7 +206,7 @@ def test(compile = True, view = True, gpu = False, nested = False,
               pp = pp2, w = w2, v = v2, u = u2,
               I=I, J=J, K=K, halo = halo)
 
-
+    collapse_outer_maps(sdfg, nested=nested)
     apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested)
     if view:
         sdfg.view()
@@ -271,5 +277,5 @@ def test(compile = True, view = True, gpu = False, nested = False,
 
 if __name__ == '__main__':
     #view_graphs()
-    test(view = True, compile = False, nested = False,
+    test(view = False, compile = False, nested = True,
          gpu = False, deduplicate = False)

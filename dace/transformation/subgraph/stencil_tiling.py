@@ -69,7 +69,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
     @staticmethod
     def match(sdfg, subgraph):
         graph = subgraph.graph
-        map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+        map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
+        print("MAP ENTRIES", map_entries)
         if len(map_entries) < 1:
             return False
         source_nodes = set(sdutil.find_source_nodes(graph))
@@ -78,10 +79,10 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         while len(source_nodes) > 0:
             # traverse and find source maps
             node = next(iter(source_nodes))
-            if isinstance(node, nodes.MapEntry):
+            if isinstance(node, nodes.MapEntry) and node in map_entries:
                 source_maps.add(node)
             else:
-                for e in graph.out_edges():
+                for e in graph.out_edges(node):
                     source_nodes.add(e.dst)
             source_nodes.remove(node)
 
@@ -90,25 +91,33 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         while len(maps_queued) > 0:
             maps_added = 0
             current_map = next(iter(maps_queued))
-            nodes_current = set(current_map)
+            if current_map in maps_processed:
+                maps_queued.remove(current_map)
+                continue
+            nodes_current = set([e.dst for e in graph.out_edges(current_map)])
             while len(nodes_current) > 0:
                 current = next(iter(nodes_current))
-                if isinstance(current, nodes.MapEntry):
+                if isinstance(current, nodes.MapEntry) and current in map_entries:
                     if current not in maps_processed or maps_queued:
                         maps_queued.add(current)
                     maps_added += 1
                     # now check whether subsets cover
                     if not current_map.range.covers(current.range):
                         return False
+                else:
+                    for e in graph.out_edges(current):
+                        nodes_current.add(e.dst)
                 nodes_current.remove(current)
+
             if maps_added == 0:
-                sink_maps.append(current_map)
+                sink_maps.add(current_map)
 
             maps_queued.remove(current_map)
             maps_processed.add(current_map)
 
         # last condition: we want all sink maps to have the same
         # range, if not we cannot form a common map range for fusion later
+        assert len(sink_maps) > 0
         map0 = next(iter(sink_maps))
         if not all([map.range == map0.range for map in sink_maps]):
             return False
