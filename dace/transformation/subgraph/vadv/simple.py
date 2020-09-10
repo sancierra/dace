@@ -74,7 +74,7 @@ def apply_pre_tiling(sdfg, tile_size = 32):
             transformation = MapTiling(0, 0, subgraph, 0)
             transformation.tile_sizes = (1, tile_size + 2, tile_size +2)
             transformation.strides = (1, tile_size, tile_size)
-            transformation.strides_offset = (0,0,0)
+            transformation.tile_offset = (0,0,0)
             transformation.apply(sdfg)
 
         if isinstance(node, dace.sdfg.nodes.MapEntry) \
@@ -83,7 +83,7 @@ def apply_pre_tiling(sdfg, tile_size = 32):
             transformation = MapTiling(0, 0, subgraph, 0)
             transformation.tile_sizes = (1, tile_size, tile_size)
             transformation.strides = (1, tile_size, tile_size)
-            transformation.strides_offset = (0,0,0)
+            transformation.tile_offset = (0,0,0)
             transformation.apply(sdfg)
     return
 

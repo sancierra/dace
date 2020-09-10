@@ -4,6 +4,7 @@ import numpy as np
 from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
 from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
+from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
 
 def view_graphs():
@@ -23,6 +24,37 @@ def get_sdfg():
 
 def apply_map_fission(sdfg):
     sdfg.apply_transformations(MapFission)
+
+def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
+    graph = sdfg.nodes()[0]
+    ngraph, nsdfg = None, None
+    if nested:
+        for node in graph.nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                nsdfg = node.sdfg
+                ngraph = nsdfg.nodes()[0]
+    else:
+        nsdfg = sdfg
+        ngraph = graph
+
+    first = [1365, 1392, 1419, 1446]
+    reference_range = next((node for node in ngraph.nodes()
+                if isinstance(node, dace.sdfg.nodes.MapEntry)
+                and node.label != 'kmap_fission'
+                and not any([str(f) in node.label for f in first]))).range
+
+    for node in ngraph.nodes().copy():
+        if isinstance(node, dace.sdfg.nodes.MapEntry) \
+                        and node.label != 'kmap_fission':
+
+            subgraph = {StencilTiling._map_entry: ngraph.nodes().index(node)}
+            transformation = StencilTiling(0, 0, subgraph, 0)
+            transformation.reference_range = reference_range
+            transformation.stencil_size = ((-1,2),)
+            transformation.strides = (tile_size,)
+            transformation.apply(sdfg)
+
+    return
 
 def apply_pre_tiling(sdfg, nested = False, tile_size = 32):
     # for every map inside that is not kmap_fission
@@ -47,14 +79,14 @@ def apply_pre_tiling(sdfg, nested = False, tile_size = 32):
                 transformation = MapTiling(0, 0, subgraph, 0)
                 transformation.tile_sizes = (tile_size + 2, 1, tile_size + 2)
                 transformation.strides = (tile_size, 1, tile_size)
-                transformation.strides_offset = (0,0)
+                transformation.tile_offset = (0,0)
                 transformation.apply(nsdfg)
             else:
                 subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
                 transformation = MapTiling(0, 0, subgraph, 0)
                 transformation.tile_sizes = (tile_size, 1, tile_size)
                 transformation.strides = (tile_size, 1, tile_size)
-                transformation.strides_offset = (0,0)
+                transformation.tile_offset = (0,0)
                 transformation.apply(nsdfg)
     return
 
@@ -130,8 +162,8 @@ def test(compile = True, view = True, gpu = False, nested = False,
     if gpu:
         sdfg.apply_gpu_transformations()
 
-    if view:
-        sdfg.view()
+    #if view:
+    #    sdfg.view()
 
     if compile:
         pp1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
@@ -150,8 +182,8 @@ def test(compile = True, view = True, gpu = False, nested = False,
     apply_map_fission(sdfg)
     if not nested:
         sdfg.apply_strict_transformations()
-    if view:
-        sdfg.view()
+    #if view:
+    #    sdfg.view()
     if compile:
         pp2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
         w2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
@@ -166,7 +198,7 @@ def test(compile = True, view = True, gpu = False, nested = False,
               I=I, J=J, K=K, halo = halo)
 
 
-    apply_pre_tiling(sdfg, tile_size=tile_size, nested=nested)
+    apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested)
     if view:
         sdfg.view()
     if compile:

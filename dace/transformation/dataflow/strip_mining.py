@@ -155,6 +155,11 @@ class StripMining(pattern_matching.Transformation):
         default=False,
         desc="Continuous (false) or strided (true) elements in tile")
 
+    skip_trivial_dims = Property(
+        dtype=bool,
+        default=True,
+        desc="Skip dimensions where tile size and stride are both 1")
+
     @staticmethod
     def annotates_memlets():
         return True
@@ -242,13 +247,14 @@ class StripMining(pattern_matching.Transformation):
         # Retrieve parameter and range of dimension to be strip-mined.
         target_dim = map_entry.map.params[dim_idx]
         td_from, td_to, td_step = map_entry.map.range[dim_idx]
+        print("STRIP MINING:", td_from, td_to, td_step)
 
         # Create new map. Replace by cloning map object?
         new_dim = self._find_new_dim(sdfg, graph, map_entry, new_dim_prefix,
                                      target_dim)
         nd_from = 0
         if symbolic.pystr_to_symbolic(tile_stride) == 1:
-            nd_to = td_to
+            nd_to = td_to - td_from
         else:
             nd_to = symbolic.pystr_to_symbolic(
                 'int_ceil(%s + 1 - %s, %s) - 1' %
@@ -307,7 +313,9 @@ class StripMining(pattern_matching.Transformation):
         else:
             td_to_new = dace.symbolic.SymExpr(td_to_new_exact, td_to_new_approx)
         # Special case: If range is 1 and no prefix was specified, skip range
-        if td_from_new == td_to_new_approx and target_dim == new_dim:
+        if self.skip_trivial_dims and \
+           td_from_new == td_to_new_approx and target_dim == new_dim:
+
             map_entry.map.range = subsets.Range(
                 [r for i, r in enumerate(map_entry.map.range) if i != dim_idx])
             map_entry.map.params = [

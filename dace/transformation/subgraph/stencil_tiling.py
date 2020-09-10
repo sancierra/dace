@@ -45,10 +45,6 @@ class StencilTiling(pattern_matching.Transformation):
                             default=(1,),
                             desc="Tile stride")
 
-    divides_evenly = Property(dtype=bool,
-                              default=False,
-                              desc="Tile size divides dimension length evenly")
-
     @staticmethod
     def annotates_memlets():
         return True
@@ -93,6 +89,8 @@ class StencilTiling(pattern_matching.Transformation):
 
         assert stencil_lo <=0 and stencil_hi >=1
 
+        print("min_diff", min_diff)
+        print("max_diff", max_diff)
         min_diff = symbolic.evaluate(min_diff, {})
         max_diff = symbolic.evaluate(max_diff, {})
         if min_diff < 0 or max_diff < 0:
@@ -116,7 +114,7 @@ class StencilTiling(pattern_matching.Transformation):
 
         self.tile_sizes.append(stride + window * (stencil_hi - stencil_lo - 1))
         self.tile_offset_lower.append(pystr_to_symbolic(str(abs(window * stencil_lo))))
-        self.tile_offset_upper.append(pystr_to_symbolic(str(abs(window * stencil_hi))))
+
 
         return True
 
@@ -141,7 +139,6 @@ class StencilTiling(pattern_matching.Transformation):
         # TBD arrays
         self.tile_sizes = []
         self.tile_offset_lower = []
-        self.tile_offset_upper = []
 
         # strip mining each dimension where necessary
 
@@ -159,7 +156,7 @@ class StencilTiling(pattern_matching.Transformation):
             stencil_size_current = (0,1) if stencil_size_current is None \
                                    else stencil_size_current
 
-            reference_range_current = subsets.Range((map.range[dim_idx],))
+            reference_range_current = subsets.Range((map.range[dim_idx - removed_maps],))
             target_range_current = subsets.Range((self.reference_range[dim_idx],))
 
             inner_trivial = False
@@ -186,22 +183,25 @@ class StencilTiling(pattern_matching.Transformation):
             # then perform strip mining on this and
             # offset inner maps accordingly.
             map.range[dim_idx] = dcpy(self.reference_range[dim_idx + removed_maps])
-            print("#######", map.range[dim_idx])
+
             stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
                                     self.expr_index)
-            sdfg.view()
+            stripmine.skip_trivial_dims = False
             # Special case: Tile size of 1 should be omitted from inner map
             if tile_size == 1 and tile_stride == 1:
                 print("SC")
                 print(str(offset))
                 stripmine.dim_idx = dim_idx
-                stripmine.new_dim_prefix = ''
+                stripmine.new_dim_prefix = self.prefix
                 stripmine.tile_size = str(tile_size)
                 stripmine.tile_stride = str(tile_stride)
                 stripmine.tile_offset = str(offset)
                 outer_map = stripmine.apply(sdfg)
-                removed_maps += 1
+                #removed_maps += 1
                 inner_trivial = True
+                map_entry.unroll = True
+                # TODO: offset
+
             else:
                 stripmine.dim_idx = dim_idx
                 stripmine.new_dim_prefix = self.prefix
@@ -214,13 +214,12 @@ class StencilTiling(pattern_matching.Transformation):
             map_entry.schedule = original_schedule
 
             # just take overapproximation - strip the rest from outer
-            if not inner_trivial:
-                print(map_entry.range[dim_idx])
-                map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
-                                            if isinstance(el, symbolic.SymExpr) else el \
-                                            for el in map_entry.range[dim_idx])
-                print(map_entry.range[dim_idx])
-                print(type(map_entry.range[dim_idx]))
+            print(map_entry.range[dim_idx])
+            map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
+                                        if isinstance(el, symbolic.SymExpr) else el \
+                                        for el in map_entry.range[dim_idx])
+            print(map_entry.range[dim_idx])
+            print(type(map_entry.range[dim_idx]))
 
             # usual tiling pipeline
             if last_map_entry:

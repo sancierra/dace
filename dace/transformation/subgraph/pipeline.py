@@ -152,9 +152,6 @@ def fusion(sdfg: dace.SDFG,
     if not isinstance(subgraph, List):
         subgraph = [subgraph]
 
-    for (property, val) in kwargs.items():
-        setattr(map_fusion, property, val)
-
     if transformation_timer:
         start = timeit.default_timer()
 
@@ -170,6 +167,8 @@ def fusion(sdfg: dace.SDFG,
         print(f"Subgraph Fusion on map entries {map_entries}")
         view = SubgraphView(graph, sg)
         map_fusion = SubgraphFusion(view, state_id = sdfg.nodes().index(graph))
+        for (property, val) in kwargs.items():
+            setattr(map_fusion, property, val)
         map_fusion.fuse(sdfg, graph, map_entries)
         if isinstance(sg, SubgraphView):
             sg.nodes().append(map_fusion._global_map_entry)

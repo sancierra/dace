@@ -1,6 +1,7 @@
 import dace
 from dace.transformation.dataflow.tiling import MapTiling
 from dace.transformation.subgraph.pipeline import fusion
+from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
 
 import dace.subsets as subsets
@@ -62,8 +63,44 @@ def init_array(A):
     n = N.get()
     for i in range(n):
         for j in range(n):
-            A[i,j] = 1.0
+            A[i,j] = i*j/(n*n)
 
+def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False):
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry):
+            if node.label == 'a':
+                entry1 = node
+            if node.label == 'b':
+                entry2 = node
+        if isinstance(node, dace.sdfg.nodes.AccessNode) and node.data == 'B':
+            node.setzero = True
+
+    print(f"Operating on graph {graph}")
+    print(f"with map entries {entry1} and {entry2}")
+
+    d1 = {StencilTiling._map_entry: graph.nodes().index(entry1)}
+    d2 = {StencilTiling._map_entry: graph.nodes().index(entry2)}
+
+    t1 = StencilTiling(sdfg.sdfg_id,
+         sdfg.nodes().index(graph), d1, 0)
+    t2 = StencilTiling(sdfg.sdfg_id,
+         sdfg.nodes().index(graph), d2, 0)
+
+    t1.strides    = (tile_size, tile_size)
+    t1.stencil_size = ((-1,2),)
+    t1.reference_range = entry2.map.range
+
+    t2.strides    = (tile_size, tile_size)
+    t2.stencil_size = ((-1,2),)
+    t2.reference_range = entry2.map.range
+
+    t1.apply(sdfg)
+    t2.apply(sdfg)
+
+    if gpu:
+        for node in graph.nodes():
+            if isinstance(node,dace.sdfg.nodes.MapEntry) and node.label in ['a','b']:
+                node.map.schedule = dace.dtypes.ScheduleType.Default
 
 def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, sequential = False):
 
@@ -89,11 +126,11 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, s
 
     t1.strides    = (tile_size, tile_size)
     t1.tile_sizes = (tile_size+2, tile_size+2) ## !!
-    t1.strides_offset = (0,0)#tile_offsets
+    t1.tile_offset = (0,0)#tile_offsets
 
     t2.strides    = (tile_size, tile_size)
     t2.tile_sizes = (tile_size, tile_size)
-    t2.strides_offset = (0,0)
+    t2.tile_offset = (0,0)
 
     t1.apply(sdfg)
     t2.apply(sdfg)
@@ -149,7 +186,7 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     # establish baseline
     R1 = evaluate(sdfg, graph, view, compile)
 
-    pre_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
+    stencil_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
     R2 = evaluate(sdfg, graph, view, compile)
 
     if gpu:
@@ -167,7 +204,7 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
         print('PASS')
 
 if __name__ == '__main__':
-    TILE_SIZE =4
+    TILE_SIZE = 1
     N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = False, gpu = True, view = True, sequential = True, transient = True)
+    run(TILE_SIZE, compile = True, gpu = False, view = True, sequential = True, transient = True)
