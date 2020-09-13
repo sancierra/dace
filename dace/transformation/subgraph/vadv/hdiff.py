@@ -7,6 +7,7 @@ from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
 from dace.sdfg.graph import SubgraphView
+import dace.sdfg.nodes as nodes
 
 from copy import deepcopy as dcpy
 
@@ -24,6 +25,26 @@ def get_sdfg():
     #    if isinstance(node, dace.sdfg.nodes.AccessNode):
     #        sdfg.data(node.data).transient = False
     return sdfg
+
+def eliminate_k_memlet(sdfg):
+    graph = sdfg.nodes()[0]
+    ngraph, nsdfg = None, None
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            nsdfg = node.sdfg
+            ngraph = nsdfg.nodes()[0]
+
+    for node in ngraph.nodes():
+        if isinstance(node, nodes.MapEntry):
+            for e in ngraph.out_edges(node):
+                x = dace.symbol('x')
+                e.data.subset.replace({x:'0'})
+        if isinstance(node, nodes.MapExit):
+            for e in ngraph.in_edges(node):
+                x = dace.symbol('x')
+                e.data.subset.replace({x:'0'})
+
+
 
 def apply_map_fission(sdfg):
     sdfg.apply_transformations(MapFission)
@@ -142,16 +163,19 @@ def test(compile = True, view = True, gpu = False, nested = False,
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
-    I = np.int32(48)
-    J = np.int32(48)
-    K = np.int32(48)
-    halo = np.int32(2)
+    I = np.int32(64)
+    J = np.int32(64)
+    K = np.int32(64)
+    halo = np.int32(4)
 
     # define arrays
     pp_in = np.random.rand(J, K + 1, I).astype(DATATYPE)
     u_in = np.random.rand(J, K + 1, I).astype(DATATYPE)
     crlato = np.random.rand(J).astype(DATATYPE)
     crlatu = np.random.rand(J).astype(DATATYPE)
+    acrlat0 = np.random.rand(J).astype(DATATYPE)
+    crlavo = np.random.rand(J).astype(DATATYPE)
+    crlavu = np.random.rand(J).astype(DATATYPE)
     hdmask = np.random.rand( J, K + 1, I ).astype(DATATYPE)
     w_in = np.random.rand( J, K + 1, I).astype(DATATYPE)
     v_in = np.random.rand( J, K + 1, I).astype(DATATYPE)
@@ -161,6 +185,9 @@ def test(compile = True, view = True, gpu = False, nested = False,
     sdfg = get_sdfg()
     sdfg._propagate = False
     sdfg.propagate = False
+    sdfg.add_symbol('halo', int)
+
+    eliminate_k_memlet(sdfg)
 
     if gpu:
         sdfg.apply_gpu_transformations()
@@ -177,8 +204,9 @@ def test(compile = True, view = True, gpu = False, nested = False,
         sdfg._name = 'baseline'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp1, w = w1, v = v1, u = u1,
+              pp_out = pp1, w_out = w1, v_out = v1, u_out = u1,
               I=I, J=J, K=K, halo = halo)
 
 
@@ -196,8 +224,9 @@ def test(compile = True, view = True, gpu = False, nested = False,
         sdfg._name = 'fission'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp2, w = w2, v = v2, u = u2,
+              pp_out = pp2, w_out = w2, v_out = v2, u_out = u2,
               I=I, J=J, K=K, halo = halo)
 
     collapse_outer_maps(sdfg, nested=nested)
@@ -211,8 +240,9 @@ def test(compile = True, view = True, gpu = False, nested = False,
         sdfg._name = 'collapse_outer'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp4, w = w4, v = v4, u = u4,
+              pp_out = pp4, w_out = w4, v_out = v4, u_out = u4,
               I=I, J=J, K=K, halo = halo)
 
     apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested)
@@ -226,8 +256,9 @@ def test(compile = True, view = True, gpu = False, nested = False,
         sdfg._name = 'pre_tiling'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp3, w = w3, v = v3, u = u3,
+              pp_out = pp3, w_out = w3, v_out = v3, u_out = u3,
               I=I, J=J, K=K, halo = halo)
 
 
@@ -242,26 +273,32 @@ def test(compile = True, view = True, gpu = False, nested = False,
         sdfg._name = 'fused'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp5, w = w5, v = v5, u = u5,
+              pp_out = pp5, w_out = w5, v_out = v5, u_out = u5,
               I=I, J=J, K=K, halo = halo)
 
+
     if compile:
+        print(np.linalg.norm(pp1))
+        print(np.linalg.norm(w1))
+        print(np.linalg.norm(v1))
+        print(np.linalg.norm(u1))
         print("Fission")
         print(np.allclose(pp1, pp2))
         print(np.allclose(w1, w2))
         print(np.allclose(v1, v2))
         print(np.allclose(u1, u2))
         print("Pre_tiling")
-        print(np.allclose(pp1, pp3))
-        print(np.allclose(w1, w3))
-        print(np.allclose(v1, v3))
-        print(np.allclose(u1, u3))
-        print("Collapse")
         print(np.allclose(pp1, pp4))
         print(np.allclose(w1, w4))
         print(np.allclose(v1, v4))
         print(np.allclose(u1, u4))
+        print("Collapse")
+        print(np.allclose(pp1, pp3))
+        print(np.allclose(w1, w3))
+        print(np.allclose(v1, v3))
+        print(np.allclose(u1, u3))
         print("Fusion")
         print(np.allclose(pp1, pp5))
         print(np.allclose(w1, w5))
@@ -271,5 +308,5 @@ def test(compile = True, view = True, gpu = False, nested = False,
 
 if __name__ == '__main__':
     #view_graphs()
-    test(view = False, compile = False, nested = False,
+    test(view = False, compile = True, nested = False,
          gpu = False, deduplicate = False)
