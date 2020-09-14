@@ -11,12 +11,15 @@ import dace.sdfg.nodes as nodes
 
 from copy import deepcopy as dcpy
 
+SDFG_FILE = 'hdiff.sdfg'
+
 def view_graphs():
     dace.sdfg.SDFG.from_file('hdiff.sdfg').view()
+    dace.sdfg.SDFG.from_file('hdiff_v2.sdfg').view()
     dace.sdfg.SDFG.from_file('hdiff_fused.sdfg').view()
     dace.sdfg.SDFG.from_file('dedup.sdfg').view()
 def get_sdfg():
-    sdfg = dace.sdfg.SDFG.from_file('hdiff.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file(SDFG_FILE)
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
     # fix: make outer transients non-transient
@@ -44,6 +47,21 @@ def eliminate_k_memlet(sdfg):
                 x = dace.symbol('x')
                 e.data.subset.replace({x:'0'})
 
+def fix_arrays(sdfg):
+    for container in sdfg.arrays:
+        print(sdfg.data(container).shape)
+        print(type(sdfg.data(container).shape))
+
+    for container in sdfg.arrays:
+        if len(sdfg.data(container).shape) == 3:
+            sdfg.data(container).shape = (\
+                sdfg.data(container).shape[0]-1, \
+                sdfg.data(container).shape[1], \
+                sdfg.data(container).shape[2])
+
+    for container in sdfg.arrays:
+        print(sdfg.data(container).shape)
+        print(type(sdfg.data(container).shape))
 
 
 def apply_map_fission(sdfg):
@@ -178,16 +196,16 @@ def test(compile = True, view = True,
     halo = np.int32(4)
 
     # define arrays
-    pp_in = np.random.rand(J, K + 1, I).astype(DATATYPE)
-    u_in = np.random.rand(J, K + 1, I).astype(DATATYPE)
+    pp_in = np.random.rand(J, K, I).astype(DATATYPE)
+    u_in = np.random.rand(J, K, I).astype(DATATYPE)
     crlato = np.random.rand(J).astype(DATATYPE)
     crlatu = np.random.rand(J).astype(DATATYPE)
     acrlat0 = np.random.rand(J).astype(DATATYPE)
     crlavo = np.random.rand(J).astype(DATATYPE)
     crlavu = np.random.rand(J).astype(DATATYPE)
-    hdmask = np.random.rand( J, K + 1, I ).astype(DATATYPE)
-    w_in = np.random.rand( J, K + 1, I).astype(DATATYPE)
-    v_in = np.random.rand( J, K + 1, I).astype(DATATYPE)
+    hdmask = np.random.rand( J, K, I ).astype(DATATYPE)
+    w_in = np.random.rand( J, K, I).astype(DATATYPE)
+    v_in = np.random.rand( J, K, I).astype(DATATYPE)
 
 
     # compile -- first without anyting
@@ -196,19 +214,23 @@ def test(compile = True, view = True,
     sdfg.propagate = False
     sdfg.add_symbol('halo', int)
 
+    fix_arrays(sdfg)
     eliminate_k_memlet(sdfg)
 
     if gpu:
         sdfg.apply_gpu_transformations()
+        for node in sdfg.nodes()[0].nodes():
+            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+                node.schedule = dace.dtypes.ScheduleType.GPU_Device
 
     if view:
         sdfg.view()
 
     if compile:
-        pp1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u1 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        pp1 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        w1 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        v1 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        u1 = np.zeros([ J, K, I ], dtype = DATATYPE)
 
         sdfg._name = 'baseline'
         csdfg = sdfg.compile()
@@ -225,10 +247,10 @@ def test(compile = True, view = True,
     if view:
         sdfg.view()
     if compile:
-        pp2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u2 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        pp2 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        w2 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        v2 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        u2 = np.zeros([ J, K, I ], dtype = DATATYPE)
 
         sdfg._name = 'fission'
         csdfg = sdfg.compile()
@@ -242,10 +264,10 @@ def test(compile = True, view = True,
     if view:
         sdfg.view()
     if compile:
-        pp4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u4 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        pp4 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        w4 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        v4 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        u4 = np.zeros([ J, K, I ], dtype = DATATYPE)
         sdfg._name = 'collapse_outer'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
@@ -258,10 +280,10 @@ def test(compile = True, view = True,
     if view:
         sdfg.view()
     if compile:
-        pp3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u3 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        pp3 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        w3 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        v3 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        u3 = np.zeros([ J, K, I ], dtype = DATATYPE)
         sdfg._name = 'pre_tiling'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
@@ -279,10 +301,10 @@ def test(compile = True, view = True,
     if view:
         sdfg.view()
     if compile:
-        pp5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        w5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        v5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
-        u5 = np.zeros([ J, K + 1, I ], dtype = DATATYPE)
+        pp5 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        w5 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        v5 = np.zeros([ J, K, I ], dtype = DATATYPE)
+        u5 = np.zeros([ J, K, I ], dtype = DATATYPE)
         sdfg._name = 'fused'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
@@ -320,7 +342,6 @@ def test(compile = True, view = True,
 
 
 if __name__ == '__main__':
-    #view_graphs()
-    test(view = True, compile = False, nested = False,
+    test(view = False, compile = True, nested = False,
          gpu = False, deduplicate = False, tile_size = 1,
          sequential = True)
