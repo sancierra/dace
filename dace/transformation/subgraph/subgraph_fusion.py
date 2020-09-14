@@ -12,7 +12,6 @@ from dace.properties import make_properties, Property
 from dace.symbolic import symstr, overapproximate
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
 from dace.transformation.subgraph import helpers
-from dace.transformation.subgraph.dedup_access import DeduplicateAccess
 from dace.transformation.dataflow import RedundantArray
 from dace.sdfg.utils import consolidate_edges_scope
 
@@ -42,7 +41,7 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
 
     """
 
-    debug = Property(desc="Show debug info", dtype=bool, default=False)
+    debug = Property(desc="Show debug info", dtype=bool, default=True)
 
     transient_allocation = Property(
         desc="Storage Location to push transients to that are "
