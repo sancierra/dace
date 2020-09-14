@@ -124,6 +124,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         map_stride = target_range.strides()[0]
         if reference_range.strides()[0] != target_range.strides()[0]:
             # different strides
+            print(target_range.strides())
+            print(reference_range.strides())
             return False
         min_diff = symbolic.SymExpr(target_range.min_element()[0] \
                         - reference_range.min_element()[0])
@@ -166,7 +168,21 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         if self.debug:
             print("Operating with reference range", self.reference_range)
 
+        # next up, search for the ranges that don't change
+        invariant_ranges = []
+        for idx, rng in enumerate(self.reference_range):
+            different = False
+            for m in map_entries:
+                if m.range[idx] != rng:
+                    print(m.range[idx], '!=', rng)
+                    different = True
+                    break
+            if not different:
+                invariant_ranges.append(idx)
+        print("INVARIANT RANGES", invariant_ranges)
+
         assert self.reference_range is not None, "Wrong input, please use match()"
+
 
         from dace.transformation.dataflow.map_collapse import MapCollapse
         from dace.transformation.dataflow.strip_mining import StripMining
@@ -188,6 +204,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             self.tile_offset_upper = []
 
             # strip mining each dimension where necessary
+            removed_maps = 0
 
             for dim_idx in range(len(map_entry.map.params)):
                 # get current tile size
@@ -197,7 +214,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     tile_stride = symbolic.pystr_to_symbolic(self.strides[dim_idx])
 
                 reference_range_current = subsets.Range((map.range[dim_idx],))
-                target_range_current = subsets.Range((self.reference_range[dim_idx],))
+                target_range_current = subsets.Range((self.reference_range[dim_idx-removed_maps],))
 
                 inner_trivial = False
 
@@ -217,33 +234,48 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 offset = self.tile_offset_lower[-1]
 
                 # If tile size is trivial, skip strip-mining map dimension
-                if map_entry.map.range.size()[dim_idx] in [0,1]:
+                if map_entry.map.range.size()[dim_idx-removed_maps] in [0,1]:
                     continue
 
-                if tile_size == map_entry.map.range.size()[dim_idx]:
-                    continue
+                #if tile_size == map_entry.map.range.size()[dim_idx]:
+                #    continue
 
 
                 # change map range to target reference.
                 # then perform strip mining on this and
                 # offset inner maps accordingly.
-                map.range[dim_idx] = dcpy(self.reference_range[dim_idx])
-
-                stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
-                                        0)
-                stripmine.skip_trivial_dims = False
-
+                dim_idx -= removed_maps
                 if tile_size == 1 and tile_stride == 1:
                     inner_trivial = True
                     map_entry.unroll = True
-                stripmine.dim_idx = dim_idx
-                stripmine.new_dim_prefix = self.prefix
-                # use tile_stride for both -- we will extend
-                # the inner tiles later
-                stripmine.tile_size = str(tile_stride)
-                stripmine.tile_stride = str(tile_stride)
-                outer_map = stripmine.apply(sdfg)
-                map_entry.unroll = True
+
+                if inner_trivial and dim_idx+removed_maps in invariant_ranges and 0==1: # TODO
+                    print("XXXX inner_trivial invariant activated")
+                    map.range[dim_idx] = dcpy(self.reference_range[dim_idx+removed_maps])
+
+                    stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
+                                            0)
+                    stripmine.dim_idx = dim_idx
+                    stripmine.new_dim_prefix = self.prefix
+                    stripmine.tile_size = str(tile_stride)
+                    stripmine.tile_stride = str(tile_stride)
+                    outer_map = stripmine.apply(sdfg)
+                    removed_maps += 1
+
+                else:
+
+                    map.range[dim_idx] = dcpy(self.reference_range[dim_idx+removed_maps])
+                    stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
+                                            0)
+                    stripmine.skip_trivial_dims = False
+
+                    stripmine.dim_idx = dim_idx
+                    stripmine.new_dim_prefix = self.prefix
+                    # use tile_stride for both -- we will extend
+                    # the inner tiles later
+                    stripmine.tile_size = str(tile_stride)
+                    stripmine.tile_stride = str(tile_stride)
+                    outer_map = stripmine.apply(sdfg)
 
                 # apply to the new map the schedule of the original one
                 map_entry.schedule = original_schedule
