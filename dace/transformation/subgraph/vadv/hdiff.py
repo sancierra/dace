@@ -74,7 +74,7 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
     print(transformation.match(sdfg, subgraph), "==", True)
     # TODO
     K = dace.symbol('K')
-    transformation.strides = (K, tile_size)
+    transformation.strides = (1, 1, tile_size)
     transformation.apply(sdfg)
 
     return
@@ -136,7 +136,10 @@ def collapse_outer_maps(sdfg, nested = False):
             transformation = MapCollapse(0,0, subgraph, 0)
             transformation.apply(nsdfg)
 
-def fuse_stencils(sdfg, gpu, nested = False, deduplicate = False):
+def fuse_stencils(sdfg, gpu,
+                  nested = False,
+                  deduplicate = False,
+                  sequential = False):
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
 
@@ -144,6 +147,10 @@ def fuse_stencils(sdfg, gpu, nested = False, deduplicate = False):
     kwargs['propagate_source'] = False
     if gpu:
         kwargs['transient_allocation'] = dace.dtypes.StorageType.GPU_Shared
+    if sequential:
+        # will override gpu, ok
+        kwargs['transient_allocation'] = dace.dtypes.StorageType.Register
+        kwargs['sequential_innermaps'] = True
     if deduplicate:
         kwargs['consolidate_source'] = True
         kwargs['deduplicate_source'] = True
@@ -158,8 +165,10 @@ def fuse_stencils(sdfg, gpu, nested = False, deduplicate = False):
 
     pipeline.fusion(nsdfg, ngraph, **kwargs)
 
-def test(compile = True, view = True, gpu = False, nested = False,
-         tile_size = 32, deduplicate = False):
+def test(compile = True, view = True,
+         gpu = False, nested = False,
+         tile_size = 32, deduplicate = False,
+         sequential = False):
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
@@ -262,7 +271,11 @@ def test(compile = True, view = True, gpu = False, nested = False,
               I=I, J=J, K=K, halo = halo)
 
 
-    fuse_stencils(sdfg, gpu=gpu, nested=nested, deduplicate = deduplicate)
+    fuse_stencils(sdfg,
+                  gpu=gpu,
+                  nested=nested,
+                  deduplicate = deduplicate,
+                  sequential = sequential)
     if view:
         sdfg.view()
     if compile:
@@ -308,5 +321,6 @@ def test(compile = True, view = True, gpu = False, nested = False,
 
 if __name__ == '__main__':
     #view_graphs()
-    test(view = False, compile = True, nested = False,
-         gpu = False, deduplicate = False)
+    test(view = True, compile = False, nested = False,
+         gpu = False, deduplicate = False, tile_size = 1,
+         sequential = True)
