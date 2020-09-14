@@ -232,13 +232,13 @@ def test(compile = True, view = True,
         v1 = np.zeros([ J, K, I ], dtype = DATATYPE)
         u1 = np.zeros([ J, K, I ], dtype = DATATYPE)
 
-        sdfg._name = 'baseline'
-        csdfg = sdfg.compile()
-        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp_out = pp1, w_out = w1, v_out = v1, u_out = u1,
-              I=I, J=J, K=K, halo = halo)
+       # sdfg._name = 'baseline'
+       # csdfg = sdfg.compile()
+       # csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+       #       acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
+       #       hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+       #       pp_out = pp1, w_out = w1, v_out = v1, u_out = u1,
+       #       I=I, J=J, K=K, halo = halo)
 
 
     apply_map_fission(sdfg)
@@ -252,13 +252,13 @@ def test(compile = True, view = True,
         v2 = np.zeros([ J, K, I ], dtype = DATATYPE)
         u2 = np.zeros([ J, K, I ], dtype = DATATYPE)
 
-        sdfg._name = 'fission'
-        csdfg = sdfg.compile()
-        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp_out = pp2, w_out = w2, v_out = v2, u_out = u2,
-              I=I, J=J, K=K, halo = halo)
+        #sdfg._name = 'fission'
+        #csdfg = sdfg.compile()
+        #csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+        #      acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
+        #      hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+        #      pp_out = pp2, w_out = w2, v_out = v2, u_out = u2,
+        #      I=I, J=J, K=K, halo = halo)
 
     collapse_outer_maps(sdfg, nested=nested)
     if view:
@@ -268,7 +268,7 @@ def test(compile = True, view = True,
         w4 = np.zeros([ J, K, I ], dtype = DATATYPE)
         v4 = np.zeros([ J, K, I ], dtype = DATATYPE)
         u4 = np.zeros([ J, K, I ], dtype = DATATYPE)
-        sdfg._name = 'collapse_outer'
+        sdfg._name = 'baseline'
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
@@ -315,33 +315,28 @@ def test(compile = True, view = True,
 
 
     if compile:
-        print(np.linalg.norm(pp1))
-        print(np.linalg.norm(w1))
-        print(np.linalg.norm(v1))
-        print(np.linalg.norm(u1))
-        print("Fission")
-        print(np.allclose(pp1, pp2))
-        print(np.allclose(w1, w2))
-        print(np.allclose(v1, v2))
-        print(np.allclose(u1, u2))
-        print("Pre_tiling")
-        print(np.allclose(pp1, pp4))
-        print(np.allclose(w1, w4))
-        print(np.allclose(v1, v4))
-        print(np.allclose(u1, u4))
+        print(np.linalg.norm(pp4))
+        print(np.linalg.norm(w4))
+        print(np.linalg.norm(v4))
+        print(np.linalg.norm(u4))
+        print("Baseline")
+        print(np.allclose(pp4, pp4))
+        print(np.allclose(w4, w4))
+        print(np.allclose(v4, v4))
+        print(np.allclose(u4, u4))
         print("Collapse")
-        print(np.allclose(pp1, pp3))
-        print(np.allclose(w1, w3))
-        print(np.allclose(v1, v3))
-        print(np.allclose(u1, u3))
+        print(np.allclose(pp4, pp3))
+        print(np.allclose(w4, w3))
+        print(np.allclose(v4, v3))
+        print(np.allclose(u4, u3))
         print("Fusion")
-        print(np.allclose(pp1, pp5))
-        print(np.allclose(w1, w5))
-        print(np.allclose(v1, v5))
-        print(np.allclose(u1, u5))
+        print(np.allclose(pp4, pp5))
+        print(np.allclose(w4, w5))
+        print(np.allclose(v4, v5))
+        print(np.allclose(u4, u5))
 
 
 if __name__ == '__main__':
     test(view = False, compile = True, nested = False,
-         gpu = False, deduplicate = False, tile_size = 1,
+         gpu = True, deduplicate = False, tile_size = 1,
          sequential = True)
