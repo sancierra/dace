@@ -147,10 +147,11 @@ def are_subsets_contiguous(subset_a: subsets.Subset,
                            subset_b: subsets.Subset) -> bool:
     ''' If subsets are contiguous, return True '''
     bbunion = subsets.bounding_box_union(subset_a, subset_b)
-    return all([bbsz <= asz + bsz for (bbsz, asz, bsz) \
-                    in zip(bbunion.size, subset_a.size, subset_b.size)])
+
+    return all([bbsz == asz + bsz for (bbsz, asz, bsz) \
+                    in zip(bbunion.size(), subset_a.bounding_box_size(), subset_b.bounding_box_size())])
     '''
-    return bbunion.num_elements() <= (subset_a.num_elements() +
+    return bbunion.num_elements() == (subset_a.num_elements() +
                                       subset_b.num_elements())
     '''
 
@@ -234,3 +235,4 @@ def deduplicate(sdfg, graph, map_entry, out_connector, edges):
             # Rename data on memlet
             for pe in graph.memlet_tree(new_edge):
                 pe.data.data = name
+                pe.data.subset.offset(subset, True)
