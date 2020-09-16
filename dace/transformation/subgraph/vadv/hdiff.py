@@ -11,6 +11,8 @@ import dace.sdfg.nodes as nodes
 
 from copy import deepcopy as dcpy
 
+import sys 
+
 SDFG_FILE = 'hdiff.sdfg'
 
 def view_graphs():
@@ -67,7 +69,7 @@ def fix_arrays(sdfg):
 def apply_map_fission(sdfg):
     sdfg.apply_transformations(MapFission)
 
-def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
+def apply_stencil_tiling(sdfg, nested = False, tile_size = 1, sequential = True, gpu = False):
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
     if nested:
@@ -92,7 +94,14 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1):
     print(transformation.match(sdfg, subgraph), "==", True)
     # TODO
     K = dace.symbol('K')
-    transformation.strides = (1, 1, tile_size)
+    if len(tile_size) == 1:
+        tile_size = tile_size * 2
+    transformation.strides = (1, 1, tile_size[0], tile_size[1])
+    if sequential:
+        transformation.schedule = dace.dtypes.ScheduleType.Sequential
+    elif gpu:
+        transformation.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
+    
     transformation.apply(sdfg)
 
     return
@@ -190,9 +199,9 @@ def test(compile = True, view = True,
     # define DATATYPE
     DATATYPE = np.float64
     # define symbols
-    I = np.int32(64)
-    J = np.int32(64)
-    K = np.int32(64)
+    I = np.int32(128)
+    J = np.int32(128)
+    K = np.int32(80)
     halo = np.int32(4)
 
     # define arrays
@@ -276,7 +285,7 @@ def test(compile = True, view = True,
               pp_out = pp4, w_out = w4, v_out = v4, u_out = u4,
               I=I, J=J, K=K, halo = halo)
 
-    apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested)
+    apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested, sequential = sequential, gpu = gpu)
     if view:
         sdfg.view()
     if compile:
@@ -337,6 +346,16 @@ def test(compile = True, view = True,
 
 
 if __name__ == '__main__':
+    try:
+        seq = sys.argv[1] == 'register'
+        nseq = sys.argv[1] == 'shared'
+        assert nseq == True or seq == True 
+        tile1 = int(sys.argv[2])
+        tile2 = int(sys.argv[3])
+        
+    except:
+        print("Useage: mode tile1 tile2")
+        raise RuntimeError()
     test(view = False, compile = True, nested = False,
-         gpu = True, deduplicate = False, tile_size = 1,
-         sequential = True)
+         gpu = True, deduplicate = False, tile_size = (tile1, tile2),
+         sequential = False)
