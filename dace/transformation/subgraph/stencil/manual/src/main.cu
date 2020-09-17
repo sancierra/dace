@@ -4,12 +4,6 @@
 #include <chrono>
 
 #include "kernels.h"
-#ifdef OPT
-#include "kernels_optimized.h"
-#else
-#include "kernels_dace.h"
-#endif
-
 
 int N = 512;
 typedef double dtype;

@@ -58,15 +58,15 @@ __global__ void fused(const double * __restrict__ gpu_A, double * __restrict__ g
 }
 
 
-void run_fused(const double * __restrict__ gpu_A, double * __restrict__ gpu_C, int N, cudaStream_t stream)
+void run_fused(const double * __restrict__ gpu_A, double * __restrict__ gpu_C, int N, cudaStream_t stream){
 
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
-    fused<<<grid_sz, block_sz>>>(gpu_A, gpu_C, N);
+    fused<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_C, N);
 }
 
 
-__global__ void kernel1(double * __restrict__ B, const double * __restrict__ gpu_A, int N) {
+__global__ void kernel1(const double * __restrict__ gpu_A, double * __restrict__ B, int N) {
     {
         {
             int j = ((blockIdx.x * 32 + threadIdx.x) + 1);
@@ -99,7 +99,7 @@ void run_kernel1(const double * __restrict__ gpu_A, double * __restrict__ gpu_B,
 
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 2), 1), 32), int_ceil(int_ceil((N - 2), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
-    kernel1<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_B);
+    kernel1<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_B, N);
 }
 __global__ void kernel2(const double * __restrict__ B, double * __restrict__ gpu_C, int N) {
     {
@@ -133,6 +133,6 @@ void run_kernel2(const double * __restrict__ gpu_B, double * __restrict__ gpu_C,
 {
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
-    kernel2<<<grid_sz, block_sz>>>(gpu_B, gpu_C);
+    kernel2<<<grid_sz, block_sz, 0, stream>>>(gpu_B, gpu_C, N);
 
 }
