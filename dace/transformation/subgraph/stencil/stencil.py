@@ -7,6 +7,7 @@ from dace.sdfg.graph import SubgraphView
 
 import dace.subsets as subsets
 import numpy as np
+import sys
 
 
 N = dace.symbol('N')
@@ -66,7 +67,7 @@ def init_array(A):
         for j in range(n):
             A[i,j] = i*j/(n*n)
 
-def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False):
+def stencil_tiling(sdfg, graph, tile_size = (1,1), gpu = False, sequential = False):
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
             if node.label == 'a':
@@ -83,7 +84,7 @@ def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False)
     t = StencilTiling(subgraph, sdfg.sdfg_id,
                       sdfg.nodes().index(graph))
 
-    t.strides = (tile_size, tile_size)
+    t.strides = (tile_size[0], tile_size[1])
     t.apply(sdfg)
 
     if gpu:
@@ -91,7 +92,7 @@ def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False)
             if isinstance(node,dace.sdfg.nodes.MapEntry) and node.label in ['a','b']:
                 node.map.schedule = dace.dtypes.ScheduleType.Default
 
-def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, sequential = False):
+def pre_tiling(sdfg, graph, tile_size = (1,1), tile_offsets = (0,0), gpu = False, sequential = False):
 
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
@@ -113,12 +114,12 @@ def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, s
     t2 = dace.transformation.dataflow.tiling.MapTiling(sdfg.sdfg_id,
          sdfg.nodes().index(graph), d2, 0)
 
-    t1.strides    = (tile_size, tile_size)
-    t1.tile_sizes = (tile_size+2, tile_size+2) ## !!
+    t1.strides    = (tile_size[0], tile_size[1])
+    t1.tile_sizes = (tile_size[0]+2, tile_size[1]+2) ## !!
     t1.tile_offset = (0,0)#tile_offsets
 
-    t2.strides    = (tile_size, tile_size)
-    t2.tile_sizes = (tile_size, tile_size)
+    t2.strides    = (tile_size[0], tile_size[1])
+    t2.tile_sizes = (tile_size[0], tile_size[1])
     t2.tile_offset = (0,0)
 
     t1.apply(sdfg)
@@ -193,7 +194,16 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
         print('PASS')
 
 if __name__ == '__main__':
-    TILE_SIZE = 1
+    try:
+        mode = sys.argv[1]
+        assert mode == 'register' or mode == 'shared'
+        tile1 = int(sys.argv[2])
+        tile2 = int(sys.argv[3])
+    except:
+        print("Useage: mode tile1 tile2")
+        raise RuntimeError
+    
+    tiles = (tile1, tile2)
     N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = False, view = False, sequential = True, transient = True)
+    run(tiles, compile = True, gpu = True, view = False, sequential = mode == 'register', transient = True)
