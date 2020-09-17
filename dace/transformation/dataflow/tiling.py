@@ -33,7 +33,7 @@ class MapTiling(pattern_matching.Transformation):
         default=tuple(),
         desc="Tile stride (enables overlapping tiles). If empty, matches tile")
 
-    strides_offset = ShapeProperty(
+    tile_offset = ShapeProperty(
         dtype=tuple,
         default=(0,0,0),
         desc="Negative Stride offset")
@@ -89,10 +89,10 @@ class MapTiling(pattern_matching.Transformation):
                     self.tile_sizes[dim_idx])
                 tile_stride = symbolic.pystr_to_symbolic(tile_strides[dim_idx])
 
-            if dim_idx >= len(self.strides_offset):
-                offset = self.strides_offset[-1]
+            if dim_idx == len(self.tile_offset):
+                offset = self.tile_offset[-1]
             else:
-                offset = self.strides_offset[dim_idx]
+                offset = self.tile_offset[dim_idx]
 
             dim_idx -= removed_maps
             # If tile size is trivial, skip strip-mining map dimension
