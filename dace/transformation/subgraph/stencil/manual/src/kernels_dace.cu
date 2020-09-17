@@ -59,7 +59,6 @@ __global__ void fused(const double * __restrict__ gpu_A, double * __restrict__ g
 
 
 void run_fused(const double * __restrict__ gpu_A, double * __restrict__ gpu_C, int N, cudaStream_t stream){
-
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
     fused<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_C, N);
