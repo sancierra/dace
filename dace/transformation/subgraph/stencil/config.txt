@@ -1,0 +1,16 @@
+register 1 1 
+register 1 32
+register 32 1
+register 1 64
+register 64 1
+register 128 1
+register 1 128
+shared 30 6
+shared 6 30
+shared 30 2
+shared 2 30
+shared 62 2
+shared 2 62
+shared 1 126
+shared 126 1
+shared 14 30

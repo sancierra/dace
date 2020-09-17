@@ -2,6 +2,7 @@
     stencil tiling transformation. """
 import math
 
+import dace 
 from dace import registry, symbolic
 from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
@@ -46,6 +47,10 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
     strides = ShapeProperty(dtype=tuple,
                             default=(1,),
                             desc="Tile stride")
+    
+    schedule = Property(dtype=dace.dtypes.ScheduleType,
+                        default = dace.dtypes.ScheduleType.Default,
+                        desc = "Inner Schedule Type")
 
     @staticmethod
     def annotates_memlets():
@@ -247,7 +252,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 dim_idx -= removed_maps
                 if tile_size == 1 and tile_stride == 1:
                     inner_trivial = True
-                    map_entry.unroll = True
 
                 if inner_trivial and dim_idx+removed_maps in invariant_ranges and 0==1: # TODO
                     print("XXXX inner_trivial invariant activated")
@@ -278,7 +282,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     outer_map = stripmine.apply(sdfg)
 
                 # apply to the new map the schedule of the original one
-                map_entry.schedule = original_schedule
+                map_entry.schedule = self.schedule
 
                 # if inner_trivial:
                 # just take overapproximation - strip the rest from outer
@@ -311,3 +315,4 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                                               mapcollapse_subgraph, 0)
                     mapcollapse.apply(sdfg)
                 last_map_entry = graph.in_edges(map_entry)[0].src
+

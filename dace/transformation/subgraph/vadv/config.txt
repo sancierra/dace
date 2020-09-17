@@ -1,0 +1,8 @@
+shared 27 3
+shared 3 27
+
+register 1 32
+register 32 1
+register 1 1
+register 1 64
+register 64 1 
