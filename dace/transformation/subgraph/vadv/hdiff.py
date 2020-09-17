@@ -350,6 +350,7 @@ if __name__ == '__main__':
         seq = sys.argv[1] == 'register'
         nseq = sys.argv[1] == 'shared'
         assert nseq == True or seq == True 
+        sequential = seq
         tile1 = int(sys.argv[2])
         tile2 = int(sys.argv[3])
         
@@ -358,4 +359,4 @@ if __name__ == '__main__':
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
          gpu = True, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = False)
+         sequential = sequential)
