@@ -7,14 +7,13 @@
 
 #include "kernels.h"
 
-int N = 512;
-int TREPS = 20;
-typedef double dtype;
+const int N = 512;
+const int TREPS = 1;
+
 
 void run(){
     std::cout << "---Runner---" << std::endl;
     std::cout << "Allocating Arrays...." << std::endl;
-    const int N = 512;
 
     dtype* A = new dtype[N*N];
     dtype* C = new dtype[N*N];
@@ -24,13 +23,13 @@ void run(){
 
     for(int i = 0; i<N; ++i){
         for(int j=0; j<N; ++j){
-            A[i*N + j] = dtype(i*j)/N;
+            A[i*N + j] = dtype(i*j)/(N*N);
         }
     }
 
-    double* gpu_A = 0;
-    double* gpu_B = 0;
-    double* gpu_C = 0;
+    dtype* gpu_A = 0;
+    dtype* gpu_B = 0;
+    dtype* gpu_C = 0;
 
     cudaMalloc(&gpu_A, (N*N)*sizeof(dtype));
     cudaMalloc(&gpu_B, (N*N)*sizeof(dtype));
@@ -47,20 +46,29 @@ void run(){
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
         run_kernel1(gpu_A, gpu_B, N, stream);
+        #ifdef DEBUG
+        auto error = cudaGetLastError();
+        if(error != 0){
+            std::cout << "ERROR: " << error << std::endl;
+        }
+        #endif
         run_kernel2(gpu_B, gpu_C, N, stream);
+        #ifdef DEBUG
+        error = cudaGetLastError();
+        if(error != 0){
+            std::cout << "ERROR: " << error << std::endl;
+        }
+        #endif 
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
 
     }
     // #########################
     std::sort(runtimes.begin(), runtimes.end());
-    std::cout << "Timer: " << runtimes[std::ceil(TREPS/2)] << " ms" << std::endl;
-
-    std::move(C, C+N*N, result1);
 
     cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
-
+    std::move(C, C+N*N, result1);
     // run the non-fused version
     std::cout << "Running Fused Kernels" << std::endl;
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
@@ -73,8 +81,8 @@ void run(){
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
     }
     // ##########################
+
     std::sort(runtimes.begin(), runtimes.end());
-    std::cout << "Timer: " << runtimes[std::ceil(TREPS/2)] << " ms" << std::endl;
 
     cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
