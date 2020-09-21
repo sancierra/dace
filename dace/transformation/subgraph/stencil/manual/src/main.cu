@@ -35,30 +35,19 @@ void run(){
     cudaMalloc(&gpu_B, (N*N)*sizeof(dtype));
     cudaMalloc(&gpu_C, (N*N)*sizeof(dtype));
 
-    // run the fused version
+    // run the non fused version
     std::cout << "Running Unfused Kernels" << std::endl;
     cudaStream_t stream;
     cudaStreamCreate(&stream);
 
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
+    cudaMemset(gpu_C, 0, N*N*sizeof(dtype));
     // #########################
     auto runtimes = std::vector<double>(TREPS);
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
         run_kernel1(gpu_A, gpu_B, N, stream);
-        #ifdef DEBUG
-        auto error = cudaGetLastError();
-        if(error != 0){
-            std::cout << "ERROR: " << error << std::endl;
-        }
-        #endif
         run_kernel2(gpu_B, gpu_C, N, stream);
-        #ifdef DEBUG
-        error = cudaGetLastError();
-        if(error != 0){
-            std::cout << "ERROR: " << error << std::endl;
-        }
-        #endif 
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
 
@@ -68,10 +57,13 @@ void run(){
 
     cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
-    std::move(C, C+N*N, result1);
+    std::copy(C, C+N*N, result1);
+    
+    
     // run the non-fused version
     std::cout << "Running Fused Kernels" << std::endl;
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
+    cudaMemset(gpu_C, 0, N*N*sizeof(dtype));
     // ##########################
     runtimes.empty();
     for(int run=0; run<TREPS; run++){
@@ -87,7 +79,7 @@ void run(){
     cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
 
-    std::move(C, C+N*N, result2);
+    std::copy(C, C+N*N, result2);
 
     cudaFree(gpu_A);
     cudaFree(gpu_C);
@@ -105,7 +97,6 @@ void run(){
             norm2_fused += result2[i*N+j] * result2[i*N+j];
             if(std::abs(result1[i*N+j] - result2[i*N+j]) > tol){
                 correct = false;
-                break;
             }
         }
     }

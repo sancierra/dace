@@ -10,8 +10,10 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
             dtype B[9] = {0};
             if (stencil_j < (N - 4)) {
                 {
-                    {
+                    {   
+                        #pragma unroll
                         for (auto i = (stencil_i + 1); i < (min((N - 2), (stencil_i + 3)) + 1); i += 1) {
+                            #pragma unroll
                             for (auto j = (stencil_j + 1); j < (min((N - 2), (stencil_j + 3)) + 1); j += 1) {
                                 {
                                     dtype a1 = gpu_A[((N * i) + j)];
@@ -23,7 +25,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
 
                                     ///////////////////
                                     // Tasklet code (a)
-                                    b = (0.2 * ((((a1 + a2) + a3) + a4) + a5));
+                                    b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                                     ///////////////////
 
                                     B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
@@ -31,8 +33,10 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             }
                         }
                     }
-                    {
+                    {   
+                        #pragma unroll
                         for (auto i = (stencil_i + 2); i < (stencil_i + 3); i += 1) {
+                            #pragma unroll
                             for (auto j = (stencil_j + 2); j < (stencil_j + 3); j += 1) {
                                 {
                                     dtype a1 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)];
@@ -44,7 +48,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
 
                                     ///////////////////
                                     // Tasklet code (b)
-                                    b = (0.2 * ((((a1 + a2) + a3) + a4) + a5));
+                                    b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                                     ///////////////////
 
                                     gpu_C[((N * i) + j)] = b;
@@ -84,7 +88,7 @@ __global__ void kernel1(const dtype * __restrict__ gpu_A, dtype * __restrict__ B
 
                         ///////////////////
                         // Tasklet code (a)
-                        b = (0.2 * ((((a1 + a2) + a3) + a4) + a5));
+                        b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                         ///////////////////
                         B[((N * i) + j)] = b;
                     }
@@ -118,7 +122,7 @@ __global__ void kernel2(const dtype * __restrict__ B, dtype * __restrict__ gpu_C
 
                         ///////////////////
                         // Tasklet code (b)
-                        b = (0.2 * ((((a1 + a2) + a3) + a4) + a5));
+                        b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                         ///////////////////
                         gpu_C[((N * i) + j)] = b;
                     }
