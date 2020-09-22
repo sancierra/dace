@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include "kernels.h"
 
-#define DEBUG
-//#define LOCALMEM 
+//#define MANUAL 
 
 __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu_C, int N) {
     {
@@ -16,7 +15,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
 
                 
 
-                    #ifdef LOCALMEM
+                    #ifdef MANUAL
                     // make B 1-registers
                     //dtype b_up, b_mid, b_down, b_r, b_l;
                     dtype B[9] = {0};
@@ -170,8 +169,8 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                     #else 
                     dtype B[9] = {0};
                     
+                   /* 
                     
-                    /*
                     {
                         for (auto i = (stencil_i + 1); i < (stencil_i + 3) + 1; i += 1) {
                             for (auto j = (stencil_j + 1); j < (stencil_j + 3) + 1; j += 1) {
@@ -193,9 +192,8 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             }
                         }
                     }
+                    
                     */
-
-                    printf("1"); 
                     {
                         {
 
@@ -213,15 +211,14 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+1)) + (stencil_j+1)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
-                        printf("2");
 
                         {
                             auto i = stencil_i + 1;
-                            auto j = stencil_i + 2;
+                            auto j = stencil_j + 2;
                             dtype a1 = gpu_A[((N * i) + j)];
                             dtype a2 = gpu_A[(((N * i) + j) - 1)];
                             dtype a3 = gpu_A[(((N * i) + j) + 1)];
@@ -234,14 +231,13 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+1)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
-                        printf("3");
                         {
 
                             auto i = stencil_i + 1;
-                            auto j = stencil_i + 3;
+                            auto j = stencil_j + 3;
                             dtype a1 = gpu_A[((N * i) + j)];
                             dtype a2 = gpu_A[(((N * i) + j) - 1)];
                             dtype a3 = gpu_A[(((N * i) + j) + 1)];
@@ -254,7 +250,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+1)) + (stencil_j+3)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -275,11 +271,10 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+2)) + (stencil_j+1)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
-                        printf("4");
 
                         {
 
@@ -297,7 +292,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -319,7 +314,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+2)) + (stencil_j+3)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -340,7 +335,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+3)) + (stencil_j+1)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -361,7 +356,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+3)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -383,7 +378,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                             b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                             ///////////////////
 
-                            B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)] = b;
+                            B[(((((3 * (stencil_i+3)) + (stencil_j+3)) - (3 * stencil_i)) - stencil_j) - 4)] = b;
 
                         }
 
@@ -391,7 +386,7 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
 
                 
 
-                    printf("5");
+                    
 
                     
                     {
@@ -399,25 +394,24 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                         auto j = stencil_j + 2;
                         
                         //auto cse = ((((3 * i) + j) - (3 * stencil_i)) - stencil_j);
-                        //dtype a1 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)];
-                        //dtype a2 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 5)];
-                        //dtype a3 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 3)];
-                        //dtype a4 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 1)];
-                        //dtype a5 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 7)];
+                        dtype a1 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)];
+                        dtype a2 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 5)];
+                        dtype a3 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 3)];
+                        dtype a4 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 1)];
+                        dtype a5 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 7)];
                         
 
-                        dtype a1 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)];
-                        dtype a2 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 5)];
-                        dtype a3 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 3)];
-                        dtype a4 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 1)];
-                        dtype a5 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 7)];
+                        //dtype a1 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)];
+                        //dtype a2 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 5)];
+                        //dtype a3 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 3)];
+                        //dtype a4 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 1)];
+                        //dtype a5 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 7)];
                         dtype b;
 
                         ///////////////////
                         // Tasklet code (b)
                         b = (dtype(0.2) * ((((a1 + a2) + a3) + a4) + a5));
                         ///////////////////
-                        printf("asdf");
                         gpu_C[((N * i) + j)] = b;
                     }
                     #endif
@@ -477,8 +471,8 @@ void run_fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu_C, int
     dim3 block_sz = dim3(32, 1, 1);
     printf("Running Fused OPTIMIZED Kernel \n");
     fused<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_C, N);
-    cudaError_t error = cudaGetLastError();
-    if(error != cudaSuccess){
+    auto status = cudaPeekAtLastError();
+    if(status != cudaSuccess){
         printf("ERROR");
     }
 }
@@ -518,8 +512,8 @@ void run_kernel1(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu_B, i
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 2), 1), 32), int_ceil(int_ceil((N - 2), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
     kernel1<<<grid_sz, block_sz, 0, stream>>>(gpu_A, gpu_B, N);
-    cudaError_t error = cudaGetLastError();
-    if(error != cudaSuccess){
+    auto status = cudaPeekAtLastError();
+    if(status != cudaSuccess){
         printf("ERROR");
     }
 }
@@ -556,8 +550,8 @@ void run_kernel2(const dtype * __restrict__ gpu_B, dtype * __restrict__ gpu_C, i
     dim3 grid_sz = dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1));
     dim3 block_sz = dim3(32, 1, 1);
     kernel2<<<grid_sz, block_sz, 0, stream>>>(gpu_B, gpu_C, N);
-    cudaError_t error = cudaGetLastError();
-    if(error != cudaSuccess){
+    auto status = cudaPeekAtLastError();
+    if(status != cudaSuccess){
         printf("ERROR");
     }
 }

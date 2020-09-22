@@ -10,7 +10,7 @@ add_library(optimizedlib SHARED src/kernels_optimized.cu)
 add_executable(optimized src/main.cu)
 add_executable(dace src/main.cu)
 
-add_definitions(-DDEBUG -Xptxas -v)
+add_definitions(-DDEBUG -Xptxas -v -O3)
 
 target_link_libraries(dace dacelib)
 target_link_libraries(optimized optimizedlib)

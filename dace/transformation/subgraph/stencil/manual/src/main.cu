@@ -29,11 +29,13 @@ void run(){
 
     dtype* gpu_A = 0;
     dtype* gpu_B = 0;
-    dtype* gpu_C = 0;
+    dtype* gpu_C1 = 0;
+    dtype* gpu_C2 = 0;
 
     cudaMalloc(&gpu_A, (N*N)*sizeof(dtype));
     cudaMalloc(&gpu_B, (N*N)*sizeof(dtype));
-    cudaMalloc(&gpu_C, (N*N)*sizeof(dtype));
+    cudaMalloc(&gpu_C1, (N*N)*sizeof(dtype));
+    cudaMalloc(&gpu_C2, (N*N)*sizeof(dtype));
 
     // run the non fused version
     std::cout << "Running Unfused Kernels" << std::endl;
@@ -41,21 +43,22 @@ void run(){
     cudaStreamCreate(&stream);
 
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
-    cudaMemset(gpu_C, 0, N*N*sizeof(dtype));
+    cudaMemset(gpu_C1, 0, N*N*sizeof(dtype));
     // #########################
     auto runtimes = std::vector<double>(TREPS);
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
         run_kernel1(gpu_A, gpu_B, N, stream);
-        run_kernel2(gpu_B, gpu_C, N, stream);
+        run_kernel2(gpu_B, gpu_C1, N, stream);
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
 
     }
     // #########################
     std::sort(runtimes.begin(), runtimes.end());
-
-    cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
+    
+    std::fill(C, C+N*N, 0);
+    cudaMemcpyAsync(C, gpu_C1, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
     std::copy(C, C+N*N, result1);
     
@@ -63,26 +66,30 @@ void run(){
     // run the non-fused version
     std::cout << "Running Fused Kernels" << std::endl;
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
-    cudaMemset(gpu_C, 0, N*N*sizeof(dtype));
+    cudaMemset(gpu_C2, 0, N*N*sizeof(dtype));
     // ##########################
     runtimes.empty();
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
-        run_fused(gpu_A, gpu_C, N, stream);
+        run_fused(gpu_A, gpu_C2, N, stream);
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
     }
     // ##########################
 
     std::sort(runtimes.begin(), runtimes.end());
-
-    cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
+    
+    std::fill(C, C+N*N, 0);
+    cudaMemcpyAsync(C, gpu_C2, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
-
     std::copy(C, C+N*N, result2);
 
+
     cudaFree(gpu_A);
-    cudaFree(gpu_C);
+    cudaFree(gpu_C1);
+    cudaFree(gpu_C2);
+    cudaFree(gpu_B);
+
     std::cout << "Done." << std::endl;
     std::cout << "Correctness Check" << std::endl;
 
