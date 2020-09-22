@@ -12,7 +12,7 @@ from dace.sdfg import graph as gr, nodes
 from dace.sdfg import utils as sdutil
 from dace.frontend.python.astutils import ASTFindReplace
 from dace.transformation.interstate.loop_detection import DetectLoop
-
+from dace.symbolic import pystr_to_symbolic
 
 @registry.autoregister
 @make_properties
@@ -38,18 +38,20 @@ class LoopUnroll(DetectLoop):
         """
         # Find starting expression and stride
         itersym = symbolic.symbol(itervar)
-        if (itervar in inedges[0].data.assignments[itervar]
-                and itervar not in inedges[1].data.assignments[itervar]):
-            stride = (symbolic.pystr_to_symbolic(
-                inedges[0].data.assignments[itervar]) - itersym)
-            start = symbolic.pystr_to_symbolic(
-                inedges[1].data.assignments[itervar])
-        elif (itervar in inedges[1].data.assignments[itervar]
-              and itervar not in inedges[0].data.assignments[itervar]):
-            stride = (symbolic.pystr_to_symbolic(
-                inedges[1].data.assignments[itervar]) - itersym)
-            start = symbolic.pystr_to_symbolic(
-                inedges[0].data.assignments[itervar])
+
+        in_edge_0_assignments = \
+                pystr_to_symbolic(inedges[0].data.assignments[itervar])
+        in_edge_1_assignments = \
+                pystr_to_symbolic(inedges[1].data.assignments[itervar])
+
+        if (itersym in in_edge_0_assignments.free_symbols
+                and itersym not in in_edge_1_assignments.free_symbols):
+            stride = (in_edge_0_assignments - itersym)
+            start = in_edge_1_assignments
+        elif (itersym in in_edge_1_assignments.free_symbols
+              and itersym not in in_edge_0_assignments.free_symbols):
+            stride = (in_edge_1_assignments - itersym)
+            start = in_edge_0_assignments
         else:
             return None
 
@@ -107,17 +109,20 @@ class LoopUnroll(DetectLoop):
         # Obtain loop information
         guard: sd.SDFGState = sdfg.node(self.subgraph[DetectLoop._loop_guard])
         begin: sd.SDFGState = sdfg.node(self.subgraph[DetectLoop._loop_begin])
+        print(guard)
+        print(begin)
         after_state: sd.SDFGState = sdfg.node(
             self.subgraph[DetectLoop._exit_state])
 
         # Obtain iteration variable, range, and stride
         guard_inedges = sdfg.in_edges(guard)
-        condition_edge = sdfg.edges_between(guard, begin)[0]
+        condition_edge = sdfg.edges_between(guard, after_state)[0]
         itervar = list(guard_inedges[0].data.assignments.keys())[0]
         condition = condition_edge.data.condition_sympy()
         rng = LoopUnroll._loop_range(itervar, guard_inedges, condition)
 
         # Loop must be unrollable
+        print(rng)
         if self.count == 0 and any(
                 symbolic.issymbolic(r, sdfg.constants) for r in rng):
             raise ValueError('Loop cannot be fully unrolled, size is symbolic')
@@ -125,7 +130,7 @@ class LoopUnroll(DetectLoop):
             raise NotImplementedError  # TODO(later)
 
         # Find the state prior to the loop
-        if rng[0] == symbolic.pystr_to_symbolic(
+        if rng[0] == pystr_to_symbolic(
                 guard_inedges[0].data.assignments[itervar]):
             before_state: sd.SDFGState = guard_inedges[0].src
             last_state: sd.SDFGState = guard_inedges[1].src
