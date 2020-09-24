@@ -7,14 +7,13 @@
 
 #include "kernels.h"
 
-int N = 512;
-int TREPS = 20;
-typedef double dtype;
+const int N = 512;
+const int TREPS = 1;
+
 
 void run(){
     std::cout << "---Runner---" << std::endl;
     std::cout << "Allocating Arrays...." << std::endl;
-    const int N = 512;
 
     dtype* A = new dtype[N*N];
     dtype* C = new dtype[N*N];
@@ -24,65 +23,73 @@ void run(){
 
     for(int i = 0; i<N; ++i){
         for(int j=0; j<N; ++j){
-            A[i*N + j] = dtype(i*j)/N;
+            A[i*N + j] = dtype(i*j)/(N*N);
         }
     }
 
-    double* gpu_A = 0;
-    double* gpu_B = 0;
-    double* gpu_C = 0;
+    dtype* gpu_A = 0;
+    dtype* gpu_B = 0;
+    dtype* gpu_C1 = 0;
+    dtype* gpu_C2 = 0;
 
     cudaMalloc(&gpu_A, (N*N)*sizeof(dtype));
     cudaMalloc(&gpu_B, (N*N)*sizeof(dtype));
-    cudaMalloc(&gpu_C, (N*N)*sizeof(dtype));
+    cudaMalloc(&gpu_C1, (N*N)*sizeof(dtype));
+    cudaMalloc(&gpu_C2, (N*N)*sizeof(dtype));
 
-    // run the fused version
+    // run the non fused version
     std::cout << "Running Unfused Kernels" << std::endl;
     cudaStream_t stream;
     cudaStreamCreate(&stream);
 
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
+    cudaMemset(gpu_C1, 0, N*N*sizeof(dtype));
     // #########################
     auto runtimes = std::vector<double>(TREPS);
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
         run_kernel1(gpu_A, gpu_B, N, stream);
-        run_kernel2(gpu_B, gpu_C, N, stream);
+        run_kernel2(gpu_B, gpu_C1, N, stream);
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
 
     }
     // #########################
     std::sort(runtimes.begin(), runtimes.end());
-    std::cout << "Timer: " << runtimes[std::ceil(TREPS/2)] << " ms" << std::endl;
-
-    std::move(C, C+N*N, result1);
-
-    cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
+    
+    std::fill(C, C+N*N, 0);
+    cudaMemcpyAsync(C, gpu_C1, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
-
+    std::copy(C, C+N*N, result1);
+    
+    
     // run the non-fused version
     std::cout << "Running Fused Kernels" << std::endl;
     cudaMemcpyAsync(gpu_A, A, (N * N) * sizeof(dtype), cudaMemcpyHostToDevice, stream);
+    cudaMemset(gpu_C2, 0, N*N*sizeof(dtype));
     // ##########################
     runtimes.empty();
     for(int run=0; run<TREPS; run++){
         auto start = std::chrono::high_resolution_clock::now();
-        run_fused(gpu_A, gpu_C, N, stream);
+        run_fused(gpu_A, gpu_C2, N, stream);
         auto end = std::chrono::high_resolution_clock::now();
         runtimes[run] = (std::chrono::duration_cast<std::chrono::microseconds>(end-start).count());
     }
     // ##########################
+
     std::sort(runtimes.begin(), runtimes.end());
-    std::cout << "Timer: " << runtimes[std::ceil(TREPS/2)] << " ms" << std::endl;
-
-    cudaMemcpyAsync(C, gpu_C, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
+    
+    std::fill(C, C+N*N, 0);
+    cudaMemcpyAsync(C, gpu_C2, (N * N) * sizeof(dtype), cudaMemcpyDeviceToHost, stream);
     cudaStreamSynchronize(stream);
+    std::copy(C, C+N*N, result2);
 
-    std::move(C, C+N*N, result2);
 
     cudaFree(gpu_A);
-    cudaFree(gpu_C);
+    cudaFree(gpu_C1);
+    cudaFree(gpu_C2);
+    cudaFree(gpu_B);
+
     std::cout << "Done." << std::endl;
     std::cout << "Correctness Check" << std::endl;
 
@@ -97,7 +104,6 @@ void run(){
             norm2_fused += result2[i*N+j] * result2[i*N+j];
             if(std::abs(result1[i*N+j] - result2[i*N+j]) > tol){
                 correct = false;
-                break;
             }
         }
     }
