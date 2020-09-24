@@ -778,6 +778,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                     sdfg.data(
                         data_name).lifetime = dtypes.AllocationLifetime.State
 
+        # will need this function in the next pass
+        # fixes data strides for transformed arrays that
+        # also have aliases in nearby connected nested SDFGs
+        def fix_nested(sdfg, nsdfg, data_name, nested_data_name):
+            pass
         # do one pass to adjust and the memlets of in-between transients
         for node in intermediate_nodes:
             # all incoming edges to node
@@ -803,6 +808,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
                             edge.data.other_subset.offset(min_offset, True)
+                    if isinstance(iedge.src, nodes.NestedSDFG):
+                        nsdfg = iedge.src.sdfg
+                        nested_data_name = edge.src_conn
+                        nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(node.data).strides)
+
 
                 for cedge in inter_edges:
                     for edge in graph.memlet_tree(cedge):
@@ -810,6 +820,11 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
                             edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
                             edge.data.other_subset.offset(min_offset, True)
+                        if isinstance(edge.dst, nodes.NestedSDFG):
+                            nsdfg = edge.dst.sdfg
+                            nested_data_name = edge.dst_conn
+                            nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(node.data).strides)
+
 
                 # if in_edges has several entries:
                 # put other_subset into out_edges for correctness
