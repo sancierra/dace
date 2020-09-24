@@ -1,5 +1,9 @@
 import dace
 from dace.transformation.dataflow.tiling import MapTiling
+from dace.transformation.dataflow.map_for_loop import MapToForLoop
+from dace.transformation.dataflow.map_expansion import MapExpansion
+from dace.transformation.interstate.loop_unroll import LoopUnroll
+from dace.transformation.interstate.loop_detection import DetectLoop
 from dace.transformation.subgraph.pipeline import fusion
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
@@ -7,7 +11,6 @@ from dace.sdfg.graph import SubgraphView
 
 import dace.subsets as subsets
 import numpy as np
-import sys
 
 
 N = dace.symbol('N')
@@ -67,7 +70,7 @@ def init_array(A):
         for j in range(n):
             A[i,j] = i*j/(n*n)
 
-def stencil_tiling(sdfg, graph, tile_size = (1,1), gpu = False, sequential = False):
+def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False):
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
             if node.label == 'a':
@@ -84,7 +87,7 @@ def stencil_tiling(sdfg, graph, tile_size = (1,1), gpu = False, sequential = Fal
     t = StencilTiling(subgraph, sdfg.sdfg_id,
                       sdfg.nodes().index(graph))
 
-    t.strides = (tile_size[0], tile_size[1])
+    t.strides = (1, tile_size)
     t.apply(sdfg)
 
     if gpu:
@@ -92,8 +95,91 @@ def stencil_tiling(sdfg, graph, tile_size = (1,1), gpu = False, sequential = Fal
             if isinstance(node,dace.sdfg.nodes.MapEntry) and node.label in ['a','b']:
                 node.map.schedule = dace.dtypes.ScheduleType.Default
 
-def pre_tiling(sdfg, graph, tile_size = (1,1), tile_offsets = (0,0), gpu = False, sequential = False):
+def unroll_inner(sdfg, graph):
+    map_entry = None
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry) and node.label == 'a':
+            map_entry = node
+    assert map_entry is not None
 
+    # MapExpansion
+    subgraph = {MapExpansion._map_entry : graph.nodes().index(map_entry)}
+    trafo_expansion = MapExpansion(sdfg.sdfg_id,
+        sdfg.nodes().index(graph), subgraph, 0)
+    trafo_expansion.apply(sdfg)
+    #sdfg.view()
+
+    ## NOTE:OK
+    # MapToForLoop 1
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry) and node.label == 'a_j':
+            map_entry = node
+    assert map_entry.label == 'a_j'
+    subgraph = {MapToForLoop._map_entry: graph.nodes().index(map_entry)}
+    trafo_for_loop = MapToForLoop(sdfg.sdfg_id,
+        sdfg.nodes().index(graph), subgraph, 0)
+    trafo_for_loop.apply(sdfg)
+
+    ## NOTE:OK
+    sdfg.view()
+    # LoopUnroll 1
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            nsdfg = node
+    guard, begin, end = None, None, None
+    for ngraph in nsdfg.sdfg.nodes():
+        if ngraph.label == 'state_0':
+            begin = ngraph
+        if ngraph.label == 'state_2':
+            end = ngraph
+        if ngraph.label == 'guard':
+            guard = ngraph
+    assert guard is not None
+    assert begin is not None
+    assert end is not None
+    subgraph = {DetectLoop._loop_guard: nsdfg.sdfg.nodes().index(guard),
+                DetectLoop._loop_begin: nsdfg.sdfg.nodes().index(begin),
+                DetectLoop._exit_state: nsdfg.sdfg.nodes().index(end)}
+    transformation = LoopUnroll(0, 0, subgraph, 0)
+    transformation.apply(nsdfg.sdfg)
+    sdfg.view()
+
+
+    # MapToForLoop2
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry) and node.label == 'a':
+            map_entry = node
+    assert map_entry.label == 'a'
+    subgraph = {MapToForLoop._map_entry: graph.nodes().index(map_entry)}
+    trafo_for_loop = MapToForLoop(sdfg.sdfg_id,
+        sdfg.nodes().index(graph), subgraph, 0)
+    trafo_for_loop.apply(sdfg)
+
+
+    # LoopUnroll 2
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+            nsdfg = node
+    guard, begin, end = None, None, None
+    for ngraph in nsdfg.sdfg.nodes():
+        if ngraph.label == 'state_0':
+            begin = ngraph
+        if ngraph.label == 'state_2':
+            end = ngraph
+        if ngraph.label == 'guard':
+            guard = ngraph
+    assert guard is not None
+    assert begin is not None
+    assert end is not None
+    subgraph = {DetectLoop._loop_guard: nsdfg.sdfg.nodes().index(guard),
+                DetectLoop._loop_begin: nsdfg.sdfg.nodes().index(begin),
+                DetectLoop._exit_state: nsdfg.sdfg.nodes().index(end)}
+    transformation = LoopUnroll(0, 0, subgraph, 0)
+    transformation.apply(nsdfg.sdfg)
+
+
+
+def pre_tiling(sdfg, graph, tile_size = 64, tile_offsets = (0,0), gpu = False, sequential = False):
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
             if node.label == 'a':
@@ -114,12 +200,12 @@ def pre_tiling(sdfg, graph, tile_size = (1,1), tile_offsets = (0,0), gpu = False
     t2 = dace.transformation.dataflow.tiling.MapTiling(sdfg.sdfg_id,
          sdfg.nodes().index(graph), d2, 0)
 
-    t1.strides    = (tile_size[0], tile_size[1])
-    t1.tile_sizes = (tile_size[0]+2, tile_size[1]+2) ## !!
+    t1.strides    = (tile_size, tile_size)
+    t1.tile_sizes = (tile_size+2, tile_size+2) ## !!
     t1.tile_offset = (0,0)#tile_offsets
 
-    t2.strides    = (tile_size[0], tile_size[1])
-    t2.tile_sizes = (tile_size[0], tile_size[1])
+    t2.strides    = (tile_size, tile_size)
+    t2.tile_sizes = (tile_size, tile_size)
     t2.tile_offset = (0,0)
 
     t1.apply(sdfg)
@@ -149,7 +235,9 @@ def evaluate(sdfg, graph, view = False, compile = False):
     return result
 
 
-def run(tile_size, view = True, compile = False, gpu = False, sequential = False, transient = True):
+def run(tile_size, view = True, compile = False,
+        gpu = False, sequential = False,
+        transient = True, map_unroll = True):
     if transient:
         sdfg = stencil2d_transient.to_sdfg()
     else:
@@ -159,7 +247,6 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     sdfg.propagate = False
     #sdfg.specialize({'N':N})
     sdfg.apply_strict_transformations()
-
     graph = None
     for g in sdfg.nodes():
         if len(g.nodes()) == 9:
@@ -177,33 +264,35 @@ def run(tile_size, view = True, compile = False, gpu = False, sequential = False
     R1 = evaluate(sdfg, graph, view, compile)
 
     stencil_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
+    if map_unroll:
+        unroll_inner(sdfg, graph)
+    sdfg._name = 'unroll'
     R2 = evaluate(sdfg, graph, view, compile)
-
+    if compile:
+        print(np.linalg.norm(R1))
+        print(np.linalg.norm(R2))
+        assert np.allclose(R1, R2)
+    #sdfg.view()
     if gpu:
         fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared if not sequential else dace.dtypes.StorageType.Register, sequential_innermaps = sequential)
     else:
         fusion(sdfg, graph, sequential_innermaps = sequential)
+    sdfg._name = 'fused'
+    sdfg.data('B').storage = dace.dtypes.StorageType.CPU_Heap
     R3 = evaluate(sdfg, graph, view, compile)
-
+    #sdfg.view()
     if compile:
         print(np.linalg.norm(R1))
         print(np.linalg.norm(R2))
         print(np.linalg.norm(R3))
         assert np.allclose(R1,R2)
-        assert np.allclose(R1,R3)
-        print('PASS')
+        #assert np.allclose(R1,R3)
+        print('FIN')
 
 if __name__ == '__main__':
-    try:
-        mode = sys.argv[1]
-        assert mode == 'register' or mode == 'shared'
-        tile1 = int(sys.argv[2])
-        tile2 = int(sys.argv[3])
-    except:
-        print("Useage: mode tile1 tile2")
-        raise RuntimeError
-    
-    tiles = (tile1, tile2)
+    TILE_SIZE = 1
     N.set(512)
     T.set(1)
-    run(tiles, compile = True, gpu = True, view = False, sequential = mode == 'register', transient = True)
+    run(TILE_SIZE, compile = True, gpu = False,
+        view = False, sequential = True, transient = True,
+        map_unroll = True )

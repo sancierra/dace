@@ -14,6 +14,7 @@ from dace.frontend.python.astutils import ASTFindReplace
 from dace.transformation.interstate.loop_detection import DetectLoop
 from dace.symbolic import pystr_to_symbolic
 
+
 @registry.autoregister
 @make_properties
 class LoopUnroll(DetectLoop):
@@ -109,28 +110,25 @@ class LoopUnroll(DetectLoop):
         # Obtain loop information
         guard: sd.SDFGState = sdfg.node(self.subgraph[DetectLoop._loop_guard])
         begin: sd.SDFGState = sdfg.node(self.subgraph[DetectLoop._loop_begin])
-        print(guard)
-        print(begin)
         after_state: sd.SDFGState = sdfg.node(
             self.subgraph[DetectLoop._exit_state])
 
         # Obtain iteration variable, range, and stride
         guard_inedges = sdfg.in_edges(guard)
-        condition_edge = sdfg.edges_between(guard, after_state)[0]
+        condition_edge = sdfg.edges_between(guard, begin)[0]
         itervar = list(guard_inedges[0].data.assignments.keys())[0]
         condition = condition_edge.data.condition_sympy()
         rng = LoopUnroll._loop_range(itervar, guard_inedges, condition)
 
         # Loop must be unrollable
-        print(rng)
-        if self.count == 0 and any(
-                symbolic.issymbolic(r, sdfg.constants) for r in rng):
-            raise ValueError('Loop cannot be fully unrolled, size is symbolic')
+        #if self.count == 0 and any(
+        #        symbolic.issymbolic(r, sdfg.constants) for r in rng):
+        #    raise ValueError('Loop cannot be fully unrolled, size is symbolic')
         if self.count != 0:
             raise NotImplementedError  # TODO(later)
 
         # Find the state prior to the loop
-        if rng[0] == pystr_to_symbolic(
+        if rng[0] == symbolic.pystr_to_symbolic(
                 guard_inedges[0].data.assignments[itervar]):
             before_state: sd.SDFGState = guard_inedges[0].src
             last_state: sd.SDFGState = guard_inedges[1].src
@@ -143,19 +141,31 @@ class LoopUnroll(DetectLoop):
             sdutil.dfs_conditional(sdfg,
                                    sources=[begin],
                                    condition=lambda _, child: child != guard))
+
         first_id = loop_states.index(begin)
         last_id = loop_states.index(last_state)
         loop_subgraph = gr.SubgraphView(sdfg, loop_states)
 
         # Evaluate the real values of the loop
-        start, end, stride = (symbolic.evaluate(r, sdfg.constants) for r in rng)
+        #start, end, stride = (symbolic.evaluate(r, sdfg.constants) for r in rng)
+        try:
+            start, end, stride = (r for r in rng)
+            # evaluate stride, we HAVE to know that one
+            stride = symbolic.evaluate(stride, sdfg.constants)
+            # start and end can contain variables,
+            # but they their diff ought to be const
+            diff = symbolic.evaluate(end-start+1, sdfg.constants)
+        except TypeError:
+            raise TypeError('Loop does not have Const Length!')
+
 
         # Create states for loop subgraph
         unrolled_states = []
-        for i in range(start, end + 1, stride):
+        for i in range(0, diff, stride):
+            current_index = start + i
             # Instantiate loop states with iterate value
             new_states = self.instantiate_loop(sdfg, loop_states, loop_subgraph,
-                                               itervar, i)
+                                               itervar, current_index, i)
 
             # Connect iterations with unconditional edges
             if len(unrolled_states) > 0:
@@ -176,7 +186,7 @@ class LoopUnroll(DetectLoop):
 
     def instantiate_loop(self, sdfg: sd.SDFG, loop_states: List[sd.SDFGState],
                          loop_subgraph: gr.SubgraphView, itervar: str,
-                         value: symbolic.SymbolicType):
+                         value: symbolic.SymbolicType, iteration_status: int):
         # Using to/from JSON copies faster than deepcopy (which will also
         # copy the parent SDFG)
         new_states = [
@@ -186,8 +196,8 @@ class LoopUnroll(DetectLoop):
 
         # Replace iterate with value in each state
         for state in new_states:
-            state.set_label(state.label + '_%s_%d' % (itervar, value))
-            state.replace(itervar, value)
+            state.set_label(state.label + '_%s_%s' % (itervar, str(iteration_status)))
+            state.replace(itervar, str(value))
 
         # Add subgraph to original SDFG
         for edge in loop_subgraph.edges():
