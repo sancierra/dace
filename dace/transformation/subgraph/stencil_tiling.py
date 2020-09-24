@@ -2,7 +2,7 @@
     stencil tiling transformation. """
 import math
 
-import dace 
+import dace
 from dace import registry, symbolic
 from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
@@ -47,7 +47,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
     strides = ShapeProperty(dtype=tuple,
                             default=(1,),
                             desc="Tile stride")
-    
+
     schedule = Property(dtype=dace.dtypes.ScheduleType,
                         default = dace.dtypes.ScheduleType.Default,
                         desc = "Inner Schedule Type")
@@ -64,7 +64,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
     def match(sdfg, subgraph):
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
-        print("MAP ENTRIES", map_entries)
         if len(map_entries) < 1:
             return False
         source_nodes = set(sdutil.find_source_nodes(graph))
@@ -129,8 +128,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         map_stride = target_range.strides()[0]
         if reference_range.strides()[0] != target_range.strides()[0]:
             # different strides
-            print(target_range.strides())
-            print(reference_range.strides())
             return False
         min_diff = symbolic.SymExpr(target_range.min_element()[0] \
                         - reference_range.min_element()[0])
@@ -286,7 +283,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
                 # if inner_trivial:
                 # just take overapproximation - strip the rest from outer
-                if inner_trivial:
+                if tile_stride == 1:
                     map_entry.range[dim_idx] =  tuple(symbolic.SymExpr(el._approx_expr)  \
                                                 if isinstance(el, symbolic.SymExpr) else el \
                                                 for el in map_entry.range[dim_idx])
@@ -315,4 +312,3 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                                               mapcollapse_subgraph, 0)
                     mapcollapse.apply(sdfg)
                 last_map_entry = graph.in_edges(map_entry)[0].src
-
