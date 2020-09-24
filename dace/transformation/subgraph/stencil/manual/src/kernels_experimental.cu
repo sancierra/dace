@@ -2,7 +2,6 @@
 #include <cuda_runtime.h>
 
 
-
 __device__ __forceinline__ void state1(const float * __in_gpu_A, const float * __in_gpu_A_0, const float * __in_gpu_A_1, const float * __in_gpu_A_2, const float * __in_gpu_A_3, float* __out_B, int N, int stencil_j) {
 
     {
@@ -165,7 +164,9 @@ __device__ __forceinline__ void stencil3(const float * __in_gpu_A, const float *
             ///////////////////
 
             __out_B[1] = b;
+
         }
+
     }
     {
         
@@ -216,11 +217,11 @@ __global__ void outer_fused_0_0_9(const float * __restrict__ gpu_A, float * __re
         {
             int stencil_j = (blockIdx.x * 32 + threadIdx.x);
             int stencil_i = (blockIdx.y * 1 + threadIdx.y);
-            float *B = new float DACE_ALIGN(64)[9];
+            float *B = new float[9];
             memset(B, 0, sizeof(float)*9);
             if (stencil_j < (N - 4)) {
                 {
-                    nested_stencil2d_transient_copyin_0_0_8(&gpu_A[((N * stencil_i) + stencil_j)], &B[0], N, stencil_i, stencil_j);
+                    caller(&gpu_A[((N * stencil_i) + stencil_j)], &B[0], N, stencil_i, stencil_j);
                     {
                         for (auto i = (stencil_i + 2); i < (stencil_i + 3); i += 1) {
                             for (auto j = (stencil_j + 2); j < (stencil_j + 3); j += 1) {
@@ -249,12 +250,10 @@ __global__ void outer_fused_0_0_9(const float * __restrict__ gpu_A, float * __re
     }
 }
 
-
-DACE_EXPORTED void __dace_runkernel_outer_fused_0_0_9(const float * __restrict__ gpu_A, float * __restrict__ gpu_C, int N);
-void __dace_runkernel_outer_fused_0_0_9(const float * __restrict__ gpu_A, float * __restrict__ gpu_C, int N)
-{
-
-    void  *outer_fused_0_0_9_args[] = { (void *)&gpu_A, (void *)&gpu_C, (void *)&N };
-    cudaLaunchKernel((void*)outer_fused_0_0_9, dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1)), dim3(32, 1, 1), outer_fused_0_0_9_args, 0, dace::cuda::__streams[0]);
+void run_fused(const float * __restrict__ gpu_A, float * __restrict__ gpu_C, int N, cudaStream_t stream){
+    outer_fused_0_0_9<<<dim3(int_ceil(int_ceil((N - 4), 1), 32), int_ceil(int_ceil((N - 4), 1), 1), int_ceil(1, 1)), dim3(32, 1, 1)>>>(gpu_A, gpu_C, N);
+    cudaError_t error = cudaGetLastError();
+    if (error != 0){
+        printf("ERROR in run_fused");
+    }
 }
-
