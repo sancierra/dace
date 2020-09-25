@@ -70,7 +70,9 @@ def init_array(A):
         for j in range(n):
             A[i,j] = i*j/(n*n)
 
-def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False):
+def stencil_tiling(sdfg, graph, tile_size = 64,
+                   gpu = False, sequential = False,
+                   map_unroll = False):
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
             if node.label == 'a':
@@ -88,6 +90,7 @@ def stencil_tiling(sdfg, graph, tile_size = 64, gpu = False, sequential = False)
                       sdfg.nodes().index(graph))
 
     t.strides = (1, tile_size)
+    t.unroll_loops = map_unroll
     t.apply(sdfg)
 
     if gpu:
@@ -121,12 +124,12 @@ def unroll_inner(sdfg, graph):
     trafo_for_loop.apply(sdfg)
 
     ## NOTE:OK
-    sdfg.view()
     # LoopUnroll 1
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.NestedSDFG):
             nsdfg = node
     guard, begin, end = None, None, None
+
     for ngraph in nsdfg.sdfg.nodes():
         if ngraph.label == 'state_0':
             begin = ngraph
@@ -142,7 +145,6 @@ def unroll_inner(sdfg, graph):
                 DetectLoop._exit_state: nsdfg.sdfg.nodes().index(end)}
     transformation = LoopUnroll(0, 0, subgraph, 0)
     transformation.apply(nsdfg.sdfg)
-    sdfg.view()
 
 
     # MapToForLoop2
@@ -263,9 +265,10 @@ def run(tile_size, view = True, compile = False,
     # establish baseline
     R1 = evaluate(sdfg, graph, view, compile)
 
-    stencil_tiling(sdfg, graph, tile_size, sequential = sequential, gpu = gpu)
-    if map_unroll:
-        unroll_inner(sdfg, graph)
+    stencil_tiling(sdfg, graph, tile_size, sequential = sequential,
+                   gpu = gpu, map_unroll = map_unroll)
+    #if map_unroll:
+    #    unroll_inner(sdfg, graph)
     sdfg._name = 'unroll'
     R2 = evaluate(sdfg, graph, view, compile)
     if compile:
@@ -286,7 +289,7 @@ def run(tile_size, view = True, compile = False,
         print(np.linalg.norm(R2))
         print(np.linalg.norm(R3))
         assert np.allclose(R1,R2)
-        #assert np.allclose(R1,R3)
+        assert np.allclose(R1,R3)
         print('FIN')
 
 if __name__ == '__main__':
