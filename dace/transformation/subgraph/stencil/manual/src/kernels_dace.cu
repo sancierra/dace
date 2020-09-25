@@ -34,20 +34,19 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
                         }
                     }
                     {   
-                        /*
+                        
                         #pragma unroll 1
                         for (auto i = (stencil_i + 2); i < (stencil_i + 3); i += 1) {
                             #pragma unroll 1
-                            for (auto j = (stencil_j + 2); j < (stencil_j + 3); j += 1) { */
+                            for (auto j = (stencil_j + 2); j < (stencil_j + 3); j += 1) { 
                                 
                                 {
-                                    auto i = (stencil_i+2);
-                                    auto j = (stencil_j+2);
-                                    dtype a1 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 4)];
-                                    dtype a2 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 5)];
-                                    dtype a3 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 3)];
-                                    dtype a4 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 1)];
-                                    dtype a5 = B[(((((3 * (stencil_i+2)) + (stencil_j+2)) - (3 * stencil_i)) - stencil_j) - 7)];
+                                    
+                                    dtype a1 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 4)];
+                                    dtype a2 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 5)];
+                                    dtype a3 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 3)];
+                                    dtype a4 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 1)];
+                                    dtype a5 = B[(((((3 * i) + j) - (3 * stencil_i)) - stencil_j) - 7)];
                                     dtype b;
 
                                     ///////////////////
@@ -57,13 +56,13 @@ __global__ void fused(const dtype * __restrict__ gpu_A, dtype * __restrict__ gpu
 
                                     gpu_C[((N * i) + j)] = b;
                                 }
-                    }
+                            }
                     
-                    /*
-                    }
+                    
+                        }
                         
                     }
-                    */
+                    
                 }
             }
         }
