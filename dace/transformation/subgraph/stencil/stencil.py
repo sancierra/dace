@@ -15,10 +15,11 @@ import numpy as np
 
 N = dace.symbol('N')
 T = dace.symbol('T')
-datatype = dace.float64
+datatype = np.float32
+dacetype = dace.float32
 
 @dace.program
-def stencil2d_nontransient(A:datatype[N,N],B:datatype[N,N],C:datatype[N,N]):
+def stencil2d_nontransient(A:dacetype[N,N],B:dacetype[N,N],C:dacetype[N,N]):
     @dace.map
     def a(i: _[1:N-1], j:_[1:N-1]):
         a1 << A[i, j]
@@ -41,8 +42,8 @@ def stencil2d_nontransient(A:datatype[N,N],B:datatype[N,N],C:datatype[N,N]):
         b = 2*(a1+a2+a3+a4+a5)
 
 @dace.program
-def stencil2d_transient(A:datatype[N,N], C:datatype[N,N]):
-    B = np.ndarray([N,N], dtype = datatype)
+def stencil2d_transient(A:dacetype[N,N], C:dacetype[N,N]):
+    B = np.ndarray([N,N], dtype = dacetype)
     @dace.map
     def a(i: _[1:N-1], j:_[1:N-1]):
         a1 << A[i, j]
@@ -121,7 +122,6 @@ def unroll_inner(sdfg, graph):
     trafo_for_loop.apply(sdfg)
 
     ## NOTE:OK
-    sdfg.view()
     # LoopUnroll 1
     for node in graph.nodes():
         if isinstance(node, dace.sdfg.nodes.NestedSDFG):
@@ -142,7 +142,6 @@ def unroll_inner(sdfg, graph):
                 DetectLoop._exit_state: nsdfg.sdfg.nodes().index(end)}
     transformation = LoopUnroll(0, 0, subgraph, 0)
     transformation.apply(nsdfg.sdfg)
-    sdfg.view()
 
 
     # MapToForLoop2
@@ -222,9 +221,9 @@ def evaluate(sdfg, graph, view = False, compile = False):
     if view:
         sdfg.view()
     if compile:
-        A = np.zeros([N.get(), N.get()], dtype = np.float64)
-        B = np.zeros([N.get(), N.get()], dtype = np.float64)
-        C = np.zeros([N.get(), N.get()], dtype = np.float64)
+        A = np.zeros([N.get(), N.get()], dtype = datatype)
+        B = np.zeros([N.get(), N.get()], dtype = datatype)
+        C = np.zeros([N.get(), N.get()], dtype = datatype)
 
         init_array(A)
         print(np.linalg.norm(C))
@@ -237,7 +236,8 @@ def evaluate(sdfg, graph, view = False, compile = False):
 
 def run(tile_size, view = True, compile = False,
         gpu = False, sequential = False,
-        transient = True, map_unroll = True):
+        transient = True, map_unroll = True,
+        instrumentation = False):
     if transient:
         sdfg = stencil2d_transient.to_sdfg()
     else:
@@ -259,6 +259,10 @@ def run(tile_size, view = True, compile = False,
         for g in sdfg.nodes():
             if len(g.nodes()) > 5:
                 graph = g
+    
+    if instrumentation:
+        for state in sdfg.nodes():
+            state.instrument = dace.InstrumentationType.Timer
 
     # establish baseline
     R1 = evaluate(sdfg, graph, view, compile)
@@ -278,7 +282,6 @@ def run(tile_size, view = True, compile = False,
     else:
         fusion(sdfg, graph, sequential_innermaps = sequential)
     sdfg._name = 'fused'
-    sdfg.data('B').storage = dace.dtypes.StorageType.CPU_Heap
     R3 = evaluate(sdfg, graph, view, compile)
     #sdfg.view()
     if compile:
@@ -293,6 +296,6 @@ if __name__ == '__main__':
     TILE_SIZE = 1
     N.set(512)
     T.set(1)
-    run(TILE_SIZE, compile = True, gpu = False,
+    run(TILE_SIZE, compile = True, gpu = True,
         view = False, sequential = True, transient = True,
-        map_unroll = True )
+        map_unroll = True, instrumentation = False)
