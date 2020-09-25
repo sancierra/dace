@@ -109,4 +109,7 @@ class MapToForLoop(pattern_matching.Transformation):
         # Remove scope nodes
         nstate.remove_nodes_from([map_entry, map_exit])
 
+        # create outside hook
+        self._nsdfg = nsdfg
+        
         return node, nstate

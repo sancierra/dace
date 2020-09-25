@@ -12,6 +12,11 @@ from dace.symbolic import pystr_to_symbolic, simplify_ext
 from dace.subsets import Range
 from dace.sdfg.propagation import _propagate_node
 
+from dace.transformation.dataflow.map_for_loop import MapToForLoop
+from dace.transformation.dataflow.map_expansion import MapExpansion
+from dace.transformation.interstate.loop_unroll import LoopUnroll
+from dace.transformation.interstate.loop_detection import DetectLoop
+
 from copy import deepcopy as dcpy
 
 import dace.subsets as subsets
@@ -51,6 +56,10 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
     schedule = Property(dtype=dace.dtypes.ScheduleType,
                         default = dace.dtypes.ScheduleType.Default,
                         desc = "Inner Schedule Type")
+
+    unroll_loops = Property(desc = "Loop unroll",
+                            dtype = bool,
+                            default = False)
 
     @staticmethod
     def annotates_memlets():
@@ -207,6 +216,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
             # strip mining each dimension where necessary
             removed_maps = 0
+            all_trivial = True
 
             for dim_idx in range(len(map_entry.map.params)):
                 # get current tile size
@@ -249,6 +259,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 dim_idx -= removed_maps
                 if tile_size == 1 and tile_stride == 1:
                     inner_trivial = True
+                else:
+                    all_trivial = False
 
                 if inner_trivial and dim_idx+removed_maps in invariant_ranges and 0==1: # TODO
                     print("XXXX inner_trivial invariant activated")
@@ -300,6 +312,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 _propagate_node(graph, map_entry)
                 _propagate_node(graph, graph.exit_node(map_entry))
 
+                #sdfg.view()
                 # usual tiling pipeline
                 if last_map_entry:
                     new_map_entry = graph.in_edges(map_entry)[0].src
@@ -312,3 +325,46 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                                               mapcollapse_subgraph, 0)
                     mapcollapse.apply(sdfg)
                 last_map_entry = graph.in_edges(map_entry)[0].src
+
+            print(map_entry)
+            if self.unroll_loops and all(s == 1 for s in self.strides) and not all_trivial:
+                l = len(map_entry.params)
+                subgraph = {MapExpansion._map_entry : graph.nodes().index(map_entry)}
+                trafo_expansion = MapExpansion(sdfg.sdfg_id,
+                    sdfg.nodes().index(graph), subgraph, 0)
+                trafo_expansion.apply(sdfg)
+                maps = [map_entry]
+                for _ in range(l-1):
+                    map_entry = graph.out_edges(map_entry)[0].dst
+                    maps.append(map_entry)
+
+                print(maps)
+                for map in reversed(maps):
+                    # MapToForLoop
+                    subgraph = {MapToForLoop._map_entry: graph.nodes().index(map)}
+                    trafo_for_loop = MapToForLoop(sdfg.sdfg_id,
+                        sdfg.nodes().index(graph), subgraph, 0)
+                    trafo_for_loop.apply(sdfg)
+                    nsdfg = trafo_for_loop._nsdfg
+
+                    # LoopUnroll
+                    # TODO: improve
+                    # lol
+                    guard, begin, end = None, None, None
+                    for ngraph in nsdfg.nodes():
+                        if ngraph.label == 'state_0':
+                            begin = ngraph
+                        if ngraph.label == 'state_2':
+                            end = ngraph
+                        if ngraph.label == 'guard':
+                            guard = ngraph
+                    assert guard is not None
+                    assert begin is not None
+                    assert end is not None
+                    subgraph = {DetectLoop._loop_guard: nsdfg.nodes().index(guard),
+                                DetectLoop._loop_begin: nsdfg.nodes().index(begin),
+                                DetectLoop._exit_state: nsdfg.nodes().index(end)}
+                    transformation = LoopUnroll(0, 0, subgraph, 0)
+                    transformation.apply(nsdfg)
+
+                sdfg.view()
