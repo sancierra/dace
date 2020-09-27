@@ -11,15 +11,16 @@ import dace.sdfg.nodes as nodes
 
 from copy import deepcopy as dcpy
 
-import sys 
+import sys
 
-SDFG_FILE = 'hdiff.sdfg'
+SDFG_FILE = 'hdiff_partial.sdfg'
 
 def view_graphs():
-    dace.sdfg.SDFG.from_file('hdiff.sdfg').view()
-    dace.sdfg.SDFG.from_file('hdiff_v2.sdfg').view()
-    dace.sdfg.SDFG.from_file('hdiff_fused.sdfg').view()
-    dace.sdfg.SDFG.from_file('dedup.sdfg').view()
+    dace.sdfg.SDFG.from_file('hdiff_full.sdfg').view()
+    dace.sdfg.SDFG.from_file('hdiff_partial.sdfg').view()
+    dace.sdfg.SDFG.from_file('original_graphs/hdiff_v2.sdfg').view()
+    dace.sdfg.SDFG.from_file('original_graphs/hdiff_full.sdfg').view()
+    dace.sdfg.SDFG.from_file('original_graphs/dedup.sdfg').view()
 def get_sdfg():
     sdfg = dace.sdfg.SDFG.from_file(SDFG_FILE)
     sdfg.apply_strict_transformations()
@@ -32,6 +33,7 @@ def get_sdfg():
     return sdfg
 
 def eliminate_k_memlet(sdfg):
+    SYM = 'y'
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
     for node in graph.nodes():
@@ -42,11 +44,11 @@ def eliminate_k_memlet(sdfg):
     for node in ngraph.nodes():
         if isinstance(node, nodes.MapEntry):
             for e in ngraph.out_edges(node):
-                x = dace.symbol('x')
+                x = dace.symbol(SYM)
                 e.data.subset.replace({x:'0'})
         if isinstance(node, nodes.MapExit):
             for e in ngraph.in_edges(node):
-                x = dace.symbol('x')
+                x = dace.symbol(SYM)
                 e.data.subset.replace({x:'0'})
 
 def fix_arrays(sdfg):
@@ -57,9 +59,11 @@ def fix_arrays(sdfg):
     for container in sdfg.arrays:
         if len(sdfg.data(container).shape) == 3:
             sdfg.data(container).shape = (\
-                sdfg.data(container).shape[0]-1, \
-                sdfg.data(container).shape[1], \
+                sdfg.data(container).shape[0], \
+                sdfg.data(container).shape[1]-1, \
                 sdfg.data(container).shape[2])
+            sdfg.data(container).strides = [dace.data._prod(sdfg.data(container).shape[i + 1:]) for i in range(3)]
+            sdfg.data(container).total_size = dace.data._prod(sdfg.data(container).shape)
 
     for container in sdfg.arrays:
         print(sdfg.data(container).shape)
@@ -101,7 +105,7 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1, sequential = True,
         transformation.schedule = dace.dtypes.ScheduleType.Sequential
     elif gpu:
         transformation.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
-    
+
     transformation.apply(sdfg)
 
     return
@@ -225,7 +229,7 @@ def test(compile = True, view = True,
 
     fix_arrays(sdfg)
     eliminate_k_memlet(sdfg)
-
+    sdfg.save('hdiff_p.sdfg')
     if gpu:
         sdfg.apply_gpu_transformations()
         for node in sdfg.nodes()[0].nodes():
@@ -349,11 +353,11 @@ if __name__ == '__main__':
     try:
         seq = sys.argv[1] == 'register'
         nseq = sys.argv[1] == 'shared'
-        assert nseq == True or seq == True 
+        assert nseq == True or seq == True
         sequential = seq
         tile1 = int(sys.argv[2])
         tile2 = int(sys.argv[3])
-        
+
     except:
         print("Useage: mode tile1 tile2")
         raise RuntimeError()
