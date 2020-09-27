@@ -20,15 +20,13 @@ def view_graphs():
     dace.sdfg.SDFG.from_file('hdiff_v2.sdfg').view()
     dace.sdfg.SDFG.from_file('hdiff_fused.sdfg').view()
     dace.sdfg.SDFG.from_file('dedup.sdfg').view()
-def get_sdfg():
-    sdfg = dace.sdfg.SDFG.from_file(SDFG_FILE)
+def get_sdfg(sdfg_type = 'full'):
+    if sdfg_type == 'full':
+        sdfg = dace.sdfg.SDFG.from_file('hdiff_full.sdfg')
+    else:
+        sdfg = dace.sdfg.SDFG.from_file('hdiff_partial.sdfg')
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
-    # fix: make outer transients non-transient
-    # for reproducibility
-    #for node in graph.nodes():
-    #    if isinstance(node, dace.sdfg.nodes.AccessNode):
-    #        sdfg.data(node.data).transient = False
     return sdfg
 
 def eliminate_k_memlet(sdfg):
@@ -195,9 +193,8 @@ def fuse_stencils(sdfg, gpu,
 def test(compile = True, view = True,
          gpu = False, nested = False,
          tile_size = 32, deduplicate = False,
-         sequential = False):
-    # define DATATYPE
-    DATATYPE = np.float64
+         sequential = False, sdfg_type = 'full',
+         datatype = np.float32):
     # define symbols
     I = np.int32(128)
     J = np.int32(128)
@@ -218,7 +215,7 @@ def test(compile = True, view = True,
 
 
     # compile -- first without anyting
-    sdfg = get_sdfg()
+    sdfg = get_sdfg(sdfg_type)
     sdfg._propagate = False
     sdfg.propagate = False
     sdfg.add_symbol('halo', int)
@@ -359,4 +356,4 @@ if __name__ == '__main__':
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
          gpu = True, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential)
+         sequential = sequential, sdfg_type = 'full')
