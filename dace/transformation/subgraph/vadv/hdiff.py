@@ -13,7 +13,7 @@ from copy import deepcopy as dcpy
 
 import sys
 
-SDFG_FILE = 'hdiff_partial.sdfg'
+DATATYPE = np.float32
 
 def view_graphs():
     dace.sdfg.SDFG.from_file('hdiff_full.sdfg').view()
@@ -21,7 +21,7 @@ def view_graphs():
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_v2.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_full.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/dedup.sdfg').view()
-def get_sdfg():
+def get_sdfg(sdfg_type = 'full'):
     if sdfg_type == 'full':
         sdfg = dace.sdfg.SDFG.from_file('hdiff_full.sdfg')
     else:
@@ -31,7 +31,7 @@ def get_sdfg():
     return sdfg
 
 def eliminate_k_memlet(sdfg):
-    SYM = 'y'
+    SYM = 'x'
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
     for node in graph.nodes():
@@ -57,11 +57,11 @@ def fix_arrays(sdfg):
     for container in sdfg.arrays:
         if len(sdfg.data(container).shape) == 3:
             sdfg.data(container).shape = (\
-                sdfg.data(container).shape[0], \
-                sdfg.data(container).shape[1]-1, \
+                sdfg.data(container).shape[0]-1, \
+                sdfg.data(container).shape[1], \
                 sdfg.data(container).shape[2])
-            sdfg.data(container).strides = [dace.data._prod(sdfg.data(container).shape[i + 1:]) for i in range(3)]
-            sdfg.data(container).total_size = dace.data._prod(sdfg.data(container).shape)
+            #sdfg.data(container).strides = [dace.data._prod(sdfg.data(container).shape[i + 1:]) for i in range(3)]
+            #sdfg.data(container).total_size = dace.data._prod(sdfg.data(container).shape)
 
     for container in sdfg.arrays:
         print(sdfg.data(container).shape)
@@ -220,13 +220,14 @@ def test(compile = True, view = True,
 
     # compile -- first without anyting
     sdfg = get_sdfg(sdfg_type)
-    sdfg._propagate = False
-    sdfg.propagate = False
-    sdfg.add_symbol('halo', int)
+    #sdfg._propagate = False
+    #sdfg.propagate = False
+    if sdfg_type == 'full':
+        sdfg.add_symbol('halo', int)
 
-    fix_arrays(sdfg)
-    eliminate_k_memlet(sdfg)
-    sdfg.save('hdiff_p.sdfg')
+    #fix_arrays(sdfg)
+    #eliminate_k_memlet(sdfg)
+
     if gpu:
         sdfg.apply_gpu_transformations()
         for node in sdfg.nodes()[0].nodes():
@@ -359,5 +360,5 @@ if __name__ == '__main__':
         print("Useage: mode tile1 tile2")
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
-         gpu = True, deduplicate = False, tile_size = (tile1, tile2),
+         gpu = False, deduplicate = False, tile_size = (tile1, tile2),
          sequential = sequential, sdfg_type = 'full')
