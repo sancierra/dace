@@ -71,7 +71,9 @@ def fix_arrays(sdfg):
 def apply_map_fission(sdfg):
     sdfg.apply_transformations(MapFission)
 
-def apply_stencil_tiling(sdfg, nested = False, tile_size = 1, sequential = True, gpu = False):
+def apply_stencil_tiling(sdfg, nested = False,
+                         tile_size = 1, sequential = True,
+                         gpu = False, unroll = False):
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
     if nested:
@@ -83,19 +85,12 @@ def apply_stencil_tiling(sdfg, nested = False, tile_size = 1, sequential = True,
         nsdfg = sdfg
         ngraph = graph
 
-    first = [1365, 1392, 1419, 1446]
-    reference_range = dcpy(next((node for node in ngraph.nodes()
-                if isinstance(node, dace.sdfg.nodes.MapEntry)
-                and node.label != 'kmap_fission'
-                and not any([str(f) in node.label for f in first]))).range)
-    print("ref", reference_range)
-
     subgraph = SubgraphView(ngraph, ngraph.nodes())
     transformation = StencilTiling(subgraph, nsdfg.sdfg_id,
                                    nsdfg.nodes().index(ngraph))
-    print(transformation.match(sdfg, subgraph), "==", True)
+    transformation.unroll_loops = unroll
+    assert transformation.match(sdfg, subgraph)
     # TODO
-    K = dace.symbol('K')
     if len(tile_size) == 1:
         tile_size = tile_size * 2
     transformation.strides = (1, 1, tile_size[0], tile_size[1])
@@ -198,7 +193,8 @@ def test(compile = True, view = True,
          gpu = False, nested = False,
          tile_size = 32, deduplicate = False,
          sequential = False, sdfg_type = 'full',
-         datatype = np.float32):
+         datatype = np.float32,
+         unroll = False):
     # define symbols
     I = np.int32(128)
     J = np.int32(128)
@@ -243,13 +239,13 @@ def test(compile = True, view = True,
         v1 = np.zeros([ J, K, I ], dtype = DATATYPE)
         u1 = np.zeros([ J, K, I ], dtype = DATATYPE)
 
-       # sdfg._name = 'baseline'
-       # csdfg = sdfg.compile()
-       # csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-       #       acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-       #       hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-       #       pp_out = pp1, w_out = w1, v_out = v1, u_out = u1,
-       #       I=I, J=J, K=K, halo = halo)
+        sdfg._name = 'baseline'
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp_out = pp1, w_out = w1, v_out = v1, u_out = u1,
+              I=I, J=J, K=K, halo = halo)
 
 
     apply_map_fission(sdfg)
@@ -287,9 +283,24 @@ def test(compile = True, view = True,
               pp_out = pp4, w_out = w4, v_out = v4, u_out = u4,
               I=I, J=J, K=K, halo = halo)
 
-    apply_stencil_tiling(sdfg, tile_size=tile_size, nested=nested, sequential = sequential, gpu = gpu)
+    sdfg.view()
+    # force everything sequential
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, nodes.MapEntry):
+            node.schedule = dace.dtypes.ScheduleType.Sequential
+
+    apply_stencil_tiling(sdfg, tile_size=tile_size,
+                         nested=nested, sequential = sequential,
+                         gpu = gpu, unroll = unroll)
+
+    for node in sdfg.nodes()[0].nodes():
+        if isinstance(node, nodes.MapEntry):
+            node.schedule = dace.dtypes.ScheduleType.Sequential
+
     if view:
         sdfg.view()
+    sdfg.view()
+    #sys.exit(0)
     if compile:
         pp3 = np.zeros([ J, K, I ], dtype = DATATYPE)
         w3 = np.zeros([ J, K, I ], dtype = DATATYPE)
@@ -303,6 +314,25 @@ def test(compile = True, view = True,
               pp_out = pp3, w_out = w3, v_out = v3, u_out = u3,
               I=I, J=J, K=K, halo = halo)
 
+    if compile:
+        print(np.linalg.norm(pp4))
+        print(np.linalg.norm(pp3))
+        print(np.linalg.norm(w4))
+        print(np.linalg.norm(w3))
+        print(np.linalg.norm(v4))
+        print(np.linalg.norm(v3))
+        print(np.linalg.norm(u4))
+        print(np.linalg.norm(u3))
+        print("Baseline")
+        print(np.allclose(pp1, pp4))
+        print(np.allclose(w1, w4))
+        print(np.allclose(v1, v4))
+        print(np.allclose(u1, u4))
+        print("Pre Tiling")
+        print(np.allclose(pp4, pp3))
+        print(np.allclose(w4, w3))
+        print(np.allclose(v4, v3))
+        print(np.allclose(u4, u3))
 
     fuse_stencils(sdfg,
                   gpu=gpu,
@@ -311,6 +341,7 @@ def test(compile = True, view = True,
                   sequential = sequential)
     if view:
         sdfg.view()
+    sdfg.view()
     if compile:
         pp5 = np.zeros([ J, K, I ], dtype = DATATYPE)
         w5 = np.zeros([ J, K, I ], dtype = DATATYPE)
@@ -324,18 +355,23 @@ def test(compile = True, view = True,
               pp_out = pp5, w_out = w5, v_out = v5, u_out = u5,
               I=I, J=J, K=K, halo = halo)
 
-
     if compile:
         print(np.linalg.norm(pp4))
+        print(np.linalg.norm(pp3))
         print(np.linalg.norm(w4))
+        print(np.linalg.norm(w3))
         print(np.linalg.norm(v4))
+        print(np.linalg.norm(v3))
         print(np.linalg.norm(u4))
+        print(np.linalg.norm(u3))
+        #print(u3[10:12, 10:12, 10:12])
+        #print(u4[10:12, 10:12, 10:12])
         print("Baseline")
         print(np.allclose(pp4, pp4))
         print(np.allclose(w4, w4))
         print(np.allclose(v4, v4))
         print(np.allclose(u4, u4))
-        print("Collapse")
+        print("Pre Tiling")
         print(np.allclose(pp4, pp3))
         print(np.allclose(w4, w3))
         print(np.allclose(v4, v3))
@@ -361,4 +397,5 @@ if __name__ == '__main__':
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
          gpu = False, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential, sdfg_type = 'full')
+         sequential = sequential, sdfg_type = 'full',
+         unroll = True)
