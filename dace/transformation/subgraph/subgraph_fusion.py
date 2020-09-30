@@ -784,20 +784,19 @@ class SubgraphFusion(pattern_matching.SubgraphTransformation):
             # DFS to replace strides and and volumes of a certain array in an
             # sdfg and its nested sdfgs contained. this is needed to change
             # the above properties of augmented arrays in adjacent sdfgs
-
             nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(name).strides)
             nsdfg.data(nested_data_name).total_size = dcpy(sdfg.data(name).total_size)
             # traverse the whole graph and search for arrays :(
             for ngraph in nsdfg.nodes():
                 for nnode in ngraph.nodes():
-                    if isinstance(nnode, nodes.AccessNode) and node.label == nname:
+                    if isinstance(nnode, nodes.AccessNode) and nnode.label == nname:
                         # trace and recurse if necessary
-                        for e in itertools.chain(ngraph.out_nodes(nnode), ngraph.in_nodes(nnode)):
+                        for e in chain(ngraph.out_edges(nnode), ngraph.in_edges(nnode)):
                             for te in ngraph.memlet_tree(e):
                                 if isinstance(te.dst, nodes.NestedSDFG):
-                                    adjust_arrays(nsdfg, te.dst, nname, te.dst_conn)
+                                    adjust_arrays(nsdfg, te.dst.sdfg, nname, te.dst_conn)
                                 if isinstance(te.src, nodes.NestedSDFG):
-                                    adjust_arrays(nsdfg, te.src, nname, te.src_conn)
+                                    adjust_arrays(nsdfg, te.src.sdfg, nname, te.src_conn)
 
 
         # do one pass to adjust and the memlets of in-between transients

@@ -197,6 +197,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
         from dace.transformation.dataflow.map_collapse import MapCollapse
         from dace.transformation.dataflow.strip_mining import StripMining
+        print("MAP_ENTRIES", map_entries)
         for map_entry in map_entries:
             # Retrieve map entry and exit nodes.
             map = map_entry.map
@@ -367,4 +368,4 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     transformation = LoopUnroll(0, 0, subgraph, 0)
                     transformation.apply(nsdfg)
 
-                sdfg.view()
+                #sdfg.view()
