@@ -21,11 +21,8 @@ def view_graphs():
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_v2.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_full.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/dedup.sdfg').view()
-def get_sdfg(sdfg_type = 'full'):
-    if sdfg_type == 'full':
-        sdfg = dace.sdfg.SDFG.from_file('hdiff_full.sdfg')
-    else:
-        sdfg = dace.sdfg.SDFG.from_file('hdiff_mini.sdfg')
+def get_sdfg():
+    sdfg = dace.sdfg.SDFG.from_file('hdiff_mini.sdfg')
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
     return sdfg
@@ -159,7 +156,7 @@ def fuse_stencils(sdfg, gpu,
 def test(compile = True, view = True,
          gpu = False, nested = False,
          tile_size = 32, deduplicate = False,
-         sequential = False, sdfg_type = 'full',
+         sequential = False,
          datatype = np.float32,
          unroll = False):
     # define symbols
@@ -182,11 +179,10 @@ def test(compile = True, view = True,
 
 
     # compile -- first without anyting
-    sdfg = get_sdfg(sdfg_type)
+    sdfg = get_sdfg()
     #sdfg._propagate = False
     #sdfg.propagate = False
-    if sdfg_type == 'full':
-        sdfg.add_symbol('halo', int)
+    sdfg.add_symbol('halo', int)
 
     #fix_arrays(sdfg)
     eliminate_k_memlet(sdfg)
@@ -372,5 +368,4 @@ if __name__ == '__main__':
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
          gpu = False, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential, sdfg_type = 'mini',
-         unroll = True)
+         sequential = sequential, unroll = True)
