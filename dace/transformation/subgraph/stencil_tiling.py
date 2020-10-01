@@ -172,7 +172,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 maps_queued.remove(current_map)
                 raise RuntimeError("DAG")
             if current_map not in coverages:
-                coverages[current_map] = self.coverage_dicts(sdfg, graph, current_map)
+                coverages[current_map] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
 
             nodes_following = set([e.dst for e in graph.out_edges(current_map)])
             while len(nodes_following) > 0:
@@ -183,7 +183,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     maps_added += 1
                     # get coverages for this as well
                     if current not in coveages:
-                        coverages[current] = self.coveage_dicts(sdfg, graph, current)
+                        coverages[current] = self.coverage_dicts(sdfg, graph, current)
                     # now check whether subsets cover
                     # get dict of incoming edges of this inner loop map
                     in_dict = coverages[current][0]
@@ -267,7 +267,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         subgraph = self.subgraph_view(sdfg)
         map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
 
-
         # first get dicts of parents and children for each map_entry
         # get source maps as a starting point for BFS
         source_nodes = set(sdutil.find_source_nodes(graph))
@@ -318,13 +317,13 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
             maps_queued.remove(current_map)
             maps_processed.add(current_map)
-
+        '''
         # next up, for each map, calculate the indent of each parameter that
         # we have to perform later during the tiling step
 
         # FORMAT:
         # parameter_indent[map_entry] =
-        # {map_parameter: (lower_indent, upper_indent)}
+        # {data_name: ((lower_indent, upper_indent),(lower......)) }
         parameter_indent = defaultdict(dict)
 
         # create array of reverse topologically sorted map entries
@@ -344,49 +343,85 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     queue |= parent
 
         # main loop
+        #
+        coverages = {}
+        coverages[current_map] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
         for map_entry in topo:
+            map = map_entry.map
+            if map_entry not in coverages:
+                coverages[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
+
             if map_entry in sink_maps:
                 # easy, indent is 0 everywhere
                 # this is our base range
+                parameter_indent[map_entry] = {p: (0,1) for p in map.params}
+            else:
+                # not a sink map, we potentially have to add an indent
+                # compare coverages with every child
+                for child_map in children_dict[map_entry]:
 
+                    #compare:
+                    #coverages[map_entry]
+                    #coverages[child_map]
 
+                    for data_name, coverage in coverages[child_map].values():
+                        if data_name in coverages[map_entry]:
+                            # get coverage diff
+                            diff_max = [c2 - c1 for c1, c2 in zip(coverage.min_element(), coverages[map_entry][data_name].min_element())]
+                            diff_min = [c1 - c2 for c1, c2 in zip(coverage.max_element(), coverages[map_entry][data_name].max_element())]
 
+                            # find out index corresponding to data name in both maps
+                            data_syms = set()
+                            for e in graph.in_edges(graph.exit_node(map_entry)):
+                                if e.data.data == data_name:
+                                    data_syms |= e.data.subset.free_symbols()
+                            # update parameters
+                            if parameter_indent[map_entry][data_name]:
+                                # extend
+                                parameter_indent[map_entry][data_name] = tuple(min(pimin, dmin), max(pimax, dmax) for ((pimin, pimax), (dmin, dmax))
+                                                                            in zip(parameter_indent[map_entry[data_name]], zip(diff_max, diff_min)))
+                            else:
+                                parameter_indent[map_entry[data_name]] = ((pimin, pimax) for (pimin, pimax) in zip(diff_max, diff_min))
+                        else:
+                            # data element not present in child map
+                            pass
 
-
-
-
-
-
-
-        # first, get the reference range (smallest range covered by all nodes)
-        # has to exist uniquely, else match should return False
-        # O(n^2) slow, TODO: improve?
+        '''
+        # get coverage dicts
+        coverages = {}
         for map_entry in map_entries:
-            if all([m.range.covers(map_entry.range) for m in map_entries]):
-                self.reference_range = dcpy(map_entry.range)
-                break
-        if self.debug:
-            print("Operating with reference range", self.reference_range)
+            coverages[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
+
+        # get reference range of sink node, all of them have to be the same
+        self.reference_range = coverages[next(sink_maps)]
+        assert all(self.reference_range == coverages[sm]for sm in sink_maps)
+        print("Operating with reference range", self.reference_range)
+
+        # tricky/dodgy part: create a surjection from array coverages
+        # to map params and see whether everyting is safe and sound
+        for map_entry in map_entries:
+            current_cov = coverages[map_entry]
+            
+
+
 
         # next up, search for the ranges that don't change
         invariant_ranges = []
         for idx, rng in enumerate(self.reference_range):
             different = False
             for m in map_entries:
-                if m.range[idx] != rng:
-                    print(m.range[idx], '!=', rng)
+                if coverages[m][idx] != rng:
+                    print(coverages[m][idx], '!=', rng)
                     different = True
                     break
             if not different:
                 invariant_ranges.append(idx)
         print("INVARIANT RANGES", invariant_ranges)
 
-        assert self.reference_range is not None, "Wrong input, please use match()"
-
+        # finally, we strip mine
 
         from dace.transformation.dataflow.map_collapse import MapCollapse
         from dace.transformation.dataflow.strip_mining import StripMining
-        print("MAP_ENTRIES", map_entries)
         for map_entry in map_entries:
             # Retrieve map entry and exit nodes.
             map = map_entry.map
