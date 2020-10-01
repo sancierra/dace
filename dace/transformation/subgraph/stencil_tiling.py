@@ -1,5 +1,21 @@
 """ This module contains classes and functions that implement the orthogonal
     stencil tiling transformation. """
+
+"""
+TODO:
+    - Stencil detection improvement
+        - write function to detect from memlets
+        - write map offset function
+    - Fix ignore cases
+    - Make ready for PR
+    - Write a unittest
+
+
+
+
+
+
+"""
 import math
 
 import dace
@@ -70,46 +86,123 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         return True
 
     @staticmethod
+    def coverage_dicts(sdfg, graph, map_entry):
+        '''
+        returns a two dicts:
+        one dict that has as a key all data entering the map
+        and its associated access range
+        one dict that has as a key all data exiting the map
+        and its associated access range
+        '''
+        map_exit = graph.exit_node(map_entry)
+        map = map_entry.map
+
+        entry_coverage = {}
+        exit_coverage = {}
+        # create dicts with which we can replace all iteration
+        # variables by their range
+        map_min = {dace.symbol(param): e
+                   for param, e in zip(map.params, map.range.min_element())}
+        map_max = {dace.symbol(param): e
+                   for param, e in zip(map.params, map.range.max_element())}
+
+        # look at inner memlets at map entry
+        for e in graph.out_edges(map_entry):
+            # get subset
+            min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
+            max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
+            # create range
+            rng = subsets.Range((min_e, max_e, 1)
+                  for min_e, max_e in zip(min_element, max_element))
+            if e.data not in entry_coverage:
+                entry_coverage[e.data] = rng
+            else:
+                old_coverage = entry_coverage[e.data]
+                entry_coverage[e.data] = subsets.union(old_coverage, rng)
+
+        # look at inner memlets at map exit
+        for e in graph.in_edges(map_exit):
+            # get subset
+            min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
+            max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
+            # craete range
+            rng = subsets.Range((min_e, max_e, 1)
+                   for min_e, max_e in zip(min_element, max_element))
+            if e.data not in exit_coverage:
+                exit_coverage[e.data] = rng
+            else:
+                old_coverage = exit_coverage[e.data]
+                exit_coverage[e.data] = subsets.union(old_coverage, rng)
+
+        return (entry_coverage, exit_coverage)
+
+
+    @staticmethod
     def match(sdfg, subgraph):
+        # get highest scope maps
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
         if len(map_entries) < 1:
             return False
+
+        # get source maps as a starting point for BFS
         source_nodes = set(sdutil.find_source_nodes(graph))
-        source_maps = set()
+        maps_reachable_source = set()
         sink_maps = set()
         while len(source_nodes) > 0:
             # traverse and find source maps
             node = next(iter(source_nodes))
             if isinstance(node, nodes.MapEntry) and node in map_entries:
-                source_maps.add(node)
+                maps_reachable_source.add(node)
             else:
                 for e in graph.out_edges(node):
                     source_nodes.add(e.dst)
             source_nodes.remove(node)
 
-        maps_queued = set(source_maps)
+        # main loop: traverse graph and check whether topologically
+        # connected maps cover each other in terms of memlets
+        maps_queued = set(maps_reachable_source)
         maps_processed = set()
+        coverages = {}
         while len(maps_queued) > 0:
             maps_added = 0
             current_map = next(iter(maps_queued))
             if current_map in maps_processed:
+                # this should not occur in a DAG
                 maps_queued.remove(current_map)
-                continue
-            nodes_current = set([e.dst for e in graph.out_edges(current_map)])
-            while len(nodes_current) > 0:
-                current = next(iter(nodes_current))
+                raise RuntimeError("DAG")
+            if current_map not in coverages:
+                coverages[current_map] = self.coverage_dicts(sdfg, graph, current_map)
+
+            nodes_following = set([e.dst for e in graph.out_edges(current_map)])
+            while len(nodes_following) > 0:
+                current = next(iter(nodes_following))
                 if isinstance(current, nodes.MapEntry) and current in map_entries:
                     if current not in maps_processed or maps_queued:
                         maps_queued.add(current)
                     maps_added += 1
+                    # get coverages for this as well
+                    if current not in coveages:
+                        coverages[current] = self.coveage_dicts(sdfg, graph, current)
                     # now check whether subsets cover
-                    if not current_map.range.covers(current.range):
-                        return False
+                    # get dict of incoming edges of this inner loop map
+                    in_dict = coverages[current][0]
+                    # get dict of outgoing edges of map in the
+                    # preceding outer loop map
+                    out_dict = coverages[current_map][1]
+                    for data_name in in_dict:
+                        # check if data is in out_dict
+                        if data_name in out_dict:
+                            # check coverage
+                            if not out_dict[data_name].covers(in_dict[data_name]):
+                                return False
+                            # check whether difference is const
+                            if any([symbolic.issymbolic(s1-s2) for s1, s2 in zip(out_dict[data_name].size() - in_dict[data_name].size())]):
+                                return False
                 else:
                     for e in graph.out_edges(current):
-                        nodes_current.add(e.dst)
-                nodes_current.remove(current)
+                        nodes_following.add(e.dst)
+                nodes_following.remove(current)
 
             if maps_added == 0:
                 sink_maps.add(current_map)
@@ -119,12 +212,17 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
         # last condition: we want all sink maps to have the same
         # range, if not we cannot form a common map range for fusion later
+        # last condition: we want all incoming memlets into sink maps
+        # to have the same ranges
+
         assert len(sink_maps) > 0
-        map0 = next(iter(sink_maps))
-        if not all([map.range == map0.range for map in sink_maps]):
+        first_sink_map = next(iter(sink_maps))
+        # TODO: need to check whether this is strong enough
+        if not all([map.range.size() == first_sink_map.range.size() for map in sink_maps]):
             return False
 
         return True
+
 
     def calculate_stripmining_parameters(self,
                                          reference_range,
@@ -168,6 +266,97 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         graph = sdfg.nodes()[self.state_id]
         subgraph = self.subgraph_view(sdfg)
         map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+
+
+        # first get dicts of parents and children for each map_entry
+        # get source maps as a starting point for BFS
+        source_nodes = set(sdutil.find_source_nodes(graph))
+        maps_reachable_source = set()
+        sink_maps = set()
+        while len(source_nodes) > 0:
+            # traverse and find source maps
+            node = next(iter(source_nodes))
+            if isinstance(node, nodes.MapEntry) and node in map_entries:
+                maps_reachable_source.add(node)
+            else:
+                for e in graph.out_edges(node):
+                    source_nodes.add(e.dst)
+            source_nodes.remove(node)
+
+        # traverse graph
+        maps_queued = set(maps_reachable_source)
+        maps_processed = set()
+
+        children_dict = defaultdict(set)
+        parent_dict = defaultdict(set)
+
+        # get sink nodes, children_dict, parent_dict using BFS/DFS
+        while len(maps_queued) > 0:
+            maps_added = 0
+            current_map = next(iter(maps_queued))
+            if current_map in maps_processed:
+                # this should not occur in a DAG
+                maps_queued.remove(current_map)
+                raise RuntimeError("DAG")
+
+            nodes_following = set([e.dst for e in graph.out_edges(current_map)])
+            while len(nodes_following) > 0:
+                current = next(iter(nodes_following))
+                if isinstance(current, nodes.MapEntry) and current in map_entries:
+                    if current not in maps_processed or maps_queued:
+                        maps_queued.add(current)
+                    maps_added += 1
+                    children_dict[current_map] |= current
+                    parent_dict[current] |= current_map
+                else:
+                    for e in graph.out_edges(current):
+                        nodes_following.add(e.dst)
+                nodes_following.remove(current)
+
+            if maps_added == 0:
+                sink_maps.add(current_map)
+
+            maps_queued.remove(current_map)
+            maps_processed.add(current_map)
+
+        # next up, for each map, calculate the indent of each parameter that
+        # we have to perform later during the tiling step
+
+        # FORMAT:
+        # parameter_indent[map_entry] =
+        # {map_parameter: (lower_indent, upper_indent)}
+        parameter_indent = defaultdict(dict)
+
+        # create array of reverse topologically sorted map entries
+        # to iterate over
+        topo = []
+        topo_set = set()
+        queue = set(sink_maps.copy())
+        while len(queue) > 0:
+            current = None
+            for element in queue:
+                # if all parents are already in topo
+                if not children_dict[element] - topo_set:
+                    topo.append(element)
+                    topo_set.add(element)
+                queue.remove(element)
+                for parent in parent_dict[element]:
+                    queue |= parent
+
+        # main loop
+        for map_entry in topo:
+            if map_entry in sink_maps:
+                # easy, indent is 0 everywhere
+                # this is our base range
+
+
+
+
+
+
+
+
+
 
         # first, get the reference range (smallest range covered by all nodes)
         # has to exist uniquely, else match should return False
