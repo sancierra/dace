@@ -318,6 +318,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             maps_queued.remove(current_map)
             maps_processed.add(current_map)
         '''
+        ######################## OPTION 1
         # next up, for each map, calculate the indent of each parameter that
         # we have to perform later during the tiling step
 
@@ -387,6 +388,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                             pass
 
         '''
+        ###################################### OPTION 2
         # get coverage dicts
         coverages = {}
         for map_entry in map_entries:
@@ -397,11 +399,46 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         assert all(self.reference_range == coverages[sm]for sm in sink_maps)
         print("Operating with reference range", self.reference_range)
 
-        # tricky/dodgy part: create a surjection from array coverages
+        # tricky/dodgy part: create a mapping from array coverages
         # to map params and see whether everyting is safe and sound
+        # first see which variables the data ranges map to
+        variables = {}
+        # create a new dict range_coverages to map
+        # from map parameter to reference range instead of
+        # map data_name to reference range
+        range_coverages = {}
+        # example for 3-dim data array:
+        # variable[map_entry][data_name] = [i,j,k]
         for map_entry in map_entries:
-            current_cov = coverages[map_entry]
-            
+            local_variables = {}
+            for e in chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
+                mapping = []
+                for dim in e.data.subset.ranges:
+                    syms = set()
+                    for d in dim:
+                        syms |= symbolic.symlist(d).keys()
+                    assert len(syms) <= 2, "Not supported" # TODO: error message
+                    local_variables[e.data].append(next(syms) if len(syms) == 1 else None)
+
+                if e.data in local_variables:
+                    assert local_variables[e.data] == mapping
+                else:
+                    local_variables[e.data] = mapping
+            variables[map_entry] = local_variables
+
+            # TODO: ????? PARAMETER CHANGE ?????
+
+            rcov = {}
+            coverages[map_entry][0] # entry
+            coverages[map_entry][1] # exit
+
+
+
+
+
+
+
+
 
 
 
