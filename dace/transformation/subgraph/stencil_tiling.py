@@ -1,21 +1,5 @@
 """ This module contains classes and functions that implement the orthogonal
     stencil tiling transformation. """
-
-"""
-TODO:
-    - Stencil detection improvement
-        - write function to detect from memlets
-        - write map offset function
-    - Fix ignore cases
-    - Make ready for PR
-    - Write a unittest
-
-
-
-
-
-
-"""
 import math
 
 import dace
@@ -86,123 +70,46 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         return True
 
     @staticmethod
-    def coverage_dicts(sdfg, graph, map_entry):
-        '''
-        returns a two dicts:
-        one dict that has as a key all data entering the map
-        and its associated access range
-        one dict that has as a key all data exiting the map
-        and its associated access range
-        '''
-        map_exit = graph.exit_node(map_entry)
-        map = map_entry.map
-
-        entry_coverage = {}
-        exit_coverage = {}
-        # create dicts with which we can replace all iteration
-        # variables by their range
-        map_min = {dace.symbol(param): e
-                   for param, e in zip(map.params, map.range.min_element())}
-        map_max = {dace.symbol(param): e
-                   for param, e in zip(map.params, map.range.max_element())}
-
-        # look at inner memlets at map entry
-        for e in graph.out_edges(map_entry):
-            # get subset
-            min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
-            max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
-            # create range
-            rng = subsets.Range((min_e, max_e, 1)
-                  for min_e, max_e in zip(min_element, max_element))
-            if e.data not in entry_coverage:
-                entry_coverage[e.data] = rng
-            else:
-                old_coverage = entry_coverage[e.data]
-                entry_coverage[e.data] = subsets.union(old_coverage, rng)
-
-        # look at inner memlets at map exit
-        for e in graph.in_edges(map_exit):
-            # get subset
-            min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
-            max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
-            # craete range
-            rng = subsets.Range((min_e, max_e, 1)
-                   for min_e, max_e in zip(min_element, max_element))
-            if e.data not in exit_coverage:
-                exit_coverage[e.data] = rng
-            else:
-                old_coverage = exit_coverage[e.data]
-                exit_coverage[e.data] = subsets.union(old_coverage, rng)
-
-        return (entry_coverage, exit_coverage)
-
-
-    @staticmethod
     def match(sdfg, subgraph):
-        # get highest scope maps
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
         if len(map_entries) < 1:
             return False
-
-        # get source maps as a starting point for BFS
         source_nodes = set(sdutil.find_source_nodes(graph))
-        maps_reachable_source = set()
+        source_maps = set()
         sink_maps = set()
         while len(source_nodes) > 0:
             # traverse and find source maps
             node = next(iter(source_nodes))
             if isinstance(node, nodes.MapEntry) and node in map_entries:
-                maps_reachable_source.add(node)
+                source_maps.add(node)
             else:
                 for e in graph.out_edges(node):
                     source_nodes.add(e.dst)
             source_nodes.remove(node)
 
-        # main loop: traverse graph and check whether topologically
-        # connected maps cover each other in terms of memlets
-        maps_queued = set(maps_reachable_source)
+        maps_queued = set(source_maps)
         maps_processed = set()
-        coverages = {}
         while len(maps_queued) > 0:
             maps_added = 0
             current_map = next(iter(maps_queued))
             if current_map in maps_processed:
-                # this should not occur in a DAG
                 maps_queued.remove(current_map)
-                raise RuntimeError("DAG")
-            if current_map not in coverages:
-                coverages[current_map] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
-
-            nodes_following = set([e.dst for e in graph.out_edges(current_map)])
-            while len(nodes_following) > 0:
-                current = next(iter(nodes_following))
+                continue
+            nodes_current = set([e.dst for e in graph.out_edges(current_map)])
+            while len(nodes_current) > 0:
+                current = next(iter(nodes_current))
                 if isinstance(current, nodes.MapEntry) and current in map_entries:
                     if current not in maps_processed or maps_queued:
                         maps_queued.add(current)
                     maps_added += 1
-                    # get coverages for this as well
-                    if current not in coveages:
-                        coverages[current] = self.coverage_dicts(sdfg, graph, current)
                     # now check whether subsets cover
-                    # get dict of incoming edges of this inner loop map
-                    in_dict = coverages[current][0]
-                    # get dict of outgoing edges of map in the
-                    # preceding outer loop map
-                    out_dict = coverages[current_map][1]
-                    for data_name in in_dict:
-                        # check if data is in out_dict
-                        if data_name in out_dict:
-                            # check coverage
-                            if not out_dict[data_name].covers(in_dict[data_name]):
-                                return False
-                            # check whether difference is const
-                            if any([symbolic.issymbolic(s1-s2) for s1, s2 in zip(out_dict[data_name].size() - in_dict[data_name].size())]):
-                                return False
+                    if not current_map.range.covers(current.range):
+                        return False
                 else:
                     for e in graph.out_edges(current):
-                        nodes_following.add(e.dst)
-                nodes_following.remove(current)
+                        nodes_current.add(e.dst)
+                nodes_current.remove(current)
 
             if maps_added == 0:
                 sink_maps.add(current_map)
@@ -212,17 +119,12 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
         # last condition: we want all sink maps to have the same
         # range, if not we cannot form a common map range for fusion later
-        # last condition: we want all incoming memlets into sink maps
-        # to have the same ranges
-
         assert len(sink_maps) > 0
-        first_sink_map = next(iter(sink_maps))
-        # TODO: need to check whether this is strong enough
-        if not all([map.range.size() == first_sink_map.range.size() for map in sink_maps]):
+        map0 = next(iter(sink_maps))
+        if not all([map.range == map0.range for map in sink_maps]):
             return False
 
         return True
-
 
     def calculate_stripmining_parameters(self,
                                          reference_range,
@@ -267,198 +169,35 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         subgraph = self.subgraph_view(sdfg)
         map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
 
-        # first get dicts of parents and children for each map_entry
-        # get source maps as a starting point for BFS
-        source_nodes = set(sdutil.find_source_nodes(graph))
-        maps_reachable_source = set()
-        sink_maps = set()
-        while len(source_nodes) > 0:
-            # traverse and find source maps
-            node = next(iter(source_nodes))
-            if isinstance(node, nodes.MapEntry) and node in map_entries:
-                maps_reachable_source.add(node)
-            else:
-                for e in graph.out_edges(node):
-                    source_nodes.add(e.dst)
-            source_nodes.remove(node)
-
-        # traverse graph
-        maps_queued = set(maps_reachable_source)
-        maps_processed = set()
-
-        children_dict = defaultdict(set)
-        parent_dict = defaultdict(set)
-
-        # get sink nodes, children_dict, parent_dict using BFS/DFS
-        while len(maps_queued) > 0:
-            maps_added = 0
-            current_map = next(iter(maps_queued))
-            if current_map in maps_processed:
-                # this should not occur in a DAG
-                maps_queued.remove(current_map)
-                raise RuntimeError("DAG")
-
-            nodes_following = set([e.dst for e in graph.out_edges(current_map)])
-            while len(nodes_following) > 0:
-                current = next(iter(nodes_following))
-                if isinstance(current, nodes.MapEntry) and current in map_entries:
-                    if current not in maps_processed or maps_queued:
-                        maps_queued.add(current)
-                    maps_added += 1
-                    children_dict[current_map] |= current
-                    parent_dict[current] |= current_map
-                else:
-                    for e in graph.out_edges(current):
-                        nodes_following.add(e.dst)
-                nodes_following.remove(current)
-
-            if maps_added == 0:
-                sink_maps.add(current_map)
-
-            maps_queued.remove(current_map)
-            maps_processed.add(current_map)
-        '''
-        ######################## OPTION 1
-        # next up, for each map, calculate the indent of each parameter that
-        # we have to perform later during the tiling step
-
-        # FORMAT:
-        # parameter_indent[map_entry] =
-        # {data_name: ((lower_indent, upper_indent),(lower......)) }
-        parameter_indent = defaultdict(dict)
-
-        # create array of reverse topologically sorted map entries
-        # to iterate over
-        topo = []
-        topo_set = set()
-        queue = set(sink_maps.copy())
-        while len(queue) > 0:
-            current = None
-            for element in queue:
-                # if all parents are already in topo
-                if not children_dict[element] - topo_set:
-                    topo.append(element)
-                    topo_set.add(element)
-                queue.remove(element)
-                for parent in parent_dict[element]:
-                    queue |= parent
-
-        # main loop
-        #
-        coverages = {}
-        coverages[current_map] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
-        for map_entry in topo:
-            map = map_entry.map
-            if map_entry not in coverages:
-                coverages[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
-
-            if map_entry in sink_maps:
-                # easy, indent is 0 everywhere
-                # this is our base range
-                parameter_indent[map_entry] = {p: (0,1) for p in map.params}
-            else:
-                # not a sink map, we potentially have to add an indent
-                # compare coverages with every child
-                for child_map in children_dict[map_entry]:
-
-                    #compare:
-                    #coverages[map_entry]
-                    #coverages[child_map]
-
-                    for data_name, coverage in coverages[child_map].values():
-                        if data_name in coverages[map_entry]:
-                            # get coverage diff
-                            diff_max = [c2 - c1 for c1, c2 in zip(coverage.min_element(), coverages[map_entry][data_name].min_element())]
-                            diff_min = [c1 - c2 for c1, c2 in zip(coverage.max_element(), coverages[map_entry][data_name].max_element())]
-
-                            # find out index corresponding to data name in both maps
-                            data_syms = set()
-                            for e in graph.in_edges(graph.exit_node(map_entry)):
-                                if e.data.data == data_name:
-                                    data_syms |= e.data.subset.free_symbols()
-                            # update parameters
-                            if parameter_indent[map_entry][data_name]:
-                                # extend
-                                parameter_indent[map_entry][data_name] = tuple(min(pimin, dmin), max(pimax, dmax) for ((pimin, pimax), (dmin, dmax))
-                                                                            in zip(parameter_indent[map_entry[data_name]], zip(diff_max, diff_min)))
-                            else:
-                                parameter_indent[map_entry[data_name]] = ((pimin, pimax) for (pimin, pimax) in zip(diff_max, diff_min))
-                        else:
-                            # data element not present in child map
-                            pass
-
-        '''
-        ###################################### OPTION 2
-        # get coverage dicts
-        coverages = {}
+        # first, get the reference range (smallest range covered by all nodes)
+        # has to exist uniquely, else match should return False
+        # O(n^2) slow, TODO: improve?
         for map_entry in map_entries:
-            coverages[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, current_map)
-
-        # get reference range of sink node, all of them have to be the same
-        self.reference_range = coverages[next(sink_maps)]
-        assert all(self.reference_range == coverages[sm]for sm in sink_maps)
-        print("Operating with reference range", self.reference_range)
-
-        # tricky/dodgy part: create a mapping from array coverages
-        # to map params and see whether everyting is safe and sound
-        # first see which variables the data ranges map to
-        variables = {}
-        # create a new dict range_coverages to map
-        # from map parameter to reference range instead of
-        # map data_name to reference range
-        range_coverages = {}
-        # example for 3-dim data array:
-        # variable[map_entry][data_name] = [i,j,k]
-        for map_entry in map_entries:
-            local_variables = {}
-            for e in chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
-                mapping = []
-                for dim in e.data.subset.ranges:
-                    syms = set()
-                    for d in dim:
-                        syms |= symbolic.symlist(d).keys()
-                    assert len(syms) <= 2, "Not supported" # TODO: error message
-                    local_variables[e.data].append(next(syms) if len(syms) == 1 else None)
-
-                if e.data in local_variables:
-                    assert local_variables[e.data] == mapping
-                else:
-                    local_variables[e.data] = mapping
-            variables[map_entry] = local_variables
-
-            # TODO: ????? PARAMETER CHANGE ?????
-
-            rcov = {}
-            coverages[map_entry][0] # entry
-            coverages[map_entry][1] # exit
-
-
-
-
-
-
-
-
-
-
+            if all([m.range.covers(map_entry.range) for m in map_entries]):
+                self.reference_range = dcpy(map_entry.range)
+                break
+        if self.debug:
+            print("Operating with reference range", self.reference_range)
 
         # next up, search for the ranges that don't change
         invariant_ranges = []
         for idx, rng in enumerate(self.reference_range):
             different = False
             for m in map_entries:
-                if coverages[m][idx] != rng:
-                    print(coverages[m][idx], '!=', rng)
+                if m.range[idx] != rng:
+                    print(m.range[idx], '!=', rng)
                     different = True
                     break
             if not different:
                 invariant_ranges.append(idx)
         print("INVARIANT RANGES", invariant_ranges)
 
-        # finally, we strip mine
+        assert self.reference_range is not None, "Wrong input, please use match()"
+
 
         from dace.transformation.dataflow.map_collapse import MapCollapse
         from dace.transformation.dataflow.strip_mining import StripMining
+        print("MAP_ENTRIES", map_entries)
         for map_entry in map_entries:
             # Retrieve map entry and exit nodes.
             map = map_entry.map
