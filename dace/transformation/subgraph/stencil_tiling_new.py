@@ -6,7 +6,8 @@ TODO:
     - Stencil detection improvement [OK]
         - write function to detect from memlets [OK]
         - write map offset function [Not Necessary]
-    - Fix ignore cases                                    [TODO]
+    - Fix ignore cases and prettify strip_mining section  [TODO]
+      [UGLY]
     - Make ready for PR                                   [TODO]
     - Write a unittest                                    [TODO]
     - Extend can_be_applied by OUTER RANGE CHECK          [TODO]
@@ -88,7 +89,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         entry_coverage = {}
         exit_coverage = {}
         # create dicts with which we can replace all iteration
-        # variables by their range
+        # variable_mapping by their range
         map_min = {dace.symbol(param): e
                    for param, e in zip(map.params, map.range.min_element())}
         map_max = {dace.symbol(param): e
@@ -197,8 +198,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                             # check coverage: if not covered, we can't continue
                             if not out_dict[data_name].covers(in_dict[data_name]):
                                 return False
-                            else:
-                                print("PASS")
 
                 else:
                     for e in graph.out_edges(current_node):
@@ -349,11 +348,11 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         # for this we need to find out how all array dimensions map to
         # outer ranges
 
-        variables = defaultdict(list)
+        variable_mapping = defaultdict(list)
         for map_entry in topo_reversed:
             map = map_entry.map
-            # first find out variable mapping
 
+            # first find out variable mapping
             for e in itertools.chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
                 mapping = []
                 for dim in e.data.subset:
@@ -369,46 +368,44 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                         # we don't care for now.
                         mapping.append(None)
 
-                if e.data in variables:
+                if e.data in variable_mapping:
                     # assert that this is the same everywhere.
-                    # Else we might run into problems
-                    assert variables[e.data.data] == mapping
+                    # else we might run into problems
+                    assert variable_mapping[e.data.data] == mapping
                 else:
-                    variables[e.data.data] = mapping
+                    variable_mapping[e.data.data] = mapping
 
             # now do mapping data -> indent
             # and from that infer mapping variable -> indent
             local_ranges = {dn: None for dn in coverage[map_entry][1].keys()}
             for data_name, cov in coverage[map_entry][1].items():
                 local_ranges[data_name] = subsets.union(local_ranges[data_name], cov)
-                # do the same for children
+                # now look at proceeding maps
+                # and union those subsets -> could be larger with stencil indent
                 for child_map in children_dict[map_entry]:
                     if data_name in coverage[child_map][0]:
                         local_ranges[data_name] = subsets.union(local_ranges[data_name], coverage[child_map][0][data_name])
 
 
-            # final assignent
+            # final assignent: combine local_ranges and variable_mapping
+            # together into inferred_ranges
             inferred_ranges[map_entry] = {p: None for p in map.params}
-            print("LOCAL_RANGES", local_ranges)
-            print("variables", variables)
             for data_name, ranges in local_ranges.items():
-                for param, r in zip(variables[data_name], ranges):
-
+                for param, r in zip(variable_mapping[data_name], ranges):
+                    # create new range from this subset and assign
                     rng = subsets.Range((r,))
                     print(param, rng)
                     if param:
                         inferred_ranges[map_entry][param] = subsets.union(inferred_ranges[map_entry][param], rng)
 
-
-        print("***************************************")
-        print("END OF PART 1")
-        print("PARAMETER INDENT", inferred_ranges)
+        if self.debug:
+            print("Inferred Ranges", inferred_ranges)
 
         # outer range of one of the sink maps TODO comment better
         params = next(iter(map_entries)).map.params.copy()
         self.reference_range = inferred_ranges[next(iter(sink_maps))]
-        print("REFERENCE_RANGE", self.reference_range)
-        #self.reference_range = inferred_ranges[next(iter(sink_maps))]
+        if self.debug:
+            print("StencilTiling::Reference Range", self.reference_range)
         # next up, search for the ranges that don't change
         invariant_ranges = []
         for idx, p in enumerate(params):
@@ -422,10 +419,11 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     break
             if not different:
                 invariant_ranges.append(idx)
-        print("INVARIANT RANGES", invariant_ranges)
+        if self.debug:
+            print("")
+        print("StencilTiling::Invariant Range Indices", invariant_ranges)
 
-        # finally, we strip mine
-
+        # with inferred_ranges constructed, we can begin to strip mine
         from dace.transformation.dataflow.map_collapse import MapCollapse
         from dace.transformation.dataflow.strip_mining import StripMining
         for map_entry in map_entries:
