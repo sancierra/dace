@@ -58,11 +58,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                      dtype = bool,
                      default = True)
 
-    reference_range = Property(desc = "Reference Range",
-                          dtype = Range,
-                          default = None,
-                          allow_none = True)
-
     prefix = Property(dtype=str,
                       default="stencil",
                       desc="Prefix for new range symbols")
@@ -115,7 +110,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
                 max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
                 # create range
-                rng = subsets.Range((min_e, max_e+1, 1)
+                rng = subsets.Range((min_e, max_e, 1)
                       for min_e, max_e in zip(min_element, max_element))
             else:
                 rng = dcpy(e.data.subset)
@@ -133,7 +128,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 min_element = [m.subs(map_min) for m in e.data.subset.min_element()]
                 max_element = [m.subs(map_max) for m in e.data.subset.max_element()]
                 # craete range
-                rng = subsets.Range((min_e, max_e+1, 1)
+                rng = subsets.Range((min_e, max_e, 1)
                        for min_e, max_e in zip(min_element, max_element))
             else:
                 rng = dcpy(e.data.subset)
@@ -251,22 +246,22 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
 
     def calculate_stripmining_parameters(self,
+                                         current_range,
                                          reference_range,
-                                         target_range,
                                          stride):
         """ Calculates parameters for stripmining and offsetting
             Iff successful (transformation posible), returns True
             Saves all parameters as class variable
         """
-        map_stride = target_range.strides()[0]
-        if reference_range.strides()[0] != target_range.strides()[0]:
+        map_stride = reference_range.strides()[0]
+        if current_range.strides()[0] != reference_range.strides()[0]:
             # different strides
             return False
-        min_diff = symbolic.SymExpr(target_range.min_element()[0] \
-                        - reference_range.min_element()[0])
+        min_diff = symbolic.SymExpr(reference_range.min_element()[0] \
+                        - current_range.min_element()[0])
         #                / reference_range.strides()[0]
-        max_diff = symbolic.SymExpr(reference_range.max_element()[0] \
-                        - target_range.max_element()[0])
+        max_diff = symbolic.SymExpr(current_range.max_element()[0] \
+                        - reference_range.max_element()[0])
         #                / reference_range.strides()[0]
 
 
@@ -322,7 +317,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             if current_map in maps_processed:
                 # this should not occur in a DAG
                 maps_queued.remove(current_map)
-                raise RuntimeError("DAG")
+                continue
 
             nodes_following = set([e.dst for e in graph.out_edges(current_map)])
             while len(nodes_following) > 0:
@@ -359,54 +354,53 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         topo_set = set()
         queue = set(sink_maps.copy())
         while len(queue) > 0:
-            current = None
-            for element in queue:
-                # if all parents are already in topo
-                if not children_dict[element] - topo_set:
-                    topo.append(element)
-                    topo_set.add(element)
-                queue.remove(element)
-                for parent in parent_dict[element]:
-                    queue |= parent
+            element = next(e for e in queue if not children_dict[e] - topo_set)
+            topo.append(element)
+            topo_set.add(element)
+            queue.remove(element)
+            for parent in parent_dict[element]:
+                queue.add(parent)
 
         # main loop
-        # first get inner coverage
+        # first get coverage
         coverage = {}
         for map_entry in map_entries:
             coverage[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, map_entry, outer_range = True)
 
+        variables = defaultdict(list)
         for map_entry in topo:
             map = map_entry.map
-            if map_entry in sink_maps:
-                # easy, indent is 0 everywhere
-                # this is our base range
-                parameter_indent[map_entry] = {p: (0,1) for p in map.params}
-            else:
-                # not a sink map, we potentially have to add an indent
-                # look at all outgoing and
-                # first find out variable mapping
+            # first find out variable mapping
 
-                local_variables = {}
-                for e in chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
-                    mapping = []
-                    for dim in e.data.subset.ranges:
-                        syms = set()
-                        for d in dim:
-                            syms |= symbolic.symlist(d).keys()
-                        assert len(syms) <= 2, "Not supported" # TODO: error message
-                        local_variables[e.data].append(next(syms) if len(syms) == 1 else None)
+            for e in itertools.chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
+                mapping = []
+                for dim in e.data.subset:
+                    syms = set()
+                    for d in dim:
+                        syms |= symbolic.symlist(d).keys()
+                    try:
+                        mapping.append(syms.pop())
+                    except KeyError:
+                        mapping.append(None)
 
-                    if e.data in local_variables:
-                        assert local_variables[e.data] == mapping
-                    else:
-                        local_variables[e.data] = mapping
+                if e.data in variables:
+                    assert variables[e.data.data] == mapping
+                else:
+                    variables[e.data.data] = mapping
 
-                # now do mapping data -> indent
-                # and from that infer mapping variable -> indent
-                local_baserange = {}
+            # now do mapping data -> indent
+            # and from that infer mapping variable -> indent
+            local_ranges = {dn: None for dn in coverage[map_entry][1].keys()}
+            for data_name, cov in coverage[map_entry][1].items():
+                local_ranges[data_name] = subsets.union(local_ranges[data_name], cov)
+                # do the same for children
+                for child_map in children_dict[map_entry]:
+                    if data_name in coverage[child_map][0]:
+                        local_ranges[data_name] = subsets.union(local_ranges[data_name], coverage[child_map][0][data_name])
+                '''
                 for child_map in children_dict[map_entry]:
 
-                    for data_name, coverage in coverages[child_map].values():
+                    for child_data_name, child_cov in coverage[child_map][0].items():
 
                         # below is for outer == False:
                         # get coverage diff
@@ -414,36 +408,36 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                         #diff_min = [pre_cov[1] + c1 - c2 for pre_cov, c1, c2 in zip(parameter_indent[map_entry][data_name], coverage[0].max_element(), coverage[1].max_element())]
                         #indent = tuple((dmin, dmax) for dmin, dmax in zip(diff_min, diff_max))
 
-                        if data_name in coverages[map_entry][1]:
+                        if data_name in coverage[map_entry][1]:
 
                             # update parameters
-                            if data_name in local_baserange:
+                            if data_name in child_ranges:
                                 # extend
-                                local_baserange[data_name] = subsets.union(local_baserange[data_name], coverage)
-                                #
-                                #local_baserange[data_name] = tuple(min(pimin, dmin), max(pimax, dmax) for ((pimin, pimax), (dmin, dmax))
+                                child_ranges[data_name] = subsets.union(child_ranges[data_name], cov)
+                                #child_ranges[data_name] = tuple(min(pimin, dmin), max(pimax, dmax) for ((pimin, pimax), (dmin, dmax))
                                 #                                            in zip(indent_local[map_entry[data_name]], zip(diff_max, diff_min)))
                             else:
-                                local_baserange[data_name] = coverage
-                                #local_baserange[data_name] = indent
+                                child_ranges[data_name] = cov
+                                #child_ranges[data_name] = indent
                         else:
                             # data element not present in child map
                             pass
+                '''
 
 
-                # final assignent
-                for (data_name, indents) in local_baserange.values():
-                    for (param, indent) in zip(local_variables[data_name], indents):
-                        '''
-                        if param in parameter_indent[map_entry]:
-                            assert parameter_indent[map_entry][param] == indent
-                        else:
-                            parameter_indent[map_entry][param] = indent
-                        '''
-                        if param in parameter_indent[map_entry]:
-                            parameter_indent[map_entry] = subsets.union(parameter_indent[map_entry], subsets.Range(indent))
-                        else:
-                            parameter_indent[map_entry] = subsets.Range(indent)
+            # final assignent
+            parameter_indent[map_entry] = {p: None for p in map.params}
+            print("LOCAL_RANGES", local_ranges)
+            print("variables", variables)
+            for data_name, ranges in local_ranges.items():
+                for param, r in zip(variables[data_name], ranges):
+                    print("R", r)
+                    print(type(r))
+                    print(len(r))
+                    rng = subsets.Range((r,))
+                    print(param, rng)
+                    if param:
+                        parameter_indent[map_entry][param] = subsets.union(parameter_indent[map_entry][param], rng)
 
 
         '''
@@ -469,7 +463,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         # example for 3-dim data array:
         # variable[map_entry][data_name] = [i,j,k]
         for map_entry in map_entries:
-            local_variables = {}
+            variables = {}
             for e in chain(graph.out_edges(map_entry), graph.in_edges(graph.exit_node(map_entry))):
                 mapping = []
                 for dim in e.data.subset.ranges:
@@ -477,13 +471,13 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     for d in dim:
                         syms |= symbolic.symlist(d).keys()
                     assert len(syms) <= 2, "Not supported" # TODO: error message
-                    local_variables[e.data].append(next(syms) if len(syms) == 1 else None)
+                    variables[e.data].append(next(syms) if len(syms) == 1 else None)
 
-                if e.data in local_variables:
-                    assert local_variables[e.data] == mapping
+                if e.data in variables:
+                    assert variables[e.data] == mapping
                 else:
-                    local_variables[e.data] = mapping
-            variables[map_entry] = local_variables
+                    variables[e.data] = mapping
+            variables[map_entry] = variables
 
             # TODO: ????? PARAMETER CHANGE ?????
 
@@ -494,21 +488,24 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         '''
         print("***************************************")
         print("END OF PART 1")
-        print(parameter_indent)
+        print("PARAMETER INDENT", parameter_indent)
 
-
-        params = next(map_entries).map.params.copy()
+        # outer range of one of the sink maps TODO comment better
+        params = next(iter(map_entries)).map.params.copy()
+        self.reference_range = parameter_indent[next(iter(sink_maps))]
+        print("REFERENCE_RANGE", self.reference_range)
+        #self.reference_range = parameter_indent[next(iter(sink_maps))]
         # next up, search for the ranges that don't change
-        invariant_ranges = []
+        invariant_ranges = set()
         for idx, p in enumerate(params):
             different = False
             for m in map_entries:
-                if parameter_indent[m][p] != (0,1):
-                    print(parameter_indent[m][p])
-                    different = True
+                if self.reference_range[p] is None or \
+                        parameter_indent[m][p] != self.reference_range[p]:
+                    invariant_ranges.add(idx)
                     break
-            if not different:
-                invariant_ranges.append(idx)
+        print("INVARIANT RANGES", invariant_ranges)
+        invariant_ranges = list(invariant_ranges).sort()
         print("INVARIANT RANGES", invariant_ranges)
 
         # finally, we strip mine
@@ -536,32 +533,33 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             removed_maps = 0
             all_trivial = True
 
-            for dim_idx in range(len(map_entry.map.params)):
+            for dim_idx, param in enumerate(map_entry.map.params):
                 # get current tile size
                 if dim_idx >= len(self.strides):
                     tile_stride = symbolic.pystr_to_symbolic(self.strides[-1])
                 else:
                     tile_stride = symbolic.pystr_to_symbolic(self.strides[dim_idx])
 
-                reference_range_current = subsets.Range((map.range[dim_idx],))
-                target_range_current = subsets.Range((self.reference_range[dim_idx-removed_maps],))
+                target_range_current = subsets.Range((map.range[dim_idx],))
+                reference_range_current = self.reference_range[param]
 
                 inner_trivial = False
 
                 # calculate parameters for this dimension
                 print("*********************************************")
-                print(map_entry)
-                print(self.reference_range)
+                print("map_entry", map_entry)
+                print("reference_range", reference_range_current)
+                print("target_range", target_range_current)
                 success = self.calculate_stripmining_parameters(
                     reference_range = reference_range_current,
-                    target_range = target_range_current,
+                    current_range = target_range_current,
                     stride = tile_stride)
 
                 assert success, "Please check your parameters and run match()"
 
                 # get calculated parameters
-                ######tile_size = self.tile_sizes[-1]
-                tile_size = sum(parameter_indent[map_entry][dim_idx])
+                tile_size = self.tile_sizes[-1]
+                ######tile_size = sum(parameter_indent[map_entry][dim_idx])
 
                 # If tile size is trivial, skip strip-mining map dimension
                 if map_entry.map.range.size()[dim_idx-removed_maps] in [0,1]:
@@ -582,7 +580,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
                 if inner_trivial and dim_idx+removed_maps in invariant_ranges and 0==1: # TODO
                     print("XXXX inner_trivial invariant activated")
-                    map.range[dim_idx] = dcpy(self.reference_range[dim_idx+removed_maps])
+                    map.range[dim_idx] = dcpy(self.reference_range[param])
 
                     stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
                                             0)
@@ -595,7 +593,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
                 else:
 
-                    map.range[dim_idx] = dcpy(self.reference_range[dim_idx+removed_maps])
+                    map.range[dim_idx] = dcpy(self.reference_range[param])
                     stripmine = StripMining(sdfg_id, self.state_id, stripmine_subgraph,
                                             0)
                     stripmine.skip_trivial_dims = False
@@ -622,8 +620,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 # doing it this way and not via stripmine strides ensures
                 # that the max gets changed as well
                 old_range = map_entry.range[dim_idx]
-                map_entry.range[dim_idx] = ((old_range[0] - self.parameter_indent[map_entry][params[dim_idx + removed_maps]][0]), \
-                                            (old_range[1] + self.parameter_indent[map_entry][params[dim_idx + removed_maps]][1]), \
+                map_entry.range[dim_idx] = ((old_range[0] - self.tile_offset_lower[-1]), \
+                                            (old_range[1] + self.tile_offset_upper[-1]), \
                                             old_range[2])
 
                 # We have to propagate here - else nasty nasty
