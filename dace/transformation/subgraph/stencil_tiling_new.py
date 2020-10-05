@@ -3,17 +3,14 @@
 
 """
 TODO:
-    - Stencil detection improvement
-        - write function to detect from memlets
-        - write map offset function
-    - Fix ignore cases
-    - Make ready for PR
-    - Write a unittest
-
-
-
-
-
+    - Stencil detection improvement [OK]
+        - write function to detect from memlets [OK]
+        - write map offset function [Not Necessary]
+    - Fix ignore cases                                    [TODO]
+    - Make ready for PR                                   [TODO]
+    - Write a unittest                                    [TODO]
+    - Extend can_be_applied by OUTER RANGE CHECK          [TODO]
+    - Check whether sink map condition is enough
 
 """
 import math
@@ -60,7 +57,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
     prefix = Property(dtype=str,
                       default="stencil",
-                      desc="Prefix for new range symbols")
+                      desc="Prefix for new inner tiled range symbols")
 
     strides = ShapeProperty(dtype=tuple,
                             default=(1,),
@@ -68,28 +65,22 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
     schedule = Property(dtype=dace.dtypes.ScheduleType,
                         default = dace.dtypes.ScheduleType.Default,
-                        desc = "Inner Schedule Type")
+                        desc = "Dace.Dtypes.ScheduleType of Inner Maps")
 
-    unroll_loops = Property(desc = "Loop unroll",
+    unroll_loops = Property(desc = "Unroll Inner Loops if they have Size > 1",
                             dtype = bool,
                             default = False)
 
     @staticmethod
-    def annotates_memlets():
-        return True
-
-    @staticmethod
-    def can_be_applied(graph, candidate, expr_index, sdfg, strict=False):
-        return True
-
-    @staticmethod
     def coverage_dicts(sdfg, graph, map_entry, outer_range = True):
         '''
-        returns a two dicts:
-        one dict that has as a key all data entering the map
+        returns a tuple of two dicts:
+        the first dict has as a key all data entering the map
         and its associated access range
-        one dict that has as a key all data exiting the map
+        the second dict has as a key all data exiting the map
         and its associated access range
+        if outer_range = True, substitutes outer ranges
+        into min/max of inner access range
         '''
         map_exit = graph.exit_node(map_entry)
         map = map_entry.map
@@ -138,6 +129,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             else:
                 old_coverage = exit_coverage[e.data]
                 exit_coverage[e.data.data] = subsets.union(old_coverage, rng)
+
+        # return both coverages as a tuple
         return (entry_coverage, exit_coverage)
 
 
@@ -150,6 +143,8 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         if len(map_entries) < 1:
             return False
 
+        # all parameters have to be the same
+        # we do not want any permutations here as this gets too messy
         params = dcpy(next(iter(map_entries)).map.params)
         for map_entry in map_entries:
             if map_entry.map.params != params:
@@ -176,59 +171,42 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         coverages = {}
         for map_entry in map_entries:
             coverages[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, map_entry)
-            for data, cov in coverages[map_entry][0].items():
-                print(cov[0])
-                if data in coverages[map_entry][1] and not cov.covers(coverages[map_entry][1][data]):
-                    print("WRONG COVERAGE INTERNAL")
-                    print(data)
-                    print(cov)
-                    print(coverages[map_entry[1][data]])
-                    return False
+
         while len(maps_queued) > 0:
             maps_added = 0
-            current_map = next(iter(maps_queued))
+            current_map = maps_queued.pop()
             if current_map in maps_processed:
-                # this should not occur in a DAG
-                maps_queued.remove(current_map)
                 continue
 
             nodes_following = set([e.dst for e in graph.out_edges(current_map)])
             while len(nodes_following) > 0:
-                current = next(iter(nodes_following))
-                if isinstance(current, nodes.MapEntry) and current in map_entries:
-                    if current not in maps_processed or maps_queued:
-                        maps_queued.add(current)
+                current_node = nodes_following.pop()
+                if isinstance(current_node, nodes.MapEntry) and current_node in map_entries:
+                    if current_node not in (maps_processed | maps_queued):
+                        maps_queued.add(current_node)
                     maps_added += 1
                     # now check whether subsets cover
                     # get dict of incoming edges of this inner loop map
-                    in_dict = coverages[current][0]
+                    in_dict = coverages[current_node][0]
                     # get dict of outgoing edges of map in the
                     # preceding outer loop map
                     out_dict = coverages[current_map][1]
                     for data_name in in_dict:
                         # check if data is in out_dict
                         if data_name in out_dict:
-                            # check coverage
+                            # check coverage: if not covered, we can't continue
                             if not out_dict[data_name].covers(in_dict[data_name]):
-                                print("WRONG COVERAGE CHILD")
-                                print("Parent:", current_map)
-                                print("Child:", current)
-                                print(out_dict[data_name])
-                                print(in_dict[data_name])
-                                #sdfg.view()
                                 return False
                             else:
                                 print("PASS")
 
                 else:
-                    for e in graph.out_edges(current):
+                    for e in graph.out_edges(current_node):
                         nodes_following.add(e.dst)
-                nodes_following.remove(current)
 
             if maps_added == 0:
                 sink_maps.add(current_map)
 
-            maps_queued.remove(current_map)
             maps_processed.add(current_map)
 
         # last condition: we want all sink maps to have the same
@@ -249,6 +227,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                                          current_range,
                                          reference_range,
                                          stride):
+        # TODO: BEAUTIFY ME
         """ Calculates parameters for stripmining and offsetting
             Iff successful (transformation posible), returns True
             Saves all parameters as class variable
@@ -290,18 +269,18 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
         # first get dicts of parents and children for each map_entry
         # get source maps as a starting point for BFS
+        # these are all map entries reachable from source nodes
         source_nodes = set(sdutil.find_source_nodes(graph))
         maps_reachable_source = set()
         sink_maps = set()
         while len(source_nodes) > 0:
             # traverse and find source maps
-            node = next(iter(source_nodes))
+            node = source_nodes.pop()
             if isinstance(node, nodes.MapEntry) and node in map_entries:
                 maps_reachable_source.add(node)
             else:
                 for e in graph.out_edges(node):
                     source_nodes.add(e.dst)
-            source_nodes.remove(node)
 
         # traverse graph
         maps_queued = set(maps_reachable_source)
@@ -313,62 +292,65 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         # get sink nodes, children_dict, parent_dict using BFS/DFS
         while len(maps_queued) > 0:
             maps_added = 0
-            current_map = next(iter(maps_queued))
+            current_map = maps_queued.pop()
             if current_map in maps_processed:
-                # this should not occur in a DAG
-                maps_queued.remove(current_map)
                 continue
 
             nodes_following = set([e.dst for e in graph.out_edges(current_map)])
             while len(nodes_following) > 0:
-                current = next(iter(nodes_following))
-                if isinstance(current, nodes.MapEntry) and current in map_entries:
-                    if current not in maps_processed or maps_queued:
-                        maps_queued.add(current)
+                current_node = nodes_following.pop()
+                if isinstance(current_node, nodes.MapEntry) and current_node in map_entries:
+                    if current_node not in maps_processed or maps_queued:
+                        maps_queued.add(current_node)
                     maps_added += 1
-                    children_dict[current_map].add(current)
-                    parent_dict[current].add(current_map)
+                    children_dict[current_map].add(current_node)
+                    parent_dict[current_node].add(current_map)
                 else:
-                    for e in graph.out_edges(current):
+                    for e in graph.out_edges(current_node):
                         nodes_following.add(e.dst)
-                nodes_following.remove(current)
 
             if maps_added == 0:
                 sink_maps.add(current_map)
 
-            maps_queued.remove(current_map)
             maps_processed.add(current_map)
 
-        ######################## OPTION 1
-        # next up, for each map, calculate the indent of each parameter that
-        # we have to perform later during the tiling step
-
-        # FORMAT:
-        # parameter_indent[map_entry] =
-        # {data_name: ((lower_indent, upper_indent),(lower......)) }
-        parameter_indent = defaultdict(dict)
+        # next up, calculate inferred ranges for each map
+        # for each map entry, this contains a tuple of dicts:
+        # each of those maps from data_name of the array to
+        # inferred outer ranges. An inferred outer range is created
+        # by taking the union of ranges of inner subsets corresponding
+        # to that data and substituting this subset by the min / max of the
+        # parametrized map boundaries
+        # finally, from these outer ranges we can easily calculate
+        # strides and tile sizes required for every map
+        inferred_ranges = defaultdict(dict)
 
         # create array of reverse topologically sorted map entries
         # to iterate over
-        topo = []
-        topo_set = set()
+        topo_reversed = []
         queue = set(sink_maps.copy())
         while len(queue) > 0:
-            element = next(e for e in queue if not children_dict[e] - topo_set)
-            topo.append(element)
-            topo_set.add(element)
+            element = next(e for e in queue if not children_dict[e] - set(topo_reversed))
+            topo_reversed.append(element)
             queue.remove(element)
             for parent in parent_dict[element]:
                 queue.add(parent)
 
         # main loop
-        # first get coverage
+        # first get coverage dicts for each map entry
+        # for each map, contains a tuple of two dicts
+        # each of those two maps from data name to outer range
         coverage = {}
         for map_entry in map_entries:
             coverage[map_entry] = StencilTiling.coverage_dicts(sdfg, graph, map_entry, outer_range = True)
 
+        # we have a mapping from data name to outer range
+        # however we want a mapping from map parameters to outer ranges
+        # for this we need to find out how all array dimensions map to
+        # outer ranges
+
         variables = defaultdict(list)
-        for map_entry in topo:
+        for map_entry in topo_reversed:
             map = map_entry.map
             # first find out variable mapping
 
@@ -378,12 +360,18 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     syms = set()
                     for d in dim:
                         syms |= symbolic.symlist(d).keys()
+                    if len(syms) > 1:
+                        raise NotImplementedError("One incoming or outgoing stencil subset is indexed by multiple map parameters. This is not supported yet.")
                     try:
                         mapping.append(syms.pop())
                     except KeyError:
+                        # just append None if there is no map symbol in it.
+                        # we don't care for now.
                         mapping.append(None)
 
                 if e.data in variables:
+                    # assert that this is the same everywhere.
+                    # Else we might run into problems
                     assert variables[e.data.data] == mapping
                 else:
                     variables[e.data.data] = mapping
@@ -397,10 +385,10 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 for child_map in children_dict[map_entry]:
                     if data_name in coverage[child_map][0]:
                         local_ranges[data_name] = subsets.union(local_ranges[data_name], coverage[child_map][0][data_name])
-        
+
 
             # final assignent
-            parameter_indent[map_entry] = {p: None for p in map.params}
+            inferred_ranges[map_entry] = {p: None for p in map.params}
             print("LOCAL_RANGES", local_ranges)
             print("variables", variables)
             for data_name, ranges in local_ranges.items():
@@ -409,18 +397,18 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                     rng = subsets.Range((r,))
                     print(param, rng)
                     if param:
-                        parameter_indent[map_entry][param] = subsets.union(parameter_indent[map_entry][param], rng)
+                        inferred_ranges[map_entry][param] = subsets.union(inferred_ranges[map_entry][param], rng)
 
 
         print("***************************************")
         print("END OF PART 1")
-        print("PARAMETER INDENT", parameter_indent)
+        print("PARAMETER INDENT", inferred_ranges)
 
         # outer range of one of the sink maps TODO comment better
         params = next(iter(map_entries)).map.params.copy()
-        self.reference_range = parameter_indent[next(iter(sink_maps))]
+        self.reference_range = inferred_ranges[next(iter(sink_maps))]
         print("REFERENCE_RANGE", self.reference_range)
-        #self.reference_range = parameter_indent[next(iter(sink_maps))]
+        #self.reference_range = inferred_ranges[next(iter(sink_maps))]
         # next up, search for the ranges that don't change
         invariant_ranges = []
         for idx, p in enumerate(params):
@@ -429,7 +417,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
                 invariant_ranges.append(idx)
                 continue
             for m in map_entries:
-                if parameter_indent[m][p] != self.reference_range[p]:
+                if inferred_ranges[m][p] != self.reference_range[p]:
                     different = True
                     break
             if not different:
@@ -462,7 +450,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             all_trivial = True
 
             for dim_idx, param in enumerate(map_entry.map.params):
-                # get current tile size
+                # get current_node tile size
                 if dim_idx >= len(self.strides):
                     tile_stride = symbolic.pystr_to_symbolic(self.strides[-1])
                 else:
@@ -494,7 +482,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
                 # get calculated parameters
                 tile_size = self.tile_sizes[-1]
-                ######tile_size = sum(parameter_indent[map_entry][dim_idx])
+                ######tile_size = sum(inferred_ranges[map_entry][dim_idx])
 
                 # If tile size is trivial, skip strip-mining map dimension
                 if map_entry.map.range.size()[dim_idx-removed_maps] in [0,1]:
