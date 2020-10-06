@@ -138,7 +138,7 @@ def test_stencil(tile_size, offset = False, view = False):
 
 
 if __name__ == '__main__':
-    test_stencil(1, offset = False, view = False)
+    test_stencil(1, offset = False)
     test_stencil(8, offset = False)
-    test_stencil(1, offset = True, view = False)
+    test_stencil(1, offset = True)
     test_stencil(8, offset = True)

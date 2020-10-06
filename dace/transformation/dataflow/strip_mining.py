@@ -155,11 +155,6 @@ class StripMining(pattern_matching.Transformation):
         default=False,
         desc="Continuous (false) or strided (true) elements in tile")
 
-    skip_trivial_dims = Property(
-        dtype=bool,
-        default=True,
-        desc="Skip dimensions where tile size and stride are both 1")
-
     @staticmethod
     def annotates_memlets():
         return True
@@ -313,8 +308,7 @@ class StripMining(pattern_matching.Transformation):
         else:
             td_to_new = dace.symbolic.SymExpr(td_to_new_exact, td_to_new_approx)
         # Special case: If range is 1 and no prefix was specified, skip range
-        if self.skip_trivial_dims and \
-           td_from_new == td_to_new_approx and target_dim == new_dim:
+        if td_from_new == td_to_new_approx and target_dim == new_dim:
 
             map_entry.map.range = subsets.Range(
                 [r for i, r in enumerate(map_entry.map.range) if i != dim_idx])
