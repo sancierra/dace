@@ -77,7 +77,6 @@ def get_partition(sdfg, graph):
 def test_graph_manual():
     ################ baseline
     sdfg.apply_gpu_transformations()
-    sdfg.view()
     graph = sdfg.nodes()[0]
     sglist = get_partition(sdfg, graph)
     print(sglist[0], sglist[1])
@@ -118,10 +117,9 @@ def test_graph_manual():
     pipeline.fusion(sdfg, sdfg.nodes()[0])
     #sdfg.view()
     sdfg.apply_strict_transformations()
-    sdfg.view()
+
 
     sdfg.expand_library_nodes()
-    sdfg.view()
     sdfg.validate()
 
 def test_pipeline1():
@@ -139,13 +137,9 @@ def test_pipeline1():
 def test_pipeline2():
     graph = sdfg.nodes()[0]
     subgraph = get_partition(sdfg, graph)
-    sdfg.view()
     pipeline.expand_reduce(sdfg, graph, subgraph)
-    sdfg.view()
     pipeline.expand_maps(sdfg, graph, subgraph)
-    sdfg.view()
     pipeline.fusion(sdfg, graph, subgraph)
-    sdfg.view()
 
 if __name__ == "__main__":
     test_pipeline2()
