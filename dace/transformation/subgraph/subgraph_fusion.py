@@ -50,17 +50,18 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         default=dtypes.StorageType.Default)
 
 
-    consolidate_source = Property(
-        desc = "Consolidate edges that go inside the fused map",
+    consolidate = Property(
+        desc = "Consolidate edges that enter and exit the fused map",
         dtype = bool,
         default = False
     )
 
-    sequential_innermaps = Property(
-        desc = "Make all innermaps sequential",
-        dtype = bool,
-        default = False
+    scheulde_innermaps = Property(
+        desc = "Schedule of inner maps",
+        dtype = dtypes.ScheduleType,
+        default = dtypes.ScheduleType.Default
     )
+
     propagate_source = Property(
         desc="Propagate memlets of edges that go inside the fused map"
              "from source arrays in order to get a correct volume estiamte."
@@ -229,7 +230,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     return False
             except TypeError:
                 warnings.warn('Could not determine whether subset is continuous.'
-                              'Aborting Check.')
+                              'Exiting Check with False.')
                 return False
 
             # now take union of upper subsets
@@ -767,7 +768,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                 transient_to_transform.lifetime = dtypes.AllocationLifetime.Scope
                 transient_to_transform.storage = self.transient_allocation
 
-                # change data in all nested SDFGs as well
             else:
                 # don't modify data container - array is needed outside
                 # of subgraph.
@@ -780,13 +780,14 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         data_name).lifetime = dtypes.AllocationLifetime.State
 
         # this function is needed in the next loop
+        # it adjusts augmented arrays in nearby connected SDFGs
         def adjust_arrays(sdfg, nsdfg, name, nname):
             # DFS to replace strides and and volumes of a certain array in an
             # sdfg and its nested sdfgs contained. this is needed to change
             # the above properties of augmented arrays in adjacent sdfgs
             nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(name).strides)
             nsdfg.data(nested_data_name).total_size = dcpy(sdfg.data(name).total_size)
-            # traverse the whole graph and search for arrays :(
+            # traverse the whole graph and search for arrays
             for ngraph in nsdfg.nodes():
                 for nnode in ngraph.nodes():
                     if isinstance(nnode, nodes.AccessNode) and nnode.label == nname:
@@ -824,13 +825,11 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                             edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
                             edge.data.other_subset.offset(min_offset, True)
+                    # nested SDFG: go the extra mile
                     if isinstance(iedge.src, nodes.NestedSDFG):
                         nsdfg = iedge.src.sdfg
                         nested_data_name = edge.src_conn
                         adjust_arrays(sdfg, nsdfg, node.data, nested_data_name)
-                        #nsdfg = iedge.src.sdfg
-                        #nested_data_name = edge.src_conn
-                        #nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(node.data).strides)
 
 
                 for cedge in inter_edges:
@@ -839,12 +838,11 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                             edge.data.subset.offset(min_offset, True)
                         elif edge.data.other_subset:
                             edge.data.other_subset.offset(min_offset, True)
+                        # nested SDFG: go the extra mile
                         if isinstance(edge.dst, nodes.NestedSDFG):
                             nsdfg = edge.dst.sdfg
                             nested_data_name = edge.dst_conn
                             adjust_arrays(sdfg, nsdfg, node.data, nested_data_name)
-                            #nested_data_name = edge.dst_conn
-                            #nsdfg.data(nested_data_name).strides = dcpy(sdfg.data(node.data).strides)
 
 
                 # if in_edges has several entries:
@@ -865,6 +863,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
         if self.consolidate_source:
             consolidate_edges_scope(graph, global_map_entry)
+            consolidate_edges_scope(graph, global_map_exit)
 
 
         # do one last pass to correct outside memlets adjacent to global map
