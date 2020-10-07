@@ -120,12 +120,6 @@ class LoopUnroll(DetectLoop):
         condition = condition_edge.data.condition_sympy()
         rng = LoopUnroll._loop_range(itervar, guard_inedges, condition)
 
-        # Loop must be unrollable
-        #if self.count == 0 and any(
-        #        symbolic.issymbolic(r, sdfg.constants) for r in rng):
-        #    raise ValueError('Loop cannot be fully unrolled, size is symbolic')
-        if self.count != 0:
-            raise NotImplementedError  # TODO(later)
 
         # Find the state prior to the loop
         if rng[0] == symbolic.pystr_to_symbolic(
@@ -153,15 +147,16 @@ class LoopUnroll(DetectLoop):
             # evaluate stride, we HAVE to know that one
             stride = symbolic.evaluate(stride, sdfg.constants)
             # start and end can contain variables,
-            # but they their diff ought to be const
-            diff = symbolic.evaluate(end-start+1, sdfg.constants)
+            # but they their difference ought to be const
+            print("EVAL", (end-start+1))
+            self.count = symbolic.evaluate(end-start+1, sdfg.constants)
         except TypeError:
             raise TypeError('Loop does not have Const Length!')
 
 
         # Create states for loop subgraph
         unrolled_states = []
-        for i in range(0, diff, stride):
+        for i in range(0, self.count, stride):
             current_index = start + i
             # Instantiate loop states with iterate value
             new_states = self.instantiate_loop(sdfg, loop_states, loop_subgraph,

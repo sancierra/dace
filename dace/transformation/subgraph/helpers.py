@@ -161,7 +161,7 @@ def find_contiguous_subsets(
     :param subsets: Iterable of subset objects.
     :return: A list of contiguous subsets.
     """
-    # Currently O(n^3) worst case. TODO: improve
+    # Currently O(n^2) worst case.
     subset_set = set(subset_list)
     while True:
         for sa, sb in itertools.product(subset_set, subset_set):
@@ -185,6 +185,7 @@ def deduplicate(sdfg, graph, map_entry, out_connector, edges):
     ''' applies Deduplication to ALL edges coming from the same
         out_connector specified in out_connector.
         Suitable after consolidating edges at the entry node.
+        WARNING: This is not guaranteed to be deterministic
     '''
     # Steps:
     # 1. Find unique subsets
