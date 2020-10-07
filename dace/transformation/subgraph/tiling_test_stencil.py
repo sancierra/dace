@@ -113,7 +113,7 @@ def test_stencil(tile_size, offset = False, view = False):
     st = StencilTiling(subgraph)
     st.tile_size = (tile_size,)
     st.schedule = dace.dtypes.ScheduleType.Sequential
-    assert st.match(sdfg, subgraph)
+    assert st.can_be_applied(sdfg, subgraph)
     st.apply(sdfg)
     if view:
         sdfg.view()

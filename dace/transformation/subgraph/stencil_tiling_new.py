@@ -154,7 +154,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         return (entry_coverage, exit_coverage)
 
     @staticmethod
-    def match(sdfg, subgraph):
+    def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
         # get highest scope maps
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
