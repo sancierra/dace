@@ -71,15 +71,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         default = True
     )
 
-    deduplicate_source = Property(
-        desc="Experimental: If an out connector has several outgoing edges"
-             "after fusion and consolidation, try to create an in-transient"
-             "register access node in order to avoid duplicate access"
-             "to the outer array.",
-        dtype=bool,
-        default = False
-    )
-
 
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
@@ -897,17 +888,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     #override number of accesses
                     in_edge.data.volume = memlet_out.volume
                     in_edge.data.subset = memlet_out.subset
-                if self.deduplicate_source:
-                    # first check whether we have consolidated all edges
-                    if not self.consolidate_source:
-                        warnings.warn('Cannot create source in transients:'
-                                      'Please enable consolidate_source first!')
-                    else:
-                        helpers.deduplicate(sdfg,
-                                            graph,
-                                            global_map_entry,
-                                            out_connector,
-                                            oedge_set)
 
 
         # create a hook for outside access to global_map
