@@ -20,7 +20,7 @@ from dace import registry, symbolic
 from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
 from dace.sdfg import utils as sdutil
-from dace.transformation import pattern_matching
+from dace.transformation import transformation
 from dace.symbolic import pystr_to_symbolic, simplify_ext
 from dace.subsets import Range
 from dace.sdfg.propagation import _propagate_node
@@ -45,7 +45,7 @@ from dace.transformation.subgraph import helpers
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
-class StencilTiling(pattern_matching.SubgraphTransformation):
+class StencilTiling(transformation.SubgraphTransformation):
     """ Implements the stencil tiling transformation.
 
         Operates on top level maps of the given subgraph.
@@ -154,7 +154,7 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
         return (entry_coverage, exit_coverage)
 
     @staticmethod
-    def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
+    def can_be_applied(sdfg, subgraph) -> bool:
         # get highest scope maps
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))

@@ -7,7 +7,7 @@ from dace import registry, symbolic
 from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import nodes
 from dace.sdfg import utils as sdutil
-from dace.transformation import pattern_matching
+from dace.transformation import transformation
 from dace.symbolic import pystr_to_symbolic, simplify_ext
 from dace.subsets import Range
 from dace.sdfg.propagation import _propagate_node
@@ -28,7 +28,7 @@ from dace.transformation.subgraph import helpers
 
 @registry.autoregister_params(singlestate=True)
 @make_properties
-class StencilTiling(pattern_matching.SubgraphTransformation):
+class StencilTiling(transformation.SubgraphTransformation):
     """ Implements the orthogonal tiling transformation.
 
         Orthogonal tiling is a type of nested map fission that creates tiles
