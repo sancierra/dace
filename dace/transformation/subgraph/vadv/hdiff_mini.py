@@ -246,11 +246,10 @@ def test(compile = True, view = True,
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
 
-    sdfg.view()
     # force everything sequential
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, nodes.MapEntry):
-            node.schedule = dace.dtypes.ScheduleType.Sequential
+    #for node in sdfg.nodes()[0].nodes():
+    #    if isinstance(node, nodes.MapEntry):
+    #        node.schedule = dace.dtypes.ScheduleType.Sequential
 
     apply_stencil_tiling(sdfg, tile_size=tile_size,
                          nested=nested, sequential = sequential,
@@ -262,7 +261,6 @@ def test(compile = True, view = True,
 
     if view:
         sdfg.view()
-    sdfg.view()
     #sys.exit(0)
     if compile:
         pp3 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
@@ -304,7 +302,6 @@ def test(compile = True, view = True,
                   sequential = sequential)
     if view:
         sdfg.view()
-    sdfg.view()
     if compile:
         pp5 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         w5 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
