@@ -270,6 +270,10 @@ class SDFG(OrderedDiGraph):
         """
         tmp = super().to_json()
 
+        # Ensure properties are serialized correctly
+        tmp['attributes']['constants_prop'] = json.loads(
+            dace.serialize.dumps(tmp['attributes']['constants_prop']))
+
         # Location in the SDFG list
         self.reset_sdfg_list()
         tmp['sdfg_list_id'] = int(self.sdfg_id)
@@ -502,6 +506,11 @@ class SDFG(OrderedDiGraph):
         initial state of the SDFG to return to and play back the history.
         :param transformation: The transformation to append.
         """
+        # Make sure the transformation is appended to the root SDFG.
+        if self.sdfg_id != 0:
+            self.sdfg_list[0].append_transformation(transformation)
+            return
+
         if not self.orig_sdfg:
             clone = copy.deepcopy(self)
             clone.transformation_hist = []
@@ -896,7 +905,6 @@ class SDFG(OrderedDiGraph):
         """
         return ", ".join(self.signature_arglist(with_types, for_call))
 
-    # TODO(later): Also implement the "_repr_svg_" method for static output
     def _repr_html_(self):
         """ HTML representation of the SDFG, used mainly for Jupyter
             notebooks. """
@@ -905,6 +913,10 @@ class SDFG(OrderedDiGraph):
         result = ''
         if not isnotebook():
             result = preamble()
+
+        # Make sure to not store metadata (saves space)
+        old_meta = dace.serialize.JSON_STORE_METADATA
+        dace.serialize.JSON_STORE_METADATA = False
 
         # Create renderer canvas and load SDFG
         result += """
@@ -918,6 +930,9 @@ class SDFG(OrderedDiGraph):
             # recursively
             sdfg=dace.serialize.dumps(dace.serialize.dumps(self.to_json())),
             uid=random.randint(0, sys.maxsize - 1))
+
+        # Reset metadata state
+        dace.serialize.JSON_STORE_METADATA = old_meta
 
         return result
 
@@ -1716,7 +1731,7 @@ class SDFG(OrderedDiGraph):
         # These are imported in order to update the transformation registry
         from dace.transformation import dataflow, interstate
         # This is imported here to avoid an import loop
-        from dace.transformation.pattern_matching import Transformation
+        from dace.transformation.transformation import Transformation
 
         strict_transformations = [
             k for k, v in Transformation.extensions().items()
@@ -1759,7 +1774,7 @@ class SDFG(OrderedDiGraph):
         """
         # Avoiding import loops
         from dace.transformation import optimizer
-        from dace.transformation.pattern_matching import Transformation
+        from dace.transformation.transformation import Transformation
 
         applied_transformations = collections.defaultdict(int)
 
@@ -1829,7 +1844,7 @@ class SDFG(OrderedDiGraph):
         """
         # Avoiding import loops
         from dace.transformation import optimizer
-        from dace.transformation.pattern_matching import Transformation
+        from dace.transformation.transformation import Transformation
 
         applied_transformations = collections.defaultdict(int)
 
@@ -1904,10 +1919,10 @@ class SDFG(OrderedDiGraph):
                                    states=states)
 
     def expand_library_nodes(self, recursive=True):
-        """ 
+        """
         Recursively expand all unexpanded library nodes in the SDFG,
         resulting in a "pure" SDFG that the code generator can handle.
-        :param recursive: If True, expands all library nodes recursively, 
+        :param recursive: If True, expands all library nodes recursively,
                           including library nodes that expand to library nodes.
         """
 
@@ -1956,7 +1971,7 @@ class SDFG(OrderedDiGraph):
 
         return program_code
 
-    def get_array_memlet(self, array: str):
+    def make_array_memlet(self, array: str):
         """Convenience method to generate a Memlet that transfers a full array.
 
            :param array: the name of the array

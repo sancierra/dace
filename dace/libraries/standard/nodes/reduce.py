@@ -25,7 +25,7 @@ from dace import registry, subsets
 import pydoc
 import warnings
 from dace.sdfg import nodes
-from dace.transformation import pattern_matching as pm
+from dace.transformation import transformation as pm
 from dace.symbolic import symstr, issymbolic
 from dace.libraries.standard.environments.cuda import CUDA
 from dace.codegen.prettycode import CodeIOStream
