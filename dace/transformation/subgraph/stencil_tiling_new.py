@@ -155,7 +155,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
     @staticmethod
     def match(sdfg, subgraph):
-        # TODO: all parameters have to be the same
         # get highest scope maps
         graph = subgraph.graph
         map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
@@ -169,19 +168,28 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
             if map_entry.map.params != params:
                 return False
 
+        # check whether all map entries only differ by a const amount
+        first_entry = next(iter(map_entries))
+        for map_entry in map_entries:
+            for r1, r2 in zip(map_entry.map.range, first_entry.map.range):
+                if len((r1[0] - r2[0]).free_symbols) > 0:
+                    return False
+                if len((r1[1] - r2[1]).free_symbols) > 0:
+                    return False
+
+
         # get source maps as a starting point for BFS
         source_nodes = set(sdutil.find_source_nodes(graph))
         maps_reachable_source = set()
         sink_maps = set()
         while len(source_nodes) > 0:
             # traverse and find source maps
-            node = next(iter(source_nodes))
+            node = source_nodes.pop()
             if isinstance(node, nodes.MapEntry) and node in map_entries:
                 maps_reachable_source.add(node)
             else:
                 for e in graph.out_edges(node):
                     source_nodes.add(e.dst)
-            source_nodes.remove(node)
 
         # main loop: traverse graph and check whether topologically
         # connected maps cover each other in terms of memlets
@@ -236,7 +244,6 @@ class StencilTiling(pattern_matching.SubgraphTransformation):
 
         assert len(sink_maps) > 0
         first_sink_map = next(iter(sink_maps))
-        # TODO: need to check whether this is strong enough
         if not all([
                 map.range.size() == first_sink_map.range.size()
                 for map in sink_maps
