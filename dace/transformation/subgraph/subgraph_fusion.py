@@ -852,7 +852,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         if e.data.data == node.data:
                             e.data.data += '_OUT'
 
-        if self.consolidate_source:
+        if self.consolidate:
             consolidate_edges_scope(graph, global_map_entry)
             consolidate_edges_scope(graph, global_map_exit)
 
