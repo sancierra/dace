@@ -148,11 +148,9 @@ class LoopUnroll(DetectLoop):
             stride = symbolic.evaluate(stride, sdfg.constants)
             # start and end can contain variables,
             # but they their difference ought to be const
-            print("EVAL", (end-start+1))
-            self.count = symbolic.evaluate(end-start+1, sdfg.constants)
+            self.count = int(symbolic.evaluate(end-start+1, sdfg.constants))
         except TypeError:
-            raise TypeError('Loop does not have Const Length!')
-
+            raise TypeError('Loop size cannot be symbolic.')
 
         # Create states for loop subgraph
         unrolled_states = []
@@ -169,6 +167,7 @@ class LoopUnroll(DetectLoop):
 
             unrolled_states.append((new_states[first_id], new_states[last_id]))
 
+
         # Connect new states to before and after states without conditions
         if unrolled_states:
             sdfg.add_edge(before_state, unrolled_states[0][0],
@@ -178,21 +177,23 @@ class LoopUnroll(DetectLoop):
 
         # Remove old states from SDFG
         sdfg.remove_nodes_from([guard] + loop_states)
+        print("*******", sdfg.free_symbols)
+
 
     def instantiate_loop(self, sdfg: sd.SDFG, loop_states: List[sd.SDFGState],
                          loop_subgraph: gr.SubgraphView, itervar: str,
                          value: symbolic.SymbolicType, iteration_status: int):
         # Using to/from JSON copies faster than deepcopy (which will also
         # copy the parent SDFG)
+        print("INSTANTIATING LOOP", iteration_status)
         new_states = [
             sd.SDFGState.from_json(s.to_json(), context={'sdfg': sdfg})
             for s in loop_states
         ]
-
         # Replace iterate with value in each state
         for state in new_states:
             state.set_label(state.label + '_%s_%s' % (itervar, str(iteration_status)))
-            state.replace(itervar, str(value))
+            state.replace(itervar, value)
 
         # Add subgraph to original SDFG
         for edge in loop_subgraph.edges():

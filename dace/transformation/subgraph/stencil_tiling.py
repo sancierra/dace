@@ -168,6 +168,15 @@ class StencilTiling(transformation.SubgraphTransformation):
             if map_entry.map.params != params:
                 return False
 
+        '''
+        M1  output
+        [2:N-2]
+        [1:N-2]
+
+        [3:N-3]
+        M2  3-point stencil [x-1, x, x+1]
+
+        '''
         # check whether all map entries only differ by a const amount
         first_entry = next(iter(map_entries))
         for map_entry in map_entries:
@@ -615,9 +624,10 @@ class StencilTiling(transformation.SubgraphTransformation):
                     nsdfg = trafo_for_loop._nsdfg
 
                     # LoopUnroll
+
                     guard = trafo_for_loop.guard
-                    begin = trafo_for_loop.before_state
                     end = trafo_for_loop.after_state
+                    begin = next(e.dst for e in nsdfg.out_edges(guard) if e.dst != end)
 
                     subgraph = {
                         DetectLoop._loop_guard: nsdfg.nodes().index(guard),
@@ -628,5 +638,5 @@ class StencilTiling(transformation.SubgraphTransformation):
                     transformation.apply(nsdfg)
             elif self.unroll_loops:
                 warnings.warn(
-                    "Could not unroll loops. Loop size has to be known"
-                    "(and thus strides have to be of size 1)")
+                    "Did not unroll loops. Either all ranges are equal to "
+                    "one or range difference is symbolic.")
