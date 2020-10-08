@@ -124,6 +124,8 @@ def test_stencil(tile_size, offset = False, view = False):
 
     subgraph = SubgraphView(graph, [n for n in graph.nodes()])
     sf = SubgraphFusion(subgraph)
+    # also test consolidation
+    sf.consolidate = True
 
     sdfg._name = 'fused'
     csdfg = sdfg.compile()

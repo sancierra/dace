@@ -239,7 +239,6 @@ class StripMining(transformation.Transformation):
         # Retrieve parameter and range of dimension to be strip-mined.
         target_dim = map_entry.map.params[dim_idx]
         td_from, td_to, td_step = map_entry.map.range[dim_idx]
-        print("STRIP MINING:", td_from, td_to, td_step)
 
         # Create new map. Replace by cloning map object?
         new_dim = self._find_new_dim(sdfg, graph, map_entry, new_dim_prefix,

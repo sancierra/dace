@@ -51,7 +51,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
 
     consolidate = Property(
-        desc = "Consolidate edges that enter and exit the fused map",
+        desc = "Consolidate edges that enter and exit the fused map.",
         dtype = bool,
         default = False
     )

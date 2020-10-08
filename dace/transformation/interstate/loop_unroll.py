@@ -177,7 +177,6 @@ class LoopUnroll(DetectLoop):
 
         # Remove old states from SDFG
         sdfg.remove_nodes_from([guard] + loop_states)
-        print("*******", sdfg.free_symbols)
 
 
     def instantiate_loop(self, sdfg: sd.SDFG, loop_states: List[sd.SDFGState],
@@ -185,7 +184,6 @@ class LoopUnroll(DetectLoop):
                          value: symbolic.SymbolicType, iteration_status: int):
         # Using to/from JSON copies faster than deepcopy (which will also
         # copy the parent SDFG)
-        print("INSTANTIATING LOOP", iteration_status)
         new_states = [
             sd.SDFGState.from_json(s.to_json(), context={'sdfg': sdfg})
             for s in loop_states

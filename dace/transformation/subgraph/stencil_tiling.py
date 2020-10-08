@@ -1,18 +1,6 @@
 """ This module contains classes and functions that implement the orthogonal
     stencil tiling transformation. """
-"""
-TODO:
-    - Stencil detection improvement                       [OK]
-        - write function to detect from memlets           [OK]
-        - write map offset function [Not Necessary]
-    - Fix ignore cases and prettify strip_mining section  [OK]
-      [UGLY]
-    - Make ready for PR                                   [OK]
-    - Write a unittest                                    [OK]
-    - Extend can_be_applied by OUTER RANGE CHECK          [TODO]
-    - Check whether sink map condition is enough          [TODO]
 
-"""
 import math
 
 import dace
@@ -61,7 +49,7 @@ class StencilTiling(transformation.SubgraphTransformation):
     """
 
     # Properties
-    debug = Property(desc="Debug mode", dtype=bool, default=True)
+    debug = Property(desc="Debug mode", dtype=bool, default=False)
 
     prefix = Property(dtype=str,
                       default="stencil",
@@ -154,151 +142,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         return (entry_coverage, exit_coverage)
 
     @staticmethod
-    def can_be_applied(sdfg, subgraph) -> bool:
-        # get highest scope maps
-        graph = subgraph.graph
-        map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
-        if len(map_entries) < 1:
-            return False
-
-        # all parameters have to be the same
-        # we do not want any permutations here as this gets too messy
-        params = dcpy(next(iter(map_entries)).map.params)
-        for map_entry in map_entries:
-            if map_entry.map.params != params:
-                return False
-
-        '''
-        M1  output
-        [2:N-2]
-        [1:N-2]
-
-        [3:N-3]
-        M2  3-point stencil [x-1, x, x+1]
-
-        '''
-        # check whether all map entries only differ by a const amount
-        first_entry = next(iter(map_entries))
-        for map_entry in map_entries:
-            for r1, r2 in zip(map_entry.map.range, first_entry.map.range):
-                if len((r1[0] - r2[0]).free_symbols) > 0:
-                    return False
-                if len((r1[1] - r2[1]).free_symbols) > 0:
-                    return False
-
-
-        # get source maps as a starting point for BFS
-        source_nodes = set(sdutil.find_source_nodes(graph))
-        maps_reachable_source = set()
-        sink_maps = set()
-        while len(source_nodes) > 0:
-            # traverse and find source maps
-            node = source_nodes.pop()
-            if isinstance(node, nodes.MapEntry) and node in map_entries:
-                maps_reachable_source.add(node)
-            else:
-                for e in graph.out_edges(node):
-                    source_nodes.add(e.dst)
-
-        # main loop: traverse graph and check whether topologically
-        # connected maps cover each other in terms of memlets
-        maps_queued = set(maps_reachable_source)
-        maps_processed = set()
-        coverages = {}
-        for map_entry in map_entries:
-            coverages[map_entry] = StencilTiling.coverage_dicts(
-                sdfg, graph, map_entry)
-
-        while len(maps_queued) > 0:
-            maps_added = 0
-            current_map = maps_queued.pop()
-            if current_map in maps_processed:
-                continue
-
-            nodes_following = set([e.dst for e in graph.out_edges(current_map)])
-            while len(nodes_following) > 0:
-                current_node = nodes_following.pop()
-                if isinstance(current_node,
-                              nodes.MapEntry) and current_node in map_entries:
-                    if current_node not in (maps_processed | maps_queued):
-                        maps_queued.add(current_node)
-                    maps_added += 1
-                    # now check whether subsets cover
-                    # get dict of incoming edges of this inner loop map
-                    in_dict = coverages[current_node][0]
-                    # get dict of outgoing edges of map in the
-                    # preceding outer loop map
-                    out_dict = coverages[current_map][1]
-                    for data_name in in_dict:
-                        # check if data is in out_dict
-                        if data_name in out_dict:
-                            # check coverage: if not covered, we can't continue
-                            if not out_dict[data_name].covers(
-                                    in_dict[data_name]):
-                                return False
-
-                else:
-                    for e in graph.out_edges(current_node):
-                        nodes_following.add(e.dst)
-
-            if maps_added == 0:
-                sink_maps.add(current_map)
-
-            maps_processed.add(current_map)
-
-        # last condition: we want all sink maps to have the same
-        # range, if not we cannot form a common map range for fusion later
-        # last condition: we want all incoming memlets into sink maps
-        # to have the same ranges
-
-        assert len(sink_maps) > 0
-        first_sink_map = next(iter(sink_maps))
-        if not all([
-                map.range.size() == first_sink_map.range.size()
-                for map in sink_maps
-        ]):
-            return False
-
-        return True
-
-    def calculate_stripmining_parameters(self, current_range, reference_range,
-                                         stride):
-        """ Calculates parameters for stripmining and offsetting
-            based on the current range and a reference range
-            (corresponding range in one of the )
-            Iff successful (transformation posible), returns True
-            Saves all parameters as class variable
-        """
-        map_stride = reference_range.strides()[0]
-        if current_range.strides()[0] != reference_range.strides()[0]:
-            return False
-        min_diff = symbolic.SymExpr(reference_range.min_element()[0] \
-                        - current_range.min_element()[0])
-        max_diff = symbolic.SymExpr(current_range.max_element()[0] \
-                        - reference_range.max_element()[0])
-
-        try:
-            min_diff = symbolic.evaluate(min_diff, {})
-            max_diff = symbolic.evaluate(max_diff, {})
-        except TypeError:
-            # cannot evaluate to integer
-            # abort mission
-            return False
-
-        if min_diff < 0 or max_diff < 0:
-            return False
-
-        self.tile_sizes.append(stride + max_diff + min_diff)
-        self.tile_offset_lower.append(pystr_to_symbolic(str(min_diff)))
-        self.tile_offset_upper.append(pystr_to_symbolic(str(max_diff)))
-
-        return True
-
-    def apply(self, sdfg):
-        graph = sdfg.nodes()[self.state_id]
-        subgraph = self.subgraph_view(sdfg)
-        map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
-
+    def topology(sdfg, graph, map_entries):
         # first get dicts of parents and children for each map_entry
         # get source maps as a starting point for BFS
         # these are all map entries reachable from source nodes
@@ -346,6 +190,93 @@ class StencilTiling(transformation.SubgraphTransformation):
                 sink_maps.add(current_map)
 
             maps_processed.add(current_map)
+
+        return (children_dict, parent_dict, sink_maps)
+
+
+    @staticmethod
+    def can_be_applied(sdfg, subgraph) -> bool:
+        # get highest scope maps
+        graph = subgraph.graph
+        map_entries = set(helpers.get_highest_scope_maps(sdfg, graph, subgraph))
+        if len(map_entries) < 1:
+            return False
+
+        # all parameters have to be the same (this implies same length)
+        # we do not want any permutations here as this gets too messy
+        # we also want all strides to be the same
+        params = dcpy(next(iter(map_entries)).map.params)
+        strides = next(iter(map_entries)).map.range.strides()
+        for map_entry in map_entries:
+            if map_entry.map.params != params:
+                return False
+            if map_entry.map.range.strides() != strides:
+                return False
+
+        # check whether all map entries only differ by a const amount
+        first_entry = next(iter(map_entries))
+        for map_entry in map_entries:
+            for r1, r2 in zip(map_entry.map.range, first_entry.map.range):
+                if len((r1[0] - r2[0]).free_symbols) > 0:
+                    return False
+                if len((r1[1] - r2[1]).free_symbols) > 0:
+                    return False
+
+        # get coverages for every map entry
+        coverages = {}
+        for map_entry in map_entries:
+            coverages[map_entry] = StencilTiling.coverage_dicts(
+                sdfg, graph, map_entry)
+
+        # get topology information
+        result = StencilTiling.topology(sdfg, graph, map_entries)
+        (children_dict, parent_dict, sink_maps) = result
+
+        # we now check coverage:
+        # each outgoing coverage for a data memlet has to
+        # be exactly equal to the union of incoming coverages
+        # of all chidlren map memlets of this data
+        # it has to be equal and not only cover it in order to
+        # account for ranges too long
+        for map_entry in map_entries:
+            map_coverage = coverages[map_entry][1]
+            for (data_name,cov) in map_coverage.items():
+                parent_coverage = cov
+                children_coverage = None
+                for child_entry in children_dict[map_entry]:
+                    if data_name in coverages[child_entry][0]:
+                        children_coverage = subsets.union(children_coverage, coverages[child_entry][0][data_name])
+                # if there are no children data edges at all, we just ignore
+                # this is just an ordinary exit to an array
+                # however, if there are any, we make sure that the children union
+                # is exactly the same
+                if children_coverage is not None and parent_coverage != children_coverage:
+                    return False
+
+        # last condition: we want all sink maps to have the same
+        # range, if not we cannot form a common map range for fusion later
+        # last condition: we want all incoming memlets into sink maps
+        # to have the same ranges
+
+        assert len(sink_maps) > 0
+        first_sink_map = next(iter(sink_maps))
+        if not all([
+                map.range.size() == first_sink_map.range.size()
+                for map in sink_maps
+        ]):
+            return False
+
+        return True
+
+
+    def apply(self, sdfg):
+        graph = sdfg.nodes()[self.state_id]
+        subgraph = self.subgraph_view(sdfg)
+        map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+
+        result = self.topology(sdfg, graph, map_entries)
+        (children_dict, parent_dict, sink_maps) = result
+
 
         # next up, calculate inferred ranges for each map
         # for each map entry, this contains a tuple of dicts:
@@ -444,6 +375,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                         inferred_ranges[map_entry][param] = subsets.union(
                             inferred_ranges[map_entry][param], rng)
 
+
         # outer range of one of the sink maps TODO comment better
         params = next(iter(map_entries)).map.params.copy()
         self.reference_range = inferred_ranges[next(iter(sink_maps))]
@@ -505,13 +437,25 @@ class StencilTiling(transformation.SubgraphTransformation):
                 else:
                     target_range_current = inferred_ranges[map_entry][param]
                     reference_range_current = self.reference_range[param]
-                    # calculate parameters for this dimension
-                    success = self.calculate_stripmining_parameters(
-                        reference_range=reference_range_current,
-                        current_range=target_range_current,
-                        stride=tile_stride)
 
-                    assert success, "Please check your parameters and run match()"
+                    min_diff = symbolic.SymExpr(reference_range_current.min_element()[0] \
+                                    - target_range_current.min_element()[0])
+                    max_diff = symbolic.SymExpr(target_range_current.max_element()[0] \
+                                    - reference_range_current.max_element()[0])
+
+                    try:
+                        min_diff = symbolic.evaluate(min_diff, {})
+                        max_diff = symbolic.evaluate(max_diff, {})
+                    except TypeError:
+                        raise RuntimeError("Symbolic evaluation of map "
+                                           "ranges failed. Please check "
+                                           "your parameters and match.")
+
+
+                    self.tile_sizes.append(tile_stride + max_diff + min_diff)
+                    self.tile_offset_lower.append(pystr_to_symbolic(str(min_diff)))
+                    self.tile_offset_upper.append(pystr_to_symbolic(str(max_diff)))
+
 
                 # get calculated parameters
                 tile_size = self.tile_sizes[-1]
