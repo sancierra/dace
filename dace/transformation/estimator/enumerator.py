@@ -85,6 +85,8 @@ class ConnectedEnumerator(Enumerator):
                         self._adjacency_list[map_entry].add(dst_edge.dst)
                         self._adjacency_list[dst_edge.dst].add(map_entry)
 
+        # create adjacency list
+        # connect everything that is not 
 
     def traverse(self, current: List, forbidden: Set, prune = False):
         if len(current) > 0:
@@ -151,7 +153,14 @@ class BruteForceEnumerator(Enumerator):
     def brute_force(self):
         for i in range(1, len(self._map_entries)):
             for sg in itertools.combinations(self._map_entries, i):
-                # check whether no node path between
+                # check whether either
+                # (1) no path between all maps
+                # (2) if path, then only AccessNode
+                # Topo BFS the whole graph is the most efficient (ignoring the outer loops above...)
+                subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, sg, self._scope_dict)
+                if SubgraphFusion.can_be_applied(self._sdfg, subgraph):
+                    yield subgraph
+
 
     def iterator(self):
         yield from self.brute_force()
