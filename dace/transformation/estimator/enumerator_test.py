@@ -123,4 +123,4 @@ def test_enumerator(view = False):
     enumerate(sdfg, graph)
 
 if __name__ == "__main__":
-    test_enumerator(view = False)
+    test_enumerator(view = True)
