@@ -2,14 +2,14 @@
 
 from dace.transformation.subgraph import SubgraphFusion, helpers
 from dace.properties import make_properties, Property
-from dace.sdfg import SDFG, SDFGState,
+from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
 
 import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
 from collections import deque, defaultdict, ChainMap
-from typing import Set, Union, List
+from typing import Set, Union, List, Callable
 
 
 @make_properties
@@ -21,18 +21,20 @@ class ScoringFunction:
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
-                 subgraph: SubgraphView = None,
-                 ** kwargs):
+                 subgraph: SubgraphView = None):
 
         self._sdfg = sdfg
         self._graph = graph
         self._subgraph = subgraph
 
-    def score(subgraph: SubgraphView):
+    def score(self, subgraph: SubgraphView, ** kwargs):
         # NOTE: self._subgraph and subgraph are not the same!
         raise NotImplementedError
 
-@mmake_properties
+    def __call__(self, subgraph: SubgraphView, ** kwargs):
+        return self.score(subgraph, **kwargs)
+
+@make_properties
 class ExecutionScore(ScoringFunction):
     '''
     Evaluates Subgraphs by just running their
@@ -41,16 +43,15 @@ class ExecutionScore(ScoringFunction):
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
-                 subgraph: SubgraphView,
+                 subgraph: SubgraphView = None,
                  gpu: bool = None,
-                 nruns = 30
-                 ** kwargs):
-        super().__init__(sdfg, graph, subgraph, kwargs)
+                 nruns = 30):
+        super().__init__(sdfg, graph, subgraph)
 
         if gpu is None:
             # detect whether the state is assigned to GPU
-            map_entries = heleprs.get_highest_scope_maps(sdfg, graph, subgraph)
-            schedule = next(map_entries).schedule
+            map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+            schedule = next(iter(map_entries)).schedule
             if any([m.schedule != schedule for m in map_entries]):
                 raise RuntimeError("Schedules in maps to analyze should be the same")
             self._gpu = True if schedule in [dtypes.ScheduleType.GPU_Device, dtypes.ScheduleType.GPU_ThreadBlock] else False
@@ -60,10 +61,9 @@ class ExecutionScore(ScoringFunction):
         self._sdfg_id = sdfg.sdfg_id
         self._state_id = sdfg.nodes().index(graph)
         # TODO: modify nruns
-        self.nruns = 30
+        self._nruns = 30
 
-
-    def score(subgraph: SubgraphView, **kwargs):
+    def score(self, subgraph: SubgraphView, **kwargs):
         '''
         scores a subgraph (within the given graph / subgraph
         that was passed to the initializer) by running it

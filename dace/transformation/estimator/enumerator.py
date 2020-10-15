@@ -2,17 +2,19 @@
 
 from dace.transformation.subgraph import SubgraphFusion, helpers
 from dace.properties import make_properties, Property
-from dace.sdfg import SDFG, SDFGState,
+from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
+
+from scoring_function import ScoringFunction, ExecutionScore
 
 import dace.sdfg.nodes as nodes
 
 from collections import deque, defaultdict, ChainMap
-from typing import Set, Union, List
+from typing import Set, Union, List, Callable
 import itertools
 
 
-@make_properties:
+@make_properties
 class Enumerator:
     '''
     Base Enumerator Class
@@ -27,7 +29,7 @@ class Enumerator:
                  sdfg: SDFG,
                  graph: SDFGState,
                  subgraph: SubgraphView = None,
-                 condition: Function = None,
+                 condition: Callable = None,
                  scoring_function: ScoringFunction = None):
 
         self._sdfg = sdfg
@@ -42,7 +44,7 @@ class Enumerator:
         raise NotImplementedError
 
     def list(self):
-        return list(self.iterator())
+        return list(e[0] for e in self.iterator())
 
     def __iter__(self):
         yield from self.iterator()
@@ -62,8 +64,12 @@ class ConnectedEnumerator(Enumerator):
                      default = True,
                      dtype = bool)
 
-    def __init__(self, sdfg: SDFG, graph: SDFGState, subgraph: SubgraphView = None,
-                    condition: Function = None, scoring_function = None):
+    def __init__(self,
+                 sdfg: SDFG,
+                 graph: SDFGState,
+                 subgraph: SubgraphView = None,
+                 condition: Callable = None,
+                 scoring_function = None):
 
         # initialize base class
         super().__init__(sdfg, graph, subgraph, condition, scoring_function)
@@ -86,7 +92,7 @@ class ConnectedEnumerator(Enumerator):
                         self._adjacency_list[dst_edge.dst].add(map_entry)
 
         # create adjacency list
-        # connect everything that is not 
+        # connect everything that is not
 
     def traverse(self, current: List, forbidden: Set, prune = False):
         if len(current) > 0:
@@ -98,7 +104,7 @@ class ConnectedEnumerator(Enumerator):
                         not self.contition(sdfg, graph, current_subgraph):
                 go_next = []
             else:
-                score self._scoring_funciton(current_subgraph) if self._scoring_function else 0
+                score = self._scoring_function(current_subgraph) if self._scoring_function else 0
                 if self.mode == 'map_entries':
                     current_entries = current.copy()
                 yield (current_entries, score) if self.mode == 'map_entries' else (current_subgraph, score)
@@ -123,6 +129,10 @@ class ConnectedEnumerator(Enumerator):
 
 
     def iterator(self):
+        '''
+        returns an iterator that iterates over
+        search space yielding tuples (subgraph, score)
+        '''
         self._local_maxima = []
         yield from self.traverse([], set(), False)
 
@@ -143,9 +153,17 @@ class ConnectedEnumerator(Enumerator):
 
 @make_properties
 class BruteForceEnumerator(Enumerator):
-    def __init__(self):
+    def __init__(self,
+                 sdfg: SDFG,
+                 graph: SDFGState,
+                 subgraph: SubgraphView = None,
+                 condition: Callable = None,
+                 scoring_function = None):
         # initialize base class
-        super().__init__(sdfg, graph, subgraph)
+        super().__init__(sdfg, graph,
+                         subgraph = subgraph,
+                         condition = condition,
+                         scoring_function = scoring_function)
 
         # get hightest scope maps
         self._map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)

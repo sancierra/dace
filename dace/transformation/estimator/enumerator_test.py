@@ -11,8 +11,8 @@ import sys
 from dace.transformation.subgraph import SubgraphFusion
 from util import expand_maps, expand_reduce, fusion
 
-from enumerator import Enumerator
-
+from enumerator import ConnectedEnumerator, BruteForceEnumerator
+from scoring_function import ExecutionScore
 N, M, O = [dace.symbol(s) for s in ['N', 'M', 'O']]
 N.set(50)
 M.set(60)
@@ -102,25 +102,32 @@ def prep(sdfg, graph):
     expand_reduce(sdfg, graph)
     expand_maps(sdfg, graph)
 
-def enumerate(sdfg, graph):
-    subgraph = SubgraphView(graph, [g for g in graph.nodes()])
-    enum = Enumerator(sdfg, graph, subgraph)
+def enumerate(sdfg,
+              graph,
+              enumerator_type,
+              scoring_function_type):
+    scoring_function = scoring_function_type(sdfg, graph)
+    enum = enumerator_type(sdfg, graph, scoring_function = scoring_function)
     print("*************")
-    for subgraph in enum:
-        print(subgraph)
-    print("LOCAL MAXIMA")
-    print(enum._local_maxima)
+    for subgraph, score in enum:
+        print(score, ":", subgraph)
     enum.histogram()
 
 
-def test_enumerator(view = False):
+def test_enumerator(enumerator_type,
+                    scoring_function_type,
+                    view = False):
     sdfg = test_program.to_sdfg()
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
     prep(sdfg, graph)
     if view:
         sdfg.view()
-    enumerate(sdfg, graph)
+    enumerate(sdfg,
+              graph,
+              enumerator_type,
+              scoring_function_type)
 
 if __name__ == "__main__":
-    test_enumerator(view = True)
+    test_enumerator(ConnectedEnumerator, ExecutionScore, view = False)
+    #test_enumerator(BruteForceEnumerator, view = False)
