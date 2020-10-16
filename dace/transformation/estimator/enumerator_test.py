@@ -105,12 +105,19 @@ def prep(sdfg, graph):
 def enumerate(sdfg,
               graph,
               enumerator_type,
-              scoring_function_type):
-    scoring_function = scoring_function_type(sdfg, graph)
-    enum = enumerator_type(sdfg, graph, scoring_function = scoring_function)
-    print("*************")
+              scoring_function_type = None):
+    scoring_function = scoring_function_type(sdfg, graph) if scoring_function_type else None
+    condition_function = SubgraphFusion.can_be_applied if scoring_function_type else None
+    enum = enumerator_type(sdfg,
+                           graph,
+                           condition = condition_function,
+                           scoring_function = scoring_function)
+    print("***************************")
+    print("Enumerator Test")
     for subgraph, score in enum:
         print(score, ":", subgraph)
+    print("***************************")
+    print("Histogram Test")
     enum.histogram()
 
 
@@ -129,5 +136,7 @@ def test_enumerator(enumerator_type,
               scoring_function_type)
 
 if __name__ == "__main__":
+    test_enumerator(ConnectedEnumerator, None, view = False)
     test_enumerator(ConnectedEnumerator, ExecutionScore, view = False)
-    #test_enumerator(BruteForceEnumerator, view = False)
+    test_enumerator(BruteForceEnumerator, None, view = False)
+    test_enumerator(BruteForceEnumerator, ExecutionScore, view = False)

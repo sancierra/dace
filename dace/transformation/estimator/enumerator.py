@@ -38,16 +38,42 @@ class Enumerator:
         self._condition = condition
         self._scoring_function = scoring_function
 
+        # get hightest scope maps
+        self._map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+        self._max_length = len(self._map_entries)
+
+        if self._condition is None and self._scoring_function is not None:
+            warnings.warn('Initialized with no condition function but scoring'
+                          'function. Will try to score all subgraphs!')
 
     def iterator(self):
+        '''
+        iterator interface to implement
+        '''
         # Interface to implement
         raise NotImplementedError
+
 
     def list(self):
         return list(e[0] for e in self.iterator())
 
     def __iter__(self):
         yield from self.iterator()
+
+    def histogram(self, visual = True):
+        old_mode = self.mode
+        self.mode = 'map_entries'
+        lst = self.list()
+        print("Subgraph Statistics")
+        print("-------------------")
+        for i in range(1, 1 + self._max_length):
+            no_elements = sum([len(sg) == i for sg in lst])
+            if visual:
+                print(i, no_elements, "*" * no_elements)
+            else:
+                print("Subgraphs with", i, "elements:", no_elements)
+        self.mode = old_mode
+
 
 
 @make_properties
@@ -68,48 +94,78 @@ class ConnectedEnumerator(Enumerator):
                  sdfg: SDFG,
                  graph: SDFGState,
                  subgraph: SubgraphView = None,
-                 condition: Callable = None,
-                 scoring_function = None):
+                 condition: Callable = SubgraphFusion.can_be_applied,
+                 scoring_function = None,
+                 **kwargs):
 
         # initialize base class
         super().__init__(sdfg, graph, subgraph, condition, scoring_function)
         self._local_maxima = []
-
-        # get hightest scope maps
-        map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+        self._function_args = kwargs
 
         # create adjacency list
-        self._adjacency_list = {m: set() for m in map_entries}
-        for map_entry in map_entries:
+        self._adjacency_list = {m: set() for m in self._map_entries}
+        for map_entry in self._map_entries:
             map_exit = graph.exit_node(map_entry)
             for edge in graph.out_edges(map_exit):
                 current_node = edge.dst
                 if not isinstance(current_node, nodes.AccessNode):
                     continue
                 for dst_edge in graph.out_edges(current_node):
-                    if dst_edge.dst in map_entries:
+                    if dst_edge.dst in self._map_entries:
                         self._adjacency_list[map_entry].add(dst_edge.dst)
                         self._adjacency_list[dst_edge.dst].add(map_entry)
 
-        # create adjacency list
-        # connect everything that is not
+        '''
+        # create adjacency list (improved version)
+        # connect everything that shares an edge (any direction)
+        # to an access node
+        self._adjacency_list = {m: set() for m in self._map_entries}
+        for node in (subgraph.nodes() if subgraph else graph.nodes()):
+            if isinstance(node, nodes.AccessNodes):
+                adjacent_entries = set()
+                for e in graph.in_edges(node):
+                    if isinstance(e.src, nodes.MapEntry) and e.src in self._map_entries:
+                        adjacent_entries.add(e.src)
+                for e in graph.out_edges(node):
+                    if isinstance(e.dst, nodes.MapEntry) and e.dst in self._map_entries:
+                        adjacent_entries.add(e.dst)
+            # now add everything to everything
+            for entry in adjacent_entries:
+                for other_entry in adjacent_entries:
+                    if entry != other_entry:
+                        self._adjacency_list[entry].add(other_entry)
+                        self._adjacency_list[other_entry].add(entry)
+        '''
 
     def traverse(self, current: List, forbidden: Set, prune = False):
         if len(current) > 0:
-            # get current subgraph we are inspecting
-            current_subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, current, self._scope_dict)
 
-            # yield element if possible, and explore neighboring sets to go to
-            if self._condition and self._prune and \
-                        not self.contition(sdfg, graph, current_subgraph):
-                go_next = []
-            else:
-                score = self._scoring_function(current_subgraph) if self._scoring_function else 0
-                if self.mode == 'map_entries':
-                    current_entries = current.copy()
-                yield (current_entries, score) if self.mode == 'map_entries' else (current_subgraph, score)
-                # calculate where to backtrack next
+            # get current subgraph we are inspecting
+            #print("*******")
+            #print(current)
+            current_subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, current, self._scope_dict)
+            #print(current_subgraph.nodes())
+
+            # evaluate condition if specified
+            conditional_eval = True
+            if self._condition:
+                conditional_eval = self._condition(self._sdfg, current_subgraph)
+                #print("EVALUATED TO", conditional_eval)
+            # evaluate score if possible
+            score = 0
+            if conditional_eval and self._scoring_function:
+                score = self._scoring_function(current_subgraph)
+
+            # calculate where to backtrack next if not prune
+            go_next = set()
+            if conditional_eval or not self._prune or len(current) == 1:
                 go_next = set(m for c in current for m in self._adjacency_list[c] if m not in current and m not in forbidden)
+
+            # yield element if condition is True
+            if conditional_eval:
+                yield (current.copy(), score) if self.mode == 'map_entries' else (current_subgraph, score)
+
         else:
             # special case at very beginning: explore every node
             go_next = set(m for m in self._adjacency_list.keys())
@@ -124,7 +180,7 @@ class ConnectedEnumerator(Enumerator):
 
         else:
             # we cannot explore - possible local maximum candidate
-            # TODO if self.local_maxima and if not any(....)
+            # TODO continue work
             self._local_maxima.append(current.copy())
 
 
@@ -135,20 +191,6 @@ class ConnectedEnumerator(Enumerator):
         '''
         self._local_maxima = []
         yield from self.traverse([], set(), False)
-
-    def histogram(self, visual = True):
-        old_mode = self.mode
-        self.mode = 'map_entries'
-        lst = self.list()
-        print("Subgraph Statistics")
-        print("-------------------")
-        for i in range(1, 1 + len(self._adjacency_list)):
-            no_elements = sum([len(sg) == i for sg in lst])
-            if visual:
-                print(i, no_elements, "*" * no_elements)
-            else:
-                print("Subgraphs with", i, "elements:", no_elements)
-        self.mode = old_mode
 
 
 @make_properties
@@ -165,8 +207,6 @@ class BruteForceEnumerator(Enumerator):
                          condition = condition,
                          scoring_function = scoring_function)
 
-        # get hightest scope maps
-        self._map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
 
     def brute_force(self):
         for i in range(1, len(self._map_entries)):
@@ -175,10 +215,24 @@ class BruteForceEnumerator(Enumerator):
                 # (1) no path between all maps
                 # (2) if path, then only AccessNode
                 # Topo BFS the whole graph is the most efficient (ignoring the outer loops above...)
-                subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, sg, self._scope_dict)
-                if SubgraphFusion.can_be_applied(self._sdfg, subgraph):
-                    yield subgraph
+                # We just call can_be_applied which does more or less that
+                # with a bit of boilerplate.
 
+                current_subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, sg, self._scope_dict)
+
+                # evaluate condition if specified
+                conditional_eval = True
+                if self._condition:
+                    conditional_eval = self._condition(self._sdfg, current_subgraph)
+
+                # evaluate score if possible
+                score = 0
+                if conditional_eval and self._scoring_function:
+                    score = self._scoring_function(current_subgraph)
+
+                # yield element if condition is True
+                if conditional_eval:
+                    yield (list(sg), score) if self.mode == 'map_entries' else (current_subgraph, score)
 
     def iterator(self):
         yield from self.brute_force()

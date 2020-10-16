@@ -61,7 +61,7 @@ class ExecutionScore(ScoringFunction):
         self._sdfg_id = sdfg.sdfg_id
         self._state_id = sdfg.nodes().index(graph)
         # TODO: modify nruns
-        self._nruns = 30
+        self._nruns = nruns
 
     def score(self, subgraph: SubgraphView, **kwargs):
         '''
@@ -71,13 +71,17 @@ class ExecutionScore(ScoringFunction):
         '''
         # generate an instance of SubgraphFusion
         # deepcopy the subgraph via json and apply transformation
-        sdfg_copy = SDFG.from_json(self._sdfg.to_json)
-        subgraph_copy = set(sdfg_copy.nodes(self._state_id)[self.graph.index(n)] for n in subgraph)
-        fusion = SubgraphFusion(subgraph_copy, self._sdfg_id, self.state_id)
+
+        sdfg_copy = SDFG.from_json(self._sdfg.to_json())
+        subgraph_copy = SubgraphView(sdfg_copy.nodes()[self._state_id], \
+                                     [sdfg_copy.nodes()[self._state_id].nodes()[self._graph.nodes().index(n)] for n in subgraph])
+        fusion = SubgraphFusion(subgraph_copy)
         fusion.apply(sdfg_copy)
-        # mark graph with instrumentation
-        sdfg_copy.instrument = dtypes.InstrumentationType.Timer
+        #######################################
         # TODO
+        # mark graph with instrumentation
+        #sdfg_copy.instrument = dtypes.InstrumentationType.Timer
+
         ###csdfg = sdfg_copy.compile()
         ###csdfg(kwargs)
         # get timing results
