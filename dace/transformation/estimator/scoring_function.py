@@ -11,6 +11,7 @@ import dace.dtypes as dtypes
 from collections import deque, defaultdict, ChainMap
 from typing import Set, Union, List, Callable
 
+import json
 
 @make_properties
 class ScoringFunction:
@@ -21,11 +22,13 @@ class ScoringFunction:
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
-                 subgraph: SubgraphView = None):
+                 subgraph: SubgraphView = None,
+                 scope_dict = None):
 
         self._sdfg = sdfg
         self._graph = graph
         self._subgraph = subgraph
+        self._scope_dict = scope_dict
 
     def score(self, subgraph: SubgraphView, ** kwargs):
         # NOTE: self._subgraph and subgraph are not the same!
@@ -45,7 +48,8 @@ class ExecutionScore(ScoringFunction):
                  graph: SDFGState,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
-                 nruns = 30):
+                 nruns = 30,
+                 **kwargs):
         super().__init__(sdfg, graph, subgraph)
 
         if gpu is None:
@@ -63,6 +67,9 @@ class ExecutionScore(ScoringFunction):
         # TODO: modify nruns
         self._nruns = nruns
 
+        # TODO: auto-generate input arguments
+        self._arguments = kwargs
+
     def score(self, subgraph: SubgraphView, **kwargs):
         '''
         scores a subgraph (within the given graph / subgraph
@@ -77,13 +84,43 @@ class ExecutionScore(ScoringFunction):
                                      [sdfg_copy.nodes()[self._state_id].nodes()[self._graph.nodes().index(n)] for n in subgraph])
         fusion = SubgraphFusion(subgraph_copy)
         fusion.apply(sdfg_copy)
-        #######################################
-        # TODO
-        # mark graph with instrumentation
-        #sdfg_copy.instrument = dtypes.InstrumentationType.Timer
 
-        ###csdfg = sdfg_copy.compile()
-        ###csdfg(kwargs)
+        # instrumentation:
+        # mark old maps with instrumentation
+        map_entries = helpers.get_highest_scope_maps(self._sdfg, self._graph, subgraph, self._scope_dict)
+        for map_entry in map_entries:
+            map_entry.map.instrument = dtypes.InstrumentationType.Timer
+        # mark new maps with instrumentation
+        fusion._global_map_entry.map.instrument = dtypes.InstrumentationType.Timer
+
+        # run and go
+        self._sdfg(**self._arguments)
+        sdfg_copy(**self._arguments)
+
+        # remove old maps instrumentation
+        for map_entry in map_entries:
+            map_entry.map.instrument = None
+
         # get timing results
-        # TODO
-        return 42.0
+        report_old = self._sdfg.get_latest_report()
+        report_new = sdfg_copy.get_latest_report()
+
+        path = os.path.join(self._sdfg.build_folder, 'perf')
+        files = [f for f in os.listdir(path) if f.startswith('report-')]
+        assert len(files) > 1
+        # Avoid import loops
+        json_original = sorted(files, reverse = True)[1]
+        json_transformed = sorted(files, reverse = True)[0]
+        runtime_original, runtime_improved = 0,0
+        with open(json_original) as f:
+            data = json.load(f)
+            for _, runtime_vec in data:
+                runtime_original += np.mean(runtime_vec)
+        with open(json_transformed) as f:
+            data = json.load(f)
+            rumtime_original = np.mean(data['outer_fused'])
+
+        return runtime_improved
+
+
+        return

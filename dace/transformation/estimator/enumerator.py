@@ -103,40 +103,29 @@ class ConnectedEnumerator(Enumerator):
         self._local_maxima = []
         self._function_args = kwargs
 
-        # create adjacency list
-        self._adjacency_list = {m: set() for m in self._map_entries}
-        for map_entry in self._map_entries:
-            map_exit = graph.exit_node(map_entry)
-            for edge in graph.out_edges(map_exit):
-                current_node = edge.dst
-                if not isinstance(current_node, nodes.AccessNode):
-                    continue
-                for dst_edge in graph.out_edges(current_node):
-                    if dst_edge.dst in self._map_entries:
-                        self._adjacency_list[map_entry].add(dst_edge.dst)
-                        self._adjacency_list[dst_edge.dst].add(map_entry)
 
-        '''
         # create adjacency list (improved version)
         # connect everything that shares an edge (any direction)
         # to an access node
         self._adjacency_list = {m: set() for m in self._map_entries}
+        # helper dict needed for a quick build
+        exit_nodes = {graph.exit_node(me): me for me in self._map_entries}
         for node in (subgraph.nodes() if subgraph else graph.nodes()):
-            if isinstance(node, nodes.AccessNodes):
+            if isinstance(node, nodes.AccessNode):
                 adjacent_entries = set()
                 for e in graph.in_edges(node):
-                    if isinstance(e.src, nodes.MapEntry) and e.src in self._map_entries:
-                        adjacent_entries.add(e.src)
+                    if isinstance(e.src, nodes.MapExit) and e.src in exit_nodes:
+                        adjacent_entries.add(exit_nodes[e.src])
                 for e in graph.out_edges(node):
                     if isinstance(e.dst, nodes.MapEntry) and e.dst in self._map_entries:
                         adjacent_entries.add(e.dst)
-            # now add everything to everything
-            for entry in adjacent_entries:
-                for other_entry in adjacent_entries:
-                    if entry != other_entry:
-                        self._adjacency_list[entry].add(other_entry)
-                        self._adjacency_list[other_entry].add(entry)
-        '''
+                # now add everything to everything
+                for entry in adjacent_entries:
+                    for other_entry in adjacent_entries:
+                        if entry != other_entry:
+                            self._adjacency_list[entry].add(other_entry)
+                            self._adjacency_list[other_entry].add(entry)
+
 
     def traverse(self, current: List, forbidden: Set, prune = False):
         if len(current) > 0:

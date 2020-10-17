@@ -121,14 +121,14 @@ def toplevel_scope_maps(graph, maps, scope_dict = None):
     raise RuntimeError("Map structure is not sound (underlying subgraph must be connected)")
 
 
-def get_highest_scope_maps(sdfg, graph, subgraph = None):
+def get_highest_scope_maps(sdfg, graph, subgraph = None, scope_dict = None):
     """
     returns the Map Entries of the highest scope maps
     that reside inside a given subgraph.
     If subgraph = None, the whole graph is taken
     """
     subgraph = graph if not subgraph else subgraph
-    scope_dict = graph.scope_dict()
+    scope_dict = scope_dict if scope_dict else graph.scope_dict()
 
     def is_lowest_scope(node):
         while scope_dict[node]:
@@ -138,9 +138,9 @@ def get_highest_scope_maps(sdfg, graph, subgraph = None):
 
         return True
 
+
     maps = [node for node in subgraph.nodes() if isinstance(node, nodes.MapEntry)
                                               and is_lowest_scope(node)]
-
     return maps
 
 def subgraph_from_maps(sdfg, graph, map_entries, scope_dict = None):
@@ -157,6 +157,7 @@ def subgraph_from_maps(sdfg, graph, map_entries, scope_dict = None):
         nodes |= set(scope_dict[map_entry])
         nodes |= set(e.dst for e in graph.out_edges(graph.exit_node(map_entry)))
         nodes |= set(e.src for e in graph.in_edges(map_entry))
+        nodes.add(map_entry)
 
     return SubgraphView(graph, list(nodes))
 
@@ -225,7 +226,6 @@ def deduplicate(sdfg, graph, map_entry, out_connector, edges):
 
     # Find largest contiguous subsets
     contiguous_subsets = find_contiguous_subsets(unique_subsets)
-    #print("Subsets:", contiguous_subsets)
 
     # Map original edges to subsets
     edge_mapping = defaultdict(list)

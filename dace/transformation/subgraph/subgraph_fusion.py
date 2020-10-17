@@ -43,6 +43,8 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
     debug = Property(desc="Show debug info", dtype=bool, default=False)
 
+    verbose = Property(desc="Even more debug info", dtype=bool, default=False)
+
     transient_allocation = Property(
         desc="Storage Location to push transients to that are "
         "fully contained within the subgraph.",
