@@ -231,9 +231,6 @@ class SymExpr(object):
             return self.expr == other.expr and self.approx == other.approx
         return self == pystr_to_symbolic(other)
 
-    def __hash__(self):
-        return id(self)
-
 
 def symvalue(val):
     """ Returns the symbol value if it is a symbol. """
@@ -593,7 +590,7 @@ def simplify_ext(expr):
 
 
 class SympyBooleanConverter(ast.NodeTransformer):
-    """
+    """ 
     Replaces boolean operations with the appropriate SymPy functions to avoid
     non-symbolic evaluation.
     """
