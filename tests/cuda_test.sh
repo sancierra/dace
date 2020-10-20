@@ -196,9 +196,9 @@ runall() {
     runtestargs persistent_tb_map_cudatest.py
     runtestargs persistent_fusion_cudatest.py
 
-    runtestargs transformations/subgraph_fusion/sfusion_block_allreduce_cudatest.py
+    runtestargs transformations/subgraph_fusion/block_allreduce_cudatest.py
     #runtestargs transformations/sfusion_sequential1_cudatest.py
-    runtestargs transformations/subgraph_fusion/sfusion_sequential2_cudatest.py
+    runtestargs transformations/subgraph_fusion/sequential2_cudatest.py
 
     runtestargs half_cudatest.py
     runtestargs halfvec_cudatest.py
