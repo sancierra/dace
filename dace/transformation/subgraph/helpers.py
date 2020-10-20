@@ -82,7 +82,6 @@ def find_reassignment(maps: List[nodes.Map],
     return result
 
 
-
 def outermost_scope_from_subgraph(graph, subgraph, scope_dict=None):
     """
     Returns the outermost scope of a subgraph.
@@ -168,7 +167,8 @@ def get_outermost_scope_maps(sdfg, graph, subgraph=None, scope_dict=None):
     # first, get the toplevel scope of the underlying subgraph
     # if not found, return empty list (ambiguous)
     try:
-        outermost_scope = outermost_scope_from_subgraph(graph, subgraph, scope_dict)
+        outermost_scope = outermost_scope_from_subgraph(graph, subgraph,
+                                                        scope_dict)
     except TypeError:
         return []
 
@@ -194,6 +194,7 @@ def subgraph_from_maps(sdfg, graph, map_entries, scope_dict=None):
         nodes |= set(scope_dict[map_entry])
         nodes |= set(e.dst for e in graph.out_edges(graph.exit_node(map_entry)))
         nodes |= set(e.src for e in graph.in_edges(map_entry))
+        nodes.add(map_entry)
 
     return SubgraphView(graph, list(nodes))
 
@@ -234,37 +235,38 @@ def are_subsets_contiguous(subset_a: subsets.Subset,
     return bbunion.num_elements() == (subset_a.num_elements() +
                                       subset_b.num_elements())
 
+
 def find_contiguous_subsets(subset_list: List[subsets.Subset],
-                                dim: int = None) -> Set[subsets.Subset]:
-        """
+                            dim: int = None) -> Set[subsets.Subset]:
+    """
         Finds the set of largest contiguous subsets in a list of subsets.
         :param subsets: Iterable of subset objects.
         :param dim: Check for contiguity only for the specified dimension.
         :return: A list of contiguous subsets.
         """
-        # Currently O(n^3) worst case. TODO: improve
-        subset_set = set(
-            subsets.Range.from_indices(s) if isinstance(s, subsets.Indices
-                                                        ) else s
-            for s in subset_list)
-        while True:
-            for sa, sb in itertools.product(subset_set, subset_set):
-                if sa is sb:
-                    continue
-                if sa.covers(sb):
-                    subset_set.remove(sb)
-                    break
-                elif sb.covers(sa):
-                    subset_set.remove(sa)
-                    break
-                elif are_subsets_contiguous(sa, sb, dim):
-                    subset_set.remove(sa)
-                    subset_set.remove(sb)
-                    subset_set.add(subsets.bounding_box_union(sa, sb))
-                    break
-            else:  # No modification performed
+    # Currently O(n^3) worst case. TODO: improve
+    subset_set = set(
+        subsets.Range.from_indices(s) if isinstance(s, subsets.Indices) else s
+        for s in subset_list)
+    while True:
+        for sa, sb in itertools.product(subset_set, subset_set):
+            if sa is sb:
+                continue
+            if sa.covers(sb):
+                subset_set.remove(sb)
                 break
-        return subset_set
+            elif sb.covers(sa):
+                subset_set.remove(sa)
+                break
+            elif are_subsets_contiguous(sa, sb, dim):
+                subset_set.remove(sa)
+                subset_set.remove(sb)
+                subset_set.add(subsets.bounding_box_union(sa, sb))
+                break
+        else:  # No modification performed
+            break
+    return subset_set
+
 
 def deduplicate(sdfg, graph, map_entry, out_connector, edges):
     ''' applies Deduplication to ALL edges coming from the same
