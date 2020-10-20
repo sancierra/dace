@@ -11,8 +11,10 @@ import sys
 from dace.transformation.subgraph import SubgraphFusion
 from util import expand_maps, expand_reduce, fusion
 
-from enumerator import ConnectedEnumerator, BruteForceEnumerator
-from scoring_function import ExecutionScore
+from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator
+from dace.transformation.estimator import ExecutionScore
+
+
 N, M, O = [dace.symbol(s) for s in ['N', 'M', 'O']]
 N.set(50)
 M.set(60)
@@ -21,9 +23,9 @@ O.set(70)
 A = np.random.rand(N.get()).astype(np.float64)
 B = np.random.rand(M.get()).astype(np.float64)
 C = np.random.rand(O.get()).astype(np.float64)
-out1 = np.ndarray((N.get(), M.get()), np.float64)
-out2 = np.ndarray((1), np.float64)
-out3 = np.ndarray((N.get(), M.get(), O.get()), np.float64)
+out1 = np.zeros((N.get(), M.get()), np.float64)
+out2 = np.zeros((1), np.float64)
+out3 = np.zeros((N.get(), M.get(), O.get()), np.float64)
 
 
 @dace.program
@@ -47,13 +49,11 @@ def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
             in2 << B[j]
             in3 << C[k]
             out >> tp
-
             out = in1 + in2 + in3
 
         with dace.tasklet:
             in1 << tp
             out >> tmp1[i, j, k]
-
             out = in1 + 42
 
     dace.reduce(lambda a, b: a + b, tmp1, t1, axis=2, identity=0)
@@ -70,7 +70,6 @@ def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
             in1 << t2[i, j]
             in2 << A[i]
             out >> out1[i, j]
-
             out = in1 * in1 * in2 + in2
 
     for i, j, k in dace.map[0:N, 0:M, 0:O]:
@@ -79,7 +78,6 @@ def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
             in2 << t2[i, j]
             in3 << C[k]
             out >> tmp3[i, j, k]
-
             out = in1 + in2 + in3
 
     for i, j, k in dace.map[0:N, 0:M, 0:O]:
@@ -87,14 +85,12 @@ def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
             in1 << tmp3[i, j, k]
             in2 << tmp1[i, j, k]
             out >> out3[i, j, k]
-
             out = in1 + in2
 
     @dace.tasklet
     def fun():
         in1 << tmp3[0, 0, 0]
         out >> out2
-
         out = in1 * 42
 
 
@@ -105,13 +101,17 @@ def prep(sdfg, graph):
 def enumerate(sdfg,
               graph,
               enumerator_type,
-              scoring_function_type = None):
-    scoring_function = scoring_function_type(sdfg, graph) if scoring_function_type else None
-    condition_function = SubgraphFusion.can_be_applied if scoring_function_type else None
+              scoring_function,
+              condition_function):
+    '''
+    Enumerate all possibilities and score
+    '''
+
     enum = enumerator_type(sdfg,
                            graph,
-                           condition = condition_function,
+                           condition_function = condition_function,
                            scoring_function = scoring_function)
+
     print("***************************")
     print("Enumerator Test")
     for subgraph, score in enum:
@@ -121,9 +121,11 @@ def enumerate(sdfg,
     enum.histogram()
 
 
-def test_enumerator(enumerator_type,
-                    scoring_function_type,
-                    view = False):
+def test_listing(enumerator_type, view = False, gpu = False):
+    '''
+    Tests listing all subgraphs without any condition funtions
+    enabled
+    '''
     sdfg = test_program.to_sdfg()
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
@@ -133,10 +135,43 @@ def test_enumerator(enumerator_type,
     enumerate(sdfg,
               graph,
               enumerator_type,
-              scoring_function_type)
+              None,
+              None)
+
+def test_executor(enumerator_type, view = False, gpu = False):
+    '''
+    Tests listing all subgraphs with an ExecutionScore
+    as a scoring function
+    '''
+    sdfg = test_program.to_sdfg()
+    sdfg.apply_strict_transformations()
+    graph = sdfg.nodes()[0]
+    prep(sdfg, graph)
+    if view:
+        sdfg.view()
+    # Define Input / Output Dict for ExecutionScore class
+    # create ExecutionScore class
+    inputs = {'A': A, 'B': B, 'C': C}
+    outputs = {'out1': out1, 'out2': out2, 'out3': out3}
+    scoring_func = ExecutionScore(sdfg = sdfg,
+                                  graph = graph,
+                                  inputs = inputs,
+                                  outputs = outputs,
+                                  gpu = gpu)
+    condition_func = SubgraphFusion.can_be_applied
+    enumerate(sdfg,
+              graph,
+              enumerator_type,
+              scoring_func,
+              condition_func)
+
 
 if __name__ == "__main__":
-    test_enumerator(ConnectedEnumerator, None, view = False)
-    test_enumerator(ConnectedEnumerator, ExecutionScore, view = False)
-    test_enumerator(BruteForceEnumerator, None, view = False)
-    test_enumerator(BruteForceEnumerator, ExecutionScore, view = False)
+
+    # Part I: Just list up all the subgraphs
+    test_listing(ConnectedEnumerator, view = False)
+    test_listing(BruteForceEnumerator, view = False)
+
+    # Part II: List up all the subgraphs and execute them
+    test_executor(ConnectedEnumerator, view = False)
+    #test_executor(BruteForceEnumerator, view = False)

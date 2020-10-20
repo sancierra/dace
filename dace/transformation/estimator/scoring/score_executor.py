@@ -1,4 +1,4 @@
-""" This file implements the Scoring Function class """
+""" This file implements the ExecutionScore class """
 
 from dace.transformation.subgraph import SubgraphFusion, helpers
 from dace.properties import make_properties, Property
@@ -9,33 +9,10 @@ import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
 from collections import deque, defaultdict, ChainMap
-from typing import Set, Union, List, Callable
+from typing import Set, Union, List, Callable, Dict
 
+from dace.transformation.estimator.scoring import ScoringFunction
 import json
-
-@make_properties
-class ScoringFunction:
-    '''
-    Class used to Score Subgraphs in order to
-    rank them for their fusion applicability
-    '''
-    def __init__(self,
-                 sdfg: SDFG,
-                 graph: SDFGState,
-                 subgraph: SubgraphView = None,
-                 scope_dict = None):
-
-        self._sdfg = sdfg
-        self._graph = graph
-        self._subgraph = subgraph
-        self._scope_dict = scope_dict
-
-    def score(self, subgraph: SubgraphView, ** kwargs):
-        # NOTE: self._subgraph and subgraph are not the same!
-        raise NotImplementedError
-
-    def __call__(self, subgraph: SubgraphView, ** kwargs):
-        return self.score(subgraph, **kwargs)
 
 @make_properties
 class ExecutionScore(ScoringFunction):
@@ -46,15 +23,17 @@ class ExecutionScore(ScoringFunction):
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
+                 inputs: Dict,
+                 outputs: Dict,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  nruns = 30,
-                 **kwargs):
+                 ):
         super().__init__(sdfg, graph, subgraph)
 
         if gpu is None:
             # detect whether the state is assigned to GPU
-            map_entries = helpers.get_highest_scope_maps(sdfg, graph, subgraph)
+            map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph)
             schedule = next(iter(map_entries)).schedule
             if any([m.schedule != schedule for m in map_entries]):
                 raise RuntimeError("Schedules in maps to analyze should be the same")
@@ -64,11 +43,11 @@ class ExecutionScore(ScoringFunction):
 
         self._sdfg_id = sdfg.sdfg_id
         self._state_id = sdfg.nodes().index(graph)
-        # TODO: modify nruns
         self._nruns = nruns
 
-        # TODO: auto-generate input arguments
-        self._arguments = kwargs
+        # input arguments: we just create a class variable
+        self._inputs = inputs
+        self._outputs = outputs
 
     def score(self, subgraph: SubgraphView, **kwargs):
         '''
@@ -84,10 +63,10 @@ class ExecutionScore(ScoringFunction):
                                      [sdfg_copy.nodes()[self._state_id].nodes()[self._graph.nodes().index(n)] for n in subgraph])
         fusion = SubgraphFusion(subgraph_copy)
         fusion.apply(sdfg_copy)
-
+        return 42
         # instrumentation:
         # mark old maps with instrumentation
-        map_entries = helpers.get_highest_scope_maps(self._sdfg, self._graph, subgraph, self._scope_dict)
+        map_entries = helpers.get_outermost_scope_maps(self._sdfg, self._graph, subgraph, self._scope_dict)
         for map_entry in map_entries:
             map_entry.map.instrument = dtypes.InstrumentationType.Timer
         # mark new maps with instrumentation
@@ -121,6 +100,3 @@ class ExecutionScore(ScoringFunction):
             rumtime_original = np.mean(data['outer_fused'])
 
         return runtime_improved
-
-
-        return
