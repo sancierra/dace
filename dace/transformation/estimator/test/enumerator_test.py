@@ -153,10 +153,12 @@ def test_executor(enumerator_type, view = False, gpu = False):
     # create ExecutionScore class
     inputs = {'A': A, 'B': B, 'C': C}
     outputs = {'out1': out1, 'out2': out2, 'out3': out3}
+    symbols = {'N': N.get(), 'M': M.get(), 'O': O.get()}
     scoring_func = ExecutionScore(sdfg = sdfg,
                                   graph = graph,
                                   inputs = inputs,
                                   outputs = outputs,
+                                  symbols = symbols,
                                   gpu = gpu)
     condition_func = SubgraphFusion.can_be_applied
     enumerate(sdfg,
@@ -167,11 +169,11 @@ def test_executor(enumerator_type, view = False, gpu = False):
 
 
 if __name__ == "__main__":
-
+    '''
     # Part I: Just list up all the subgraphs
     test_listing(ConnectedEnumerator, view = False)
     test_listing(BruteForceEnumerator, view = False)
-
+    '''
     # Part II: List up all the subgraphs and execute them
     test_executor(ConnectedEnumerator, view = False)
     #test_executor(BruteForceEnumerator, view = False)

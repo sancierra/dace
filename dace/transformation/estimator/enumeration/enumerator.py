@@ -24,6 +24,10 @@ class Enumerator:
                     choices = ["subgraph", "map_entries"],
                     dtype = str)
 
+    debug = Property(desc = "Debug mode",
+                     default = True,
+                     dtype = bool)
+
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,

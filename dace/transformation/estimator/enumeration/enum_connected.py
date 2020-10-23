@@ -75,11 +75,7 @@ class ConnectedEnumerator(Enumerator):
             # evaluate condition if specified
             conditional_eval = True
             if self._condition_function:
-                print("evaluating")
-                print(self._condition_function)
-                print(current_subgraph.nodes())
                 conditional_eval = self._condition_function(self._sdfg, current_subgraph)
-                print(conditional_eval)
                 #print("EVALUATED TO", conditional_eval)
             # evaluate score if possible
             score = 0
@@ -90,7 +86,9 @@ class ConnectedEnumerator(Enumerator):
             go_next = set()
             if conditional_eval or not self._prune or len(current) == 1:
                 go_next = set(m for c in current for m in self._adjacency_list[c] if m not in current and m not in forbidden)
-
+                if self.debug:
+                    go_next = list(go_next)
+                    go_next.sort(key = lambda e: e.map.label)
             # yield element if condition is True
             if conditional_eval:
                 yield (current.copy(), score) if self.mode == 'map_entries' else (current_subgraph, score)
@@ -98,6 +96,9 @@ class ConnectedEnumerator(Enumerator):
         else:
             # special case at very beginning: explore every node
             go_next = set(m for m in self._adjacency_list.keys())
+            if self.debug:
+                go_next = list(go_next)
+                go_next.sort(key = lambda e: e.map.label)
         if len(go_next) > 0:
             # we can explore
             forbidden_current = set()

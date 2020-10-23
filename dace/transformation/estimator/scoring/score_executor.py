@@ -12,7 +12,11 @@ from collections import deque, defaultdict, ChainMap
 from typing import Set, Union, List, Callable, Dict
 
 from dace.transformation.estimator.scoring import ScoringFunction
+
 import json
+import warnings
+import os
+import numpy as np
 
 @make_properties
 class ExecutionScore(ScoringFunction):
@@ -25,15 +29,16 @@ class ExecutionScore(ScoringFunction):
                  graph: SDFGState,
                  inputs: Dict,
                  outputs: Dict,
+                 symbols: Dict,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
-                 nruns = 30,
+                 nruns = None,
                  ):
         super().__init__(sdfg, graph, subgraph)
 
+        map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph)
         if gpu is None:
             # detect whether the state is assigned to GPU
-            map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph)
             schedule = next(iter(map_entries)).schedule
             if any([m.schedule != schedule for m in map_entries]):
                 raise RuntimeError("Schedules in maps to analyze should be the same")
@@ -43,11 +48,74 @@ class ExecutionScore(ScoringFunction):
 
         self._sdfg_id = sdfg.sdfg_id
         self._state_id = sdfg.nodes().index(graph)
-        self._nruns = nruns
+        self._map_entries = map_entries
 
         # input arguments: we just create a class variable
         self._inputs = inputs
         self._outputs = outputs
+        self._symbols = symbols
+
+        # run the graph to create a baseline
+        self._median_rt_base = self.run_with_instrumentation(self._sdfg, self._graph, self._map_entries, check = False)
+        self._sdfg.view()
+
+        # if nruns is defined, change config
+        if nruns is not None:
+            dace.config.Config.set('treps', value=nruns)
+
+    def run_with_instrumentation(self, sdfg, graph, map_entries = None, check = True):
+
+        '''
+        runs an sdfg with instrumentation on all outermost scope
+        maps and returns their runtimes
+        '''
+        if map_entries is None:
+            map_entries = helpers.get_outermost_scope_maps(sdfg, graph)
+
+        # instrumentation:
+        # mark all mapentries  with instrumentation
+        for map_entry in map_entries:
+            # GPU_Events TODO
+            map_entry.map.instrument = dtypes.InstrumentationType.Timer
+
+        # run and go
+        # create a copy of all the outputs
+        outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()}
+        sdfg(**self._inputs, **self._outputs, **self._symbols)
+
+        # assert outputs are the same
+        if check:
+            nv = True
+            for (ok, ov) in self._outputs.items():
+                if not np.allclose(outputs_local[ok], ov):
+                    warnings.warn('Wrong output!')
+                    if nv:
+                        sdfg.view()
+                        nv = False
+                    print('Original Output:',np.linalg.norm(ov))
+                    print('Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
+                else:
+                    print("PASS! YES")
+
+        # remove old maps instrumentation
+        for map_entry in map_entries:
+            map_entry.map.instrument = dtypes.InstrumentationType.No_Instrumentation
+
+        # get timing results
+        path = os.path.join(sdfg.build_folder, 'perf')
+        files = [f for f in os.listdir(path) if f.startswith('report-')]
+        assert len(files) > 1
+        # Avoid import loops
+        json_file = sorted(files, reverse = True)[0]
+        runtime = 0
+        with open(os.path.join(sdfg.build_folder, 'perf', json_file)) as f:
+            data = json.load(f)
+            for _, runtime_vec in data.items():
+                runtime += np.mean(runtime_vec)
+
+        print("DONE.")
+        print("RUNTIME", runtime)
+        return runtime
 
     def score(self, subgraph: SubgraphView, **kwargs):
         '''
@@ -59,44 +127,14 @@ class ExecutionScore(ScoringFunction):
         # deepcopy the subgraph via json and apply transformation
 
         sdfg_copy = SDFG.from_json(self._sdfg.to_json())
-        subgraph_copy = SubgraphView(sdfg_copy.nodes()[self._state_id], \
-                                     [sdfg_copy.nodes()[self._state_id].nodes()[self._graph.nodes().index(n)] for n in subgraph])
+        graph_copy = sdfg_copy.nodes()[self._state_id]
+        subgraph_copy = SubgraphView(graph_copy, \
+                                     [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
         fusion = SubgraphFusion(subgraph_copy)
         fusion.apply(sdfg_copy)
-        return 42
-        # instrumentation:
-        # mark old maps with instrumentation
-        map_entries = helpers.get_outermost_scope_maps(self._sdfg, self._graph, subgraph, self._scope_dict)
-        for map_entry in map_entries:
-            map_entry.map.instrument = dtypes.InstrumentationType.Timer
-        # mark new maps with instrumentation
-        fusion._global_map_entry.map.instrument = dtypes.InstrumentationType.Timer
 
-        # run and go
-        self._sdfg(**self._arguments)
-        sdfg_copy(**self._arguments)
+        # run and measure
+        median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
-        # remove old maps instrumentation
-        for map_entry in map_entries:
-            map_entry.map.instrument = None
 
-        # get timing results
-        report_old = self._sdfg.get_latest_report()
-        report_new = sdfg_copy.get_latest_report()
-
-        path = os.path.join(self._sdfg.build_folder, 'perf')
-        files = [f for f in os.listdir(path) if f.startswith('report-')]
-        assert len(files) > 1
-        # Avoid import loops
-        json_original = sorted(files, reverse = True)[1]
-        json_transformed = sorted(files, reverse = True)[0]
-        runtime_original, runtime_improved = 0,0
-        with open(json_original) as f:
-            data = json.load(f)
-            for _, runtime_vec in data:
-                runtime_original += np.mean(runtime_vec)
-        with open(json_transformed) as f:
-            data = json.load(f)
-            rumtime_original = np.mean(data['outer_fused'])
-
-        return runtime_improved
+        return median_rt_fuse / self._median_rt_base
