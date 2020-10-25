@@ -81,7 +81,6 @@ def find_reassignment(maps: List[nodes.Map],
 
     return result
 
-<<<<<<< HEAD
 
 def outermost_scope_from_subgraph(graph, subgraph, scope_dict=None):
     """
@@ -89,15 +88,7 @@ def outermost_scope_from_subgraph(graph, subgraph, scope_dict=None):
     If the subgraph is not connected, there might be several
     scopes that are locally outermost. In this case, it
     throws an Exception.
-=======
 
-########################################################################
-
-
-def toplevel_scope_subgraph(graph, subgraph, scope_dict=None):
-    """
-    Returns the toplevel scope of a subgraph
->>>>>>> upstream/master
     """
     if scope_dict is None:
         scope_dict = graph.scope_dict()
@@ -119,7 +110,7 @@ def toplevel_scope_subgraph(graph, subgraph, scope_dict=None):
         if current_scope is None:
             toplevel_candidates.add(scope)
 
-<<<<<<< HEAD
+
     if len(toplevel_candidates) != 1:
         raise TypeError("There are several locally top-level nodes. "
                         "Please check your subgraph and see to it "
@@ -134,14 +125,6 @@ def outermost_scope_from_maps(graph, maps, scope_dict=None):
     If the underlying maps are not topologically connected
     to each other, there might be several scopes that are
     locally outermost. In this case it throws an Exception
-=======
-    raise RuntimeError("Subgraph is not sound")
-
-
-def toplevel_scope_maps(graph, maps, scope_dict=None):
-    """
-    Returns the toplevel scope of a set of given maps
->>>>>>> upstream/master
     """
     if not scope_dict:
         scope_dict = graph.scope_dict()
@@ -161,7 +144,6 @@ def toplevel_scope_maps(graph, maps, scope_dict=None):
         if current_scope is None:
             toplevel_candidates.add(scope)
 
-<<<<<<< HEAD
     if len(toplevel_candidates) != 1:
         raise TypeError("There are several locally top-level nodes. "
                         "Please check your subgraph and see to it "
@@ -183,20 +165,7 @@ def get_outermost_scope_maps(sdfg, graph, subgraph=None, scope_dict=None):
     subgraph = graph if not subgraph else subgraph
     if scope_dict is None:
         scope_dict = graph.scope_dict()
-=======
-    raise RuntimeError(
-        "Map structure is not sound (underlying subgraph must be connected)")
 
-
-def get_highest_scope_maps(sdfg, graph, subgraph=None):
-    """
-    Returns the Map Entries of the highest scope maps
-    that reside inside a given subgraph.
-    If subgraph = None, the whole graph is taken
-    """
-    subgraph = graph if subgraph is None else subgraph
-    scope_dict = graph.scope_dict()
->>>>>>> upstream/master
 
     # first, get the toplevel scope of the underlying subgraph
     # if not found, return empty list (ambiguous)
@@ -264,17 +233,10 @@ def are_subsets_contiguous(subset_a: subsets.Subset,
         return (ab == True or a_overlap_b == True or ba == True
                 or b_overlap_a == True)
 
-<<<<<<< HEAD
     # General case
     bbunion = subsets.bounding_box_union(subset_a, subset_b)
     return bbunion.num_elements() == (subset_a.num_elements() +
                                       subset_b.num_elements())
-=======
-    maps = [
-        node for node in subgraph.nodes()
-        if isinstance(node, nodes.MapEntry) and is_lowest_scope(node)
-    ]
->>>>>>> upstream/master
 
 
 def find_contiguous_subsets(subset_list: List[subsets.Subset],
