@@ -145,6 +145,7 @@ def test_executor(enumerator_type, view = False, gpu = False):
     '''
     sdfg = test_program.to_sdfg()
     sdfg.apply_strict_transformations()
+    sdfg.view()
     graph = sdfg.nodes()[0]
     prep(sdfg, graph)
     if view:
@@ -169,11 +170,11 @@ def test_executor(enumerator_type, view = False, gpu = False):
 
 
 if __name__ == "__main__":
-    '''
+
     # Part I: Just list up all the subgraphs
-    test_listing(ConnectedEnumerator, view = False)
-    test_listing(BruteForceEnumerator, view = False)
-    '''
+    #test_listing(ConnectedEnumerator, view = False)
+    #test_listing(BruteForceEnumerator, view = False)
+
     # Part II: List up all the subgraphs and execute them
     test_executor(ConnectedEnumerator, view = False)
     #test_executor(BruteForceEnumerator, view = False)
