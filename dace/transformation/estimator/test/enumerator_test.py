@@ -110,7 +110,7 @@ def enumerate(sdfg, graph, enumerator_type, scoring_function,
                            condition_function=condition_function,
                            scoring_function=scoring_function)
 
-    subgraph_list = enum.list()
+    subgraph_list = enum.list(include_score = True)
     enum.histogram()
     return subgraph_list
 
@@ -126,7 +126,7 @@ def test_listing(enumerator_type, view=False, gpu=False):
     prep(sdfg, graph)
     if view:
         sdfg.view()
-    subgraph_list = enumerate(sdfg, graph, enumerator_type, None, None)
+    enumerate(sdfg, graph, enumerator_type, None, None)
 
 
 def test_executor(enumerator_type, view=False, gpu=False):
@@ -155,21 +155,22 @@ def test_executor(enumerator_type, view=False, gpu=False):
     condition_func = SubgraphFusion.can_be_applied
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_func)
+    print(subgraph_list)
     print("*** Results ***")
     print("Top 10")
     for (subgraph, runtime) in sorted(subgraph_list, key=lambda a: a[1])[0:10]:
         print("-------")
         print("Runtime:", runtime)
         print(subgraph)
-        pritn("-------")
+        print("-------")
 
 
 if __name__ == "__main__":
 
     # Part I: Just list up all the subgraphs
-    test_listing(ConnectedEnumerator, view=False)
-    test_listing(BruteForceEnumerator, view=False)
+    #test_listing(ConnectedEnumerator, view=False)
+    #test_listing(BruteForceEnumerator, view=False)
 
     # Part II: List up all the subgraphs and execute them
-    #test_executor(ConnectedEnumerator, view = False)
+    test_executor(ConnectedEnumerator, view = False)
     #test_executor(BruteForceEnumerator, view = False)

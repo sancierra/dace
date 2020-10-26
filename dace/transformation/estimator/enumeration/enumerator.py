@@ -57,8 +57,11 @@ class Enumerator:
         # Interface to implement
         raise NotImplementedError
 
-    def list(self):
-        return list(e[0] for e in self.iterator())
+    def list(self, include_score = True):
+        if include_score:
+            return list(e for e in self.iterator())
+        else:
+            return list(e[0] for e in self.iterator())
 
     def __iter__(self):
         yield from self.iterator()
