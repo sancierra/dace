@@ -879,7 +879,8 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                 # put other_subset into out_edges for correctness
                 if len(in_edges) > 1:
                     for oedge in out_edges:
-                        if oedge.data.other_subset is None:
+                        if oedge.dst == global_map_exit and \
+                                            oedge.data.other_subset is None:
                             oedge.data.other_subset = dcpy(oedge.data.subset)
                             oedge.data.other_subset.offset(min_offset, True)
 
@@ -925,6 +926,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
         if self.schedule_innermaps is not None:
-            for node in graph.scope_dict(True)[global_map_entry]:
+            for node in graph.scope_children()[global_map_entry]:
                 if isinstance(node, nodes.MapEntry):
                     node.map.schedule = self.schedule_innermaps
