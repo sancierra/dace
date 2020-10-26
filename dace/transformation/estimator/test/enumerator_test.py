@@ -14,7 +14,6 @@ from util import expand_maps, expand_reduce, fusion
 from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator
 from dace.transformation.estimator import ExecutionScore
 
-
 N, M, O = [dace.symbol(s) for s in ['N', 'M', 'O']]
 N.set(50)
 M.set(60)
@@ -29,8 +28,9 @@ out3 = np.zeros((N.get(), M.get(), O.get()), np.float64)
 
 
 @dace.program
-def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O], \
-         out1: dace.float64[N,M], out2: dace.float64[1], out3: dace.float64[N,M,O]):
+def test_program(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O],
+                 out1: dace.float64[N, M], out2: dace.float64[1],
+                 out3: dace.float64[N, M, O]):
 
     tmp1 = np.ndarray([N, M, O], dtype=dace.float64)
     tmp2 = np.ndarray([N, M, O], dtype=dace.float64)
@@ -98,10 +98,8 @@ def prep(sdfg, graph):
     expand_reduce(sdfg, graph)
     expand_maps(sdfg, graph)
 
-def enumerate(sdfg,
-              graph,
-              enumerator_type,
-              scoring_function,
+
+def enumerate(sdfg, graph, enumerator_type, scoring_function,
               condition_function):
     '''
     Enumerate all possibilities and score
@@ -109,19 +107,15 @@ def enumerate(sdfg,
 
     enum = enumerator_type(sdfg,
                            graph,
-                           condition_function = condition_function,
-                           scoring_function = scoring_function)
+                           condition_function=condition_function,
+                           scoring_function=scoring_function)
 
-    print("***************************")
-    print("Enumerator Test")
-    for subgraph, score in enum:
-        print(score, ":", subgraph)
-    print("***************************")
-    print("Histogram Test")
+    subgraph_list = enum.list()
     enum.histogram()
+    return subgraph_list
 
 
-def test_listing(enumerator_type, view = False, gpu = False):
+def test_listing(enumerator_type, view=False, gpu=False):
     '''
     Tests listing all subgraphs without any condition funtions
     enabled
@@ -132,20 +126,17 @@ def test_listing(enumerator_type, view = False, gpu = False):
     prep(sdfg, graph)
     if view:
         sdfg.view()
-    enumerate(sdfg,
-              graph,
-              enumerator_type,
-              None,
-              None)
+    subgraph_list = enumerate(sdfg, graph, enumerator_type, None, None)
 
-def test_executor(enumerator_type, view = False, gpu = False):
+
+def test_executor(enumerator_type, view=False, gpu=False):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
     '''
     sdfg = test_program.to_sdfg()
     sdfg.apply_strict_transformations()
-    sdfg.view()
+    #sdfg.view()
     graph = sdfg.nodes()[0]
     prep(sdfg, graph)
     if view:
@@ -155,26 +146,30 @@ def test_executor(enumerator_type, view = False, gpu = False):
     inputs = {'A': A, 'B': B, 'C': C}
     outputs = {'out1': out1, 'out2': out2, 'out3': out3}
     symbols = {'N': N.get(), 'M': M.get(), 'O': O.get()}
-    scoring_func = ExecutionScore(sdfg = sdfg,
-                                  graph = graph,
-                                  inputs = inputs,
-                                  outputs = outputs,
-                                  symbols = symbols,
-                                  gpu = gpu)
+    scoring_func = ExecutionScore(sdfg=sdfg,
+                                  graph=graph,
+                                  inputs=inputs,
+                                  outputs=outputs,
+                                  symbols=symbols,
+                                  gpu=gpu)
     condition_func = SubgraphFusion.can_be_applied
-    enumerate(sdfg,
-              graph,
-              enumerator_type,
-              scoring_func,
-              condition_func)
+    subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
+                              condition_func)
+    print("*** Results ***")
+    print("Top 10")
+    for (subgraph, runtime) in sorted(subgraph_list, key=lambda a: a[1])[0:10]:
+        print("-------")
+        print("Runtime:", runtime)
+        print(subgraph)
+        pritn("-------")
 
 
 if __name__ == "__main__":
 
     # Part I: Just list up all the subgraphs
-    #test_listing(ConnectedEnumerator, view = False)
-    #test_listing(BruteForceEnumerator, view = False)
+    test_listing(ConnectedEnumerator, view=False)
+    test_listing(BruteForceEnumerator, view=False)
 
     # Part II: List up all the subgraphs and execute them
-    test_executor(ConnectedEnumerator, view = False)
+    #test_executor(ConnectedEnumerator, view = False)
     #test_executor(BruteForceEnumerator, view = False)
