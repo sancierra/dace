@@ -57,7 +57,7 @@ class ExecutionScore(ScoringFunction):
 
         # run the graph to create a baseline
         self._median_rt_base = self.run_with_instrumentation(self._sdfg, self._graph, self._map_entries, check = False)
-        self._sdfg.view()
+        #self._sdfg.view()
 
         # if nruns is defined, change config
         if nruns is not None:
@@ -76,13 +76,18 @@ class ExecutionScore(ScoringFunction):
         # mark all mapentries  with instrumentation
         for map_entry in map_entries:
             # GPU_Events TODO
-            map_entry.map.instrument = dtypes.InstrumentationType.Timer
-
+            if self._gpu:
+                map_entry.map.instrument = dtypes.InstrumentationType.GPU_Events
+            else:
+                map_entry.map.instrument = dtypes.InstrumentationType.Timer
         # run and go
         # create a copy of all the outputs
         outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()}
-        sdfg(**self._inputs, **self._outputs, **self._symbols)
-
+        try:
+            sdfg(**self._inputs, **self._outputs, **self._symbols)
+        except:
+            print("ERROR")
+            print("Runtime Error in current Configuration")
         # assert outputs are the same
         if check:
             nv = True
@@ -95,24 +100,31 @@ class ExecutionScore(ScoringFunction):
                     print('Original Output:',np.linalg.norm(ov))
                     print('Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
                 else:
-                    print("PASS! YES")
+                    print("PASS")
 
         # remove old maps instrumentation
         for map_entry in map_entries:
             map_entry.map.instrument = dtypes.InstrumentationType.No_Instrumentation
 
         # get timing results
-        path = os.path.join(sdfg.build_folder, 'perf')
-        files = [f for f in os.listdir(path) if f.startswith('report-')]
-        assert len(files) > 1
-        # Avoid import loops
+        files = [f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
+                                                    if f.startswith('report-')]
+        print(files)
+        assert len(files) > 0
+
         json_file = sorted(files, reverse = True)[0]
-        runtime = 0
-        with open(os.path.join(sdfg.build_folder, 'perf', json_file)) as f:
+        runtime = 0.0
+        path = os.path.join(sdfg.build_folder, 'perf', json_file)
+        with open(path) as f:
             data = json.load(f)
             for _, runtime_vec in data.items():
                 runtime += np.mean(runtime_vec)
-
+        if runtime == 0.0:
+            print("????? Runtime == 0")
+            print("map_entries", map_entries)
+            sdfg.view()
+        else:
+            os.remove(path)
         print("DONE.")
         print("RUNTIME", runtime)
         return runtime
