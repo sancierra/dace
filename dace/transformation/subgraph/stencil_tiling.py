@@ -181,6 +181,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         map_entries = set(
             helpers.get_outermost_scope_maps(sdfg, graph, subgraph))
         if len(map_entries) < 1:
+            print("ME")
             return False
 
         # all parameters have to be the same (this implies same length)
@@ -190,8 +191,10 @@ class StencilTiling(transformation.SubgraphTransformation):
         strides = next(iter(map_entries)).map.range.strides()
         for map_entry in map_entries:
             if map_entry.map.params != params:
+                print("ME2")
                 return False
             if map_entry.map.range.strides() != strides:
+                print("ME3")
                 return False
 
         # check whether all map entries only differ by a const amount
@@ -199,8 +202,10 @@ class StencilTiling(transformation.SubgraphTransformation):
         for map_entry in map_entries:
             for r1, r2 in zip(map_entry.map.range, first_entry.map.range):
                 if len((r1[0] - r2[0]).free_symbols) > 0:
+                    print("CA")
                     return False
                 if len((r1[1] - r2[1]).free_symbols) > 0:
+                    print("CA")
                     return False
 
         # get intermediate_nodes, out_nodes from SubgraphFusion Transformation
@@ -211,6 +216,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         # check whether topologically feasible
         if not SubgraphFusion.check_topo_feasibility(
                 sdfg, graph, map_entries, intermediate_nodes, out_nodes):
+            print("TOPO")
             return False
 
         # get coverages for every map entry
@@ -244,6 +250,12 @@ class StencilTiling(transformation.SubgraphTransformation):
                 # however, if there are any, we make sure that the children union
                 # is exactly the same
                 if children_coverage is not None and parent_coverage != children_coverage:
+                    print("******")
+                    print(map_entry)
+                    print(data_name)
+                    print(parent_coverage)
+                    print(children_coverage)
+                    print("COV")
                     return False
 
         # last condition: we want all sink maps to have the same
@@ -255,6 +267,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 map.range.size() == first_sink_map.range.size()
                 for map in sink_maps
         ]):
+            print("SINK")
             return False
 
         return True
@@ -536,7 +549,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 l = len(map_entry.params)
                 if l > 1:
                     subgraph = {
-                        MapExpansion._map_entry: graph.nodes().index(map_entry)
+                        MapExpansion.map_entry: graph.nodes().index(map_entry)
                     }
                     trafo_expansion = MapExpansion(sdfg.sdfg_id,
                                                    sdfg.nodes().index(graph),
