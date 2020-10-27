@@ -89,10 +89,12 @@ class ExecutionScore(ScoringFunction):
                 map_entry.map.instrument = dtypes.InstrumentationType.GPU_Events
             else:
                 map_entry.map.instrument = dtypes.InstrumentationType.Timer
-        # run and go
-        # create a copy of all the outputs
+
+        # create a local copy of all the outputs and set all outputs
+        # to zero. this will serve as an output for the current iteration
         outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()}
-        map(lambda a: a.fill(0), outputs_local.values())
+        for ok, kv in outputs_local.items():
+            kv.fill(0)
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
@@ -106,7 +108,7 @@ class ExecutionScore(ScoringFunction):
             print("Runtime Error in current Configuration")
 
         if check:
-            # assert whether outputs are the same
+            # this block asserts whether outputs are the same
             nv = True
             for (ok, ov) in self._outputs.items():
                 if not np.allclose(outputs_local[ok], ov):
@@ -122,7 +124,8 @@ class ExecutionScore(ScoringFunction):
                     print(np.linalg.norm(outputs_local[ok]))
 
         if set:
-            # set self._outputs according to the result
+            # this block sets self._outputs according to the local
+            # result. used for initialization.
             for (ok, ov) in outputs_local.items():
                 self._outputs[ok] = ov
 
