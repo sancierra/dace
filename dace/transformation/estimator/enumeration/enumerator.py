@@ -70,7 +70,7 @@ class Enumerator:
         if self._histogram is None and cached:
             old_mode = self.mode
             self.mode = 'map_entries'
-            lst = self.list()
+            lst = self.list(include_score = False)
             self._histogram = {}
             for i in range(1, 1 + self._max_length):
                 no_elements = sum([len(sg) == i for sg in lst])

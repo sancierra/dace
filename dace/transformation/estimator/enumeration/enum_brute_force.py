@@ -29,7 +29,7 @@ class BruteForceEnumerator(Enumerator):
 
 
     def brute_force(self):
-        for i in range(1, len(self._map_entries)):
+        for i in range(1, len(self._map_entries)+1):
             for sg in itertools.combinations(self._map_entries, i):
                 # check whether either
                 # (1) no path between all maps

@@ -56,18 +56,27 @@ class ExecutionScore(ScoringFunction):
         self._symbols = symbols
 
         # run the graph to create a baseline
-        self._median_rt_base = self.run_with_instrumentation(self._sdfg, self._graph, self._map_entries, check = False)
-        #self._sdfg.view()
+        self._median_rt_base = self.run_with_instrumentation(
+                sdfg = self._sdfg,
+                graph = self._graph,
+                map_entries = self._map_entries,
+                check = False,
+                set = True)
 
         # if nruns is defined, change config
         if nruns is not None:
             dace.config.Config.set('treps', value=nruns)
 
-    def run_with_instrumentation(self, sdfg, graph, map_entries = None, check = True):
+    def run_with_instrumentation(self,
+                                 sdfg: SDFG,
+                                 graph: SDFGState,
+                                 map_entries = None,
+                                 check = True,
+                                 set = False):
 
         '''
         runs an sdfg with instrumentation on all outermost scope
-        maps and returns their runtimes
+        maps and returns their added runtimes
         '''
         if map_entries is None:
             map_entries = helpers.get_outermost_scope_maps(sdfg, graph)
@@ -83,24 +92,39 @@ class ExecutionScore(ScoringFunction):
         # run and go
         # create a copy of all the outputs
         outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()}
+        map(lambda a: a.fill(0), outputs_local.values())
+        for ok, kv in outputs_local.items():
+            print(ok)
+            print(np.linalg.norm(kv))
+            print(np.linalg.norm(self._outputs[ok]))
         try:
-            sdfg(**self._inputs, **self._outputs, **self._symbols)
+            r = sdfg(**self._inputs, **outputs_local, **self._symbols)
+            if '__return' in outputs_local:
+                outputs_local['__return'] = r
         except:
             print("ERROR")
             print("Runtime Error in current Configuration")
-        # assert outputs are the same
+
         if check:
+            # assert whether outputs are the same
             nv = True
             for (ok, ov) in self._outputs.items():
                 if not np.allclose(outputs_local[ok], ov):
                     warnings.warn('Wrong output!')
                     if nv:
-                        sdfg.view()
+                        #sdfg.view()
                         nv = False
                     print('Original Output:',np.linalg.norm(ov))
                     print('Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
                 else:
                     print("PASS")
+                    print(np.linalg.norm(ov))
+                    print(np.linalg.norm(outputs_local[ok]))
+
+        if set:
+            # set self._outputs according to the result
+            for (ok, ov) in outputs_local.items():
+                self._outputs[ok] = ov
 
         # remove old maps instrumentation
         for map_entry in map_entries:
