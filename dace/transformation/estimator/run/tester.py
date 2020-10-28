@@ -2,20 +2,15 @@
 import dace
 import dace.transformation.subgraph.helpers as helpers
 import dace.sdfg.nodes as nodes
+
 import numpy as np
-
-from dace.sdfg.graph import SubgraphView
-
 import sys
 
+from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph import SubgraphFusion
-from util import expand_maps, expand_reduce, fusion
-
-from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator
-from dace.transformation.estimator import ExecutionScore
-
+from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ExecutionScore
 from dace.transformation.estimator.programs import factory
-
+from typing import Type, List
 
 
 def prep(sdfg, graph):
@@ -41,7 +36,10 @@ def enumerate(sdfg, graph, enumerator_type, scoring_function,
     return subgraph_list
 
 
-def test_listing(program_name, enumerator_type, view=False, gpu=False):
+def test_listing(program_name: str,
+                 enumerator_type: Type,
+                 view: bool = False,
+                 gpu: bool = False):
     '''
     Tests listing all subgraphs without any condition funtions
     enabled
@@ -50,22 +48,23 @@ def test_listing(program_name, enumerator_type, view=False, gpu=False):
     sdfg = factory.get_program(program_name)
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
-    prep(sdfg, graph)
     if view:
         sdfg.view()
     enumerate(sdfg, graph, enumerator_type, None, None)
 
 
-def test_executor(program_name, enumerator_type, view=False, gpu=False):
+def test_executor(program_name: str,
+                  enumerator_type: Type,
+                  view: bool = False,
+                  gpu: bool = False,
+                  nruns: int = None):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
     '''
     sdfg = factory.get_program(program_name)
-    sdfg.apply_strict_transformations()
     #sdfg.view()
     graph = sdfg.nodes()[0]
-    prep(sdfg, graph)
     if view:
         sdfg.view()
     # Define Input / Output Dict for ExecutionScore class
@@ -77,7 +76,8 @@ def test_executor(program_name, enumerator_type, view=False, gpu=False):
                                   inputs=inputs,
                                   outputs=outputs,
                                   symbols=symbols,
-                                  gpu=gpu)
+                                  gpu=gpu,
+                                  nruns=nruns)
     condition_func = SubgraphFusion.can_be_applied
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_func)
@@ -101,9 +101,19 @@ if __name__ == "__main__":
                        'correlation']
 
     # Part I: Just list up all the subgraphs
-    test_listing('softmax', ConnectedEnumerator, view = False)
-    test_listing('softmax', BruteForceEnumerator, view = False)
+    '''
+    test_listing('softmax',
+                 ConnectedEnumerator,
+                 view = False)
+    test_listing('softmax',
+                 BruteForceEnumerator,
+                 view = False)
+    '''
 
     # Part II: List up all the subgraphs and execute them
-    test_executor('synthetic', ConnectedEnumerator, view = False)
-    test_executor('synthetic', BruteForceEnumerator, view = False)
+    test_executor('softmax',
+                  ConnectedEnumerator,
+                  nruns = 30)
+    test_executor('softmax',
+                  BruteForceEnumerator,
+                  nruns = 30)

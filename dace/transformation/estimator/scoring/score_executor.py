@@ -5,6 +5,7 @@ from dace.properties import make_properties, Property
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
 
+import dace
 import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
@@ -55,6 +56,10 @@ class ExecutionScore(ScoringFunction):
         self._outputs = outputs
         self._symbols = symbols
 
+        # if nruns is defined, change config
+        if nruns is not None:
+            dace.config.Config.set('treps', value=nruns)
+
         # run the graph to create a baseline
         self._median_rt_base = self.run_with_instrumentation(
                 sdfg = self._sdfg,
@@ -63,9 +68,6 @@ class ExecutionScore(ScoringFunction):
                 check = False,
                 set = True)
 
-        # if nruns is defined, change config
-        if nruns is not None:
-            dace.config.Config.set('treps', value=nruns)
 
     def run_with_instrumentation(self,
                                  sdfg: SDFG,
@@ -77,6 +79,14 @@ class ExecutionScore(ScoringFunction):
         '''
         runs an sdfg with instrumentation on all outermost scope
         maps and returns their added runtimes
+        :param sdfg:        SDFG
+        :param graph:       SDFGState of interest
+        :param map_entries: List of outermost scope map entries
+                            If None, those get calculated
+        :param check:       Check whether the outputs are the
+                            same as the output class variable
+        :param set:         Set the output class variable to
+                            the output produced by this call
         '''
         if map_entries is None:
             map_entries = helpers.get_outermost_scope_maps(sdfg, graph)
@@ -92,42 +102,53 @@ class ExecutionScore(ScoringFunction):
 
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
-        outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()}
+        outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()
+                         if ok != '__return'}
         for ok, kv in outputs_local.items():
             kv.fill(0)
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
             print(np.linalg.norm(self._outputs[ok]))
+
+        # execute and instrument
         try:
             r = sdfg(**self._inputs, **outputs_local, **self._symbols)
-            if '__return' in outputs_local:
-                outputs_local['__return'] = r
-        except:
-            print("ERROR")
-            print("Runtime Error in current Configuration")
+            outputs_local['__return'] = r
+
+        except Exception as e:
+            warnings.warn("ERROR")
+            print("Runtime Error in current Configuration:")
+            print(e)
 
         if check:
             # this block asserts whether outputs are the same
             nv = True
             for (ok, ov) in self._outputs.items():
-                if not np.allclose(outputs_local[ok], ov):
-                    warnings.warn('Wrong output!')
+                if ov is not None and not np.allclose(outputs_local[ok], ov):
+                    # the output is wrong, generate warning and output info
+                    warnings.warn('WRONG OUTPUT!')
                     if nv:
                         #sdfg.view()
                         nv = False
-                    print('Original Output:',np.linalg.norm(ov))
-                    print('Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
-                else:
+                    print('L2 Original Output:',np.linalg.norm(ov))
+                    print('L2 Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
+                elif ov is not None:
+                    # the output appears to be correct
                     print("PASS")
                     print(np.linalg.norm(ov))
                     print(np.linalg.norm(outputs_local[ok]))
-
+                else:
+                    # function has no return value
+                    pass
         if set:
             # this block sets self._outputs according to the local
             # result. used for initialization.
             for (ok, ov) in outputs_local.items():
+                print("##")
+                print(ok)
                 self._outputs[ok] = ov
+
 
         # remove old maps instrumentation
         for map_entry in map_entries:
@@ -136,7 +157,6 @@ class ExecutionScore(ScoringFunction):
         # get timing results
         files = [f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
                                                     if f.startswith('report-')]
-        print(files)
         assert len(files) > 0
 
         json_file = sorted(files, reverse = True)[0]

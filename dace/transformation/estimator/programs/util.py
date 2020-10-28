@@ -75,11 +75,10 @@ def fusion(sdfg: dace.SDFG,
     if not isinstance(subgraph, list):
         subgraph = [subgraph]
 
-    map_fusion = SubgraphFusion(subgraph[0])
-    for (property, val) in kwargs.items():
-        setattr(map_fusion, property, val)
-
     for sg in subgraph:
+        map_fusion = SubgraphFusion(sg)
+        for (property, val) in kwargs.items():
+            setattr(map_fusion, property, val)
         map_entries = helpers.get_outermost_scope_maps(sdfg, graph, sg)
         # remove map_entries and their corresponding exits from the subgraph
         # already before applying transformation
@@ -92,3 +91,18 @@ def fusion(sdfg: dace.SDFG,
         map_fusion.fuse(sdfg, graph, map_entries)
         if isinstance(sg, SubgraphView):
             sg.nodes().append(map_fusion._global_map_entry)
+
+def stencil_tiling(sdfg: dace.SDFG,
+                   graph: dace.SDFGState,
+                   subgraph: Union[SubgraphView, List[SubgraphView]] = None,
+                   **kwargs):
+
+    subgraph = graph if not subgraph else subgraph
+    if not isinstance(subgraph, list):
+        subgraph = [subgraph]
+
+    for sg in subgraph:
+        stencil_tiling = StencilTiling(sg)
+        for (property, val) in kwargs.items():
+            setattr(map_fusion, property, val)
+        stencil_tiling.apply(sdfg)
