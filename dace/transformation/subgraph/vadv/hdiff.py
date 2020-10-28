@@ -86,8 +86,8 @@ def apply_stencil_tiling(sdfg, nested = False,
     transformation = StencilTiling(subgraph, nsdfg.sdfg_id,
                                    nsdfg.nodes().index(ngraph))
     transformation.unroll_loops = unroll
-    assert transformation.can_be_applied(sdfg, subgraph)
-    # TODO
+    #assert transformation.can_be_applied(sdfg, subgraph)
+
     if len(tile_size) == 1:
         tile_size = tile_size * 2
     transformation.strides = (1, 1, tile_size[0], tile_size[1])
@@ -205,9 +205,9 @@ def test(compile = True, view = True,
     acrlat0 = np.random.rand(J).astype(DATATYPE)
     crlavo = np.random.rand(J).astype(DATATYPE)
     crlavu = np.random.rand(J).astype(DATATYPE)
-    hdmask = np.random.rand( J, K, I ).astype(DATATYPE)
-    w_in = np.random.rand( J, K, I).astype(DATATYPE)
-    v_in = np.random.rand( J, K, I).astype(DATATYPE)
+    hdmask = np.random.rand(J, K, I).astype(DATATYPE)
+    w_in = np.random.rand(J, K, I).astype(DATATYPE)
+    v_in = np.random.rand(J, K, I).astype(DATATYPE)
 
 
     # compile -- first without anyting
@@ -244,6 +244,7 @@ def test(compile = True, view = True,
 
 
     apply_map_fission(sdfg)
+
     if not nested:
         sdfg.apply_strict_transformations()
     if view:
@@ -263,6 +264,7 @@ def test(compile = True, view = True,
         #      I=I, J=J, K=K, halo = halo)
 
     collapse_outer_maps(sdfg, nested=nested)
+    sdfg.save('hdiff32.sdfg')
     if view:
         sdfg.view()
     if compile:
@@ -334,7 +336,6 @@ def test(compile = True, view = True,
                   sequential = sequential)
     if view:
         sdfg.view()
-    sdfg.view()
     if compile:
         pp5 = np.zeros([ J, K, I ], dtype = DATATYPE)
         w5 = np.zeros([ J, K, I ], dtype = DATATYPE)
