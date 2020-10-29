@@ -57,7 +57,8 @@ def test_executor(program_name: str,
                   enumerator_type: Type,
                   view: bool = False,
                   gpu: bool = False,
-                  nruns: int = None):
+                  nruns: int = None,
+                  transformations = [SubgraphFusion]):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
@@ -77,7 +78,8 @@ def test_executor(program_name: str,
                                   outputs=outputs,
                                   symbols=symbols,
                                   gpu=gpu,
-                                  nruns=nruns)
+                                  nruns=nruns,
+                                  transformations = transformations)
     condition_func = SubgraphFusion.can_be_applied
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_func)
@@ -102,7 +104,7 @@ if __name__ == "__main__":
 
     # Part I: Just list up all the subgraphs
     '''
-    test_listing('softmax',
+    test_listing('vadv',
                  ConnectedEnumerator,
                  view = False)
     test_listing('softmax',
@@ -111,7 +113,7 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
-    test_executor('softmax',
+    test_executor('hdiff',
                   ConnectedEnumerator,
                   nruns = 30)
     test_executor('softmax',

@@ -3,6 +3,7 @@ import dace
 from dace.transformation.subgraph import MultiExpansion
 from dace.transformation.subgraph import SubgraphFusion
 from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph import StencilTiling
 import dace.transformation.subgraph.helpers as helpers
 
 from dace.sdfg.graph import SubgraphView

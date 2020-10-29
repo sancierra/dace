@@ -10,7 +10,7 @@ import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
 from collections import deque, defaultdict, ChainMap
-from typing import Set, Union, List, Callable, Dict
+from typing import Set, Union, List, Callable, Dict, Type
 
 from dace.transformation.estimator.scoring import ScoringFunction
 
@@ -34,6 +34,7 @@ class ExecutionScore(ScoringFunction):
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  nruns = None,
+                 transformations: List[Type] = [SubgraphFusion]
                  ):
         super().__init__(sdfg, graph, subgraph)
 
@@ -50,7 +51,7 @@ class ExecutionScore(ScoringFunction):
         self._sdfg_id = sdfg.sdfg_id
         self._state_id = sdfg.nodes().index(graph)
         self._map_entries = map_entries
-
+        self._transformations = transformations
         # input arguments: we just create a class variable
         self._inputs = inputs
         self._outputs = outputs
@@ -102,10 +103,16 @@ class ExecutionScore(ScoringFunction):
 
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
-        outputs_local = {ok: ov.copy() for (ok, ov) in self._outputs.items()
-                         if ok != '__return'}
-        for ok, kv in outputs_local.items():
-            kv.fill(0)
+        outputs_local = {}
+        for ok, ov in self._outputs.items():
+            if ok in self._inputs:
+                # create a copy of the input
+                outputs_local[ok] = self._inputs[ok].copy()
+            elif ok != '__return':
+                # pure output value, just do a setzero
+                outputs_local[ok] = ov.copy()
+                outputs_local[ok].fill(0)
+
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
@@ -113,7 +120,9 @@ class ExecutionScore(ScoringFunction):
 
         # execute and instrument
         try:
-            r = sdfg(**self._inputs, **outputs_local, **self._symbols)
+            sdfg_inputs = {k:v for (k,v) in self._inputs.items()
+                           if k not in outputs_local}
+            r = sdfg(**sdfg_inputs, **outputs_local, **self._symbols)
             outputs_local['__return'] = r
 
         except Exception as e:
@@ -129,8 +138,10 @@ class ExecutionScore(ScoringFunction):
                     # the output is wrong, generate warning and output info
                     warnings.warn('WRONG OUTPUT!')
                     if nv:
-                        #sdfg.view()
+                        sdfg.view()
                         nv = False
+                    print('ERROR in array')
+                    print(ok)
                     print('L2 Original Output:',np.linalg.norm(ov))
                     print('L2 Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
                 elif ov is not None:
@@ -189,9 +200,17 @@ class ExecutionScore(ScoringFunction):
         graph_copy = sdfg_copy.nodes()[self._state_id]
         subgraph_copy = SubgraphView(graph_copy, \
                                      [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
-        fusion = SubgraphFusion(subgraph_copy)
-        fusion.apply(sdfg_copy)
 
+        for trafo_type in self._transformations:
+            transformation = trafo_type(subgraph_copy)
+            transformation.apply(sdfg_copy)
+
+            # if transformation has new field _outer_maps (e.g in StencilTiling),
+            # add those to the subgraph
+            if '_outer_maps' in transformation.__dict__:
+                subgraph_copy._subgraph_nodes += list(transformation._outer_maps)
+
+        sdfg_copy.view()
         # run and measure
         median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
