@@ -86,7 +86,7 @@ def apply_stencil_tiling(sdfg, nested = False,
     transformation = StencilTiling(subgraph, nsdfg.sdfg_id,
                                    nsdfg.nodes().index(ngraph))
     transformation.unroll_loops = unroll
-    #assert transformation.can_be_applied(sdfg, subgraph)
+    assert transformation.can_be_applied(sdfg, subgraph)
 
     if len(tile_size) == 1:
         tile_size = tile_size * 2

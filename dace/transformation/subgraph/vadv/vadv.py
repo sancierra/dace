@@ -168,26 +168,33 @@ def test_fuse_all_numerically(gpu = False, view = False):
                 J=np.int32(J),
                 K=np.int32(K),
                 **strides)
+
+    for k, v in args1.items():
+        print(k, v)
     args1.update({'wcon': wcon.copy(), 'u_stage': u_stage.copy(),
                   'utens_stage': utens_stage.copy(), 'u_pos': u_pos.copy(),
                   'utens': utens.copy()})
 
     args2 = copy.deepcopy(args1)
 
-    sdfg.specialize(dict(I=I, J=J, K=K))
+    #sdfg.specialize(dict(I=I, J=J, K=K))
     #dace.Config.set('compiler', 'use_cache', value=True)
 
+    sdfg.save('vadv32.sdfg')
     if view:
         sdfg.view()
-    csdfg = sdfg.compile(optimizer=False)
+    csdfg = sdfg.compile()
     csdfg(**args1)
+    del csdfg
 
 
     fusion(sdfg, graph)
 
     sdfg._name = 'fused'
-    csdfg = sdfg.compile(optimizer = False)
+    csdfg = sdfg.compile()
     csdfg(**args2)
+    del csdfg
+
     if view:
         sdfg.view()
 
@@ -316,20 +323,24 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 
     args2 = copy.deepcopy(args1)
 
-    sdfg.specialize(dict(I=I, J=J, K=K))
+    #sdfg.specialize(dict(I=I, J=J, K=K))
     #dace.Config.set('compiler', 'use_cache', value=True)
 
+    sdfg.save('vadv32.sdfg')
     if view:
         sdfg.view()
-    csdfg = sdfg.compile(optimizer=False)
+    csdfg = sdfg.compile()
     csdfg(**args1)
+    del csdfg
 
 
     fusion(sdfg, graph, subgraph1)
     fusion(sdfg, graph, subgraph2)
 
-    csdfg = sdfg.compile(optimizer = False)
+    csdfg = sdfg.compile()
     csdfg(**args2)
+    del csdfg
+
     if view:
         sdfg.view()
 
@@ -340,43 +351,8 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 
 #view_all()
 #test_matching()
-test_fuse_all()
-#test_fuse_all_numerically(view = False, gpu = True )
+#test_fuse_all()
+test_fuse_all_numerically(view = True, gpu = False )
 #test_fuse_partial_numerically(view = False, gpu = False)
 
 #test_fuse_partial()
-
-
-'''
-#test_fuse_all_state_push()
-def test_fuse_all_state_push(view = True):
-    # NOTE: this does not work as expected with
-    # current StateFusion -- too weak
-    # can just inline back
-    if view:
-        vadv_unfused.view()
-    graph = vadv_unfused.nodes()[0]
-    # in every map, push everything into states
-    scope_dict = graph.scope_dict(node_to_children=True)
-    print("SCOPE_DICT", scope_dict)
-
-    map_entries = subgraph.helpers.get_highest_scope_maps(vadv_unfused, graph)
-
-    for parent in scope_dict.keys():
-        if parent in map_entries:
-            print("PARENT", parent)
-            node_list = scope_dict[parent].copy()
-            print("NODE LIST", node_list)
-            node_list.remove(graph.exit_node(parent))
-            print("NODE LIST", node_list)
-            test = graph.scope_tree()
-            subgraph = dace.sdfg.graph.SubgraphView(graph, node_list)
-            nest_state_subgraph(vadv_unfused, graph, subgraph)
-
-    subgraph = dace.sdfg.graph.SubgraphView(graph, [node for node in graph.nodes()])
-    fusion = subgraph.SubgraphFusion()
-    fusion.apply(vadv_unfused, subgraph)
-    vadv_unfused.apply_transformations_repeated(NestSDFG)
-    if view:
-        vadv_unfused.view()
-'''

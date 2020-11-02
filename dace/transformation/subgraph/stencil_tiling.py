@@ -180,12 +180,14 @@ class StencilTiling(transformation.SubgraphTransformation):
         graph = subgraph.graph
         map_entries = set(
             helpers.get_outermost_scope_maps(sdfg, graph, subgraph))
+        # 1.1: There has to be more than one outermost scope map entry
         if len(map_entries) < 1:
             return False
 
-        # all parameters have to be the same (this implies same length)
-        # we do not want any permutations here as this gets too messy
-        # we also want all strides to be the same
+        # 1.2: check basic constraints:
+        # - all parameters have to be the same (this implies same length)
+        # - no parameter permutations here as ambiguity is very high then
+        # - same strides everywhere
         params = dcpy(next(iter(map_entries)).map.params)
         strides = next(iter(map_entries)).map.range.strides()
         for map_entry in map_entries:
@@ -194,7 +196,7 @@ class StencilTiling(transformation.SubgraphTransformation):
             if map_entry.map.range.strides() != strides:
                 return False
 
-        # check whether all map entries only differ by a const amount
+        # 1.3: check whether all map entries only differ by a const amount
         first_entry = next(iter(map_entries))
         for map_entry in map_entries:
             for r1, r2 in zip(map_entry.map.range, first_entry.map.range):
@@ -208,51 +210,98 @@ class StencilTiling(transformation.SubgraphTransformation):
                                                         map_entries)
         (_, intermediate_nodes, out_nodes) = node_config
 
-        # check whether topologically feasible
+        # 1.4: check topological feasibility
         if not SubgraphFusion.check_topo_feasibility(
                 sdfg, graph, map_entries, intermediate_nodes, out_nodes):
             return False
 
         # get coverages for every map entry
         coverages = {}
+        memlets = {}
         for map_entry in map_entries:
             coverages[map_entry] = StencilTiling.coverage_dicts(
                 sdfg, graph, map_entry)
+            memlets[map_entry] = StencilTiling.coverage_dicts(
+                sdfg, graph, map_entry, outer_range = False)
+
 
         # get DAG neighbours for each map
         dag_neighbors = StencilTiling.topology(sdfg, graph, map_entries)
         (children_dict, parent_dict, sink_maps) = dag_neighbors
 
-        # we now check coverage:
+        # 1.5: we now check coverage:
         # each outgoing coverage for a data memlet has to
         # be exactly equal to the union of incoming coverages
         # of all chidlren map memlets of this data
-        # it has to be equal and not only cover it in order to
-        # account for ranges too long
+
+        # important:
+        # 1. it has to be equal and not only cover it in order to
+        #    account for ranges too long
+        # 2. we check coverages by map parameter and not by
+        #    array, this way it is even more general
+        # 3. map parameter coverages are checked for each
+        #    (map_entry, children of this map_entry) - pair
         for map_entry in map_entries:
+            print("-----------", map_entry, "------------")
+            # get coverage from current map_entry
             map_coverage = coverages[map_entry][1]
-            #param_coverage_parent = defaultdict(None)
-            #param_coverage_child = defaultdict(None)
-            for (data_name, cov) in map_coverage.items():
-                parent_coverage = cov
-                children_coverage = None
-                for child_entry in children_dict[map_entry]:
+
+            # final mapping map_parameter -> coverage will be stored here
+            param_parent_coverage = {p: None for p in map_entry.params}
+            param_children_coverage = {p: None for p in map_entry.params}
+            for child_entry in children_dict[map_entry]:
+                print("----", child_entry, "----")
+                # get mapping data_name -> coverage
+                for (data_name, cov) in map_coverage.items():
+                    parent_coverage = cov
+                    children_coverage = None
                     if data_name in coverages[child_entry][0]:
                         children_coverage = subsets.union(
                             children_coverage,
                             coverages[child_entry][0][data_name])
-                '''
-                for p_subset, c_subset in zip(parent_coverage, children_coverage):
-                    param = set()
-                    for d in dim:
-                        param |= symbolic.symlist(p_subset).keys()
-                    if len(param) > 1:
-                        return False
-                    try:
-                        symbol = next(iter(param))
-                    except:
-                        pass
-                    param_coverage_parent[symbol] = subsets.union()
+
+                    # extend mapping map_parameter -> coverage
+                    # by the previous mapping
+                    print("data_name", data_name)
+                    print("parent_coverage", parent_coverage)
+                    print("child_coverage", children_coverage)
+                    for i, (p_subset, c_subset) in enumerate(zip(parent_coverage, children_coverage)):
+                        print("p_subset", p_subset)
+                        print("c_subset", c_subset)
+                        # transform into subset
+                        p_subset = subsets.Range((p_subset,))
+                        c_subset = subsets.Range((c_subset,))
+
+                        # get associated parameter in memlet
+                        params1 = symbolic.symlist(memlets[map_entry][1][data_name][i]).keys()
+                        params2 = symbolic.symlist(memlets[child_entry][0][data_name][i]).keys()
+                        if params1 != params2:
+                            return False
+                        params = params1
+                        print("***PARAMS", params)
+                        if len(params) > 1:
+                            # this is not supported
+                            return False
+                        try:
+                            symbol = next(iter(params))
+                            param_parent_coverage[symbol] = subsets.union(param_parent_coverage[symbol], p_subset)
+                            param_children_coverage[symbol] = subsets.union(param_children_coverage[symbol], c_subset)
+
+                        except StopIteration:
+                            # current dim has no symbol associated.
+                            # ignore and continue
+                            warnings.warning(f"In map {map_entry}, there is a "
+                                              "dimension belonging to {data_name} "
+                                              "that has no map parameter associated.")
+                            pass
+
+            # 1.5: parameter mapping must be the same
+            if param_parent_coverage != param_children_coverage:
+                print("NOT THE SAME")
+                print(param_parent_coverage)
+                print(param_children_coverage)
+                return False
+
                 '''
 
                 # if there are no children data edges at all, we just ignore
@@ -260,7 +309,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 # however, if there are any, we make sure that the children union
                 # is exactly the same
                 if children_coverage is not None and parent_coverage != children_coverage:
-                    '''
+
                     print("******")
                     print("children", children_dict[map_entry])
                     print("coverage parent", coverages[map_entry][1])
@@ -270,12 +319,12 @@ class StencilTiling(transformation.SubgraphTransformation):
                     print(parent_coverage)
                     print(children_coverage)
                     print("COV")
-                    '''
+
                     return False
+                '''
+            # check whether all parameter dimensions are the same
 
-        # last condition: we want all sink maps to have the same
-        # range size
-
+        # 1.6: we want all sink maps to have the same range size
         assert len(sink_maps) > 0
         first_sink_map = next(iter(sink_maps))
         if not all([
@@ -513,6 +562,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 stripmine.tile_size = str(tile_stride)
                 stripmine.tile_stride = str(tile_stride)
                 outer_map = stripmine.apply(sdfg)
+
 
                 # apply to the new map the schedule of the original one
                 map_entry.schedule = self.schedule

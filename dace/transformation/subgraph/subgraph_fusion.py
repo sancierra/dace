@@ -41,7 +41,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
     """
 
-    debug = Property(desc="Show debug info", dtype=bool, default=False)
+    debug = Property(desc="Show debug info", dtype=bool, default=True)
 
     transient_allocation = Property(
         desc="Storage Location to push transients to that are "
@@ -91,9 +91,16 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         map_exits = [graph.exit_node(map_entry) for map_entry in map_entries]
         maps = [map_entry.map for map_entry in map_entries]
 
-        # 1. check whether all map ranges and indices are the same
+        # 1. basic checks:
+        # 1.1 we need to have at least two maps
         if len(maps) <= 1:
             return False
+        '''
+        # 1.2 Special Case: If we can establish a valid permutation, we can
+        #     skip check 1.3
+        permutation = self.find_permutation
+        '''
+        # 1.3 check whether all maps are the same
         base_map = maps[0]
         for map in maps:
             if map.get_param_num() != base_map.get_param_num():
@@ -103,8 +110,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                 return False
             if not map.range == base_map.range:
                 return False
-
-        # 1.1 check whether all map entries have the same schedule
+        # 1.3 check whether all map entries have the same schedule
         schedule = map_entries[0].schedule
         if not all([entry.schedule == schedule for entry in map_entries]):
             return False
@@ -200,6 +206,41 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     return False
 
         return True
+
+    @staticmethod
+    def find_permutation(map_entries: List[nodes.MapEntry]) \
+                 -> Union[List[int], None]:
+        """ Find permutation between map ranges.
+            :param map_entries: List of map entries
+            :return: None if no such permutation exists, otherwise a dict
+                     that maps each map to a list of
+                     indices L such that L[x]'th parameter of
+                     each map have the same range.
+            """
+        result_dict = {}
+        first_map = map_entries[0]
+        for other_map in map_entries:
+            if len(first_map.map.range) != len(other_map.map.range):
+                return None
+
+        for other_map in map_entries:
+            # Match map ranges with reduce ranges
+            result = []
+            for i, tmap_rng in enumerate(first_map.map.range):
+                found = False
+                for j, rng in enumerate(other_map.map.range):
+                    if tmap_rng == rng and j not in result:
+                        result.append(j)
+                        found = True
+                        break
+                if not found:
+                    break
+            # Ensure all map ranges matched
+            if len(result) != len(first_map.map.range):
+                return None
+            result_dict[other_map] = result
+
+        return result_dict
 
     @staticmethod
     def get_adjacent_nodes(sdfg, graph, map_entries):
@@ -491,26 +532,22 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # subgraph_contains_data is true that lists invariant axes.
         invariant_dimensions = {}
         for node in intermediate_nodes:
-            if subgraph_contains_data[node.data]:
-                # only need to check in this case
-                # else the array doesn't get modified and we don't
-                # need invariate dimensions
-                data = node.data
-                inv_dims = SubgraphFusion.get_invariant_dimensions(
-                    sdfg, graph, map_entries, map_exits, node)
-                if node in invariant_dimensions:
-                    # do a check -- we want the same result for each
-                    # node containing the same data
-                    if not inv_dims == invariant_dimensions[node]:
-                        warnings.warn(
-                            f"WARNING: Data dimensions that are not propagated through differ"
-                            "across multiple instances of access nodes for data {node.data}"
-                            "Please check whether all memlets to AccessNodes containing"
-                            "this data are sound.")
-                        invariant_dimensions[data] |= inv_dims
+            data = node.data
+            inv_dims = SubgraphFusion.get_invariant_dimensions(
+                sdfg, graph, map_entries, map_exits, node)
+            if node in invariant_dimensions:
+                # do a check -- we want the same result for each
+                # node containing the same data
+                if not inv_dims == invariant_dimensions[node]:
+                    warnings.warn(
+                        f"WARNING: Data dimensions that are not propagated through differ"
+                        "across multiple instances of access nodes for data {node.data}"
+                        "Please check whether all memlets to AccessNodes containing"
+                        "this data are sound.")
+                    invariant_dimensions[data] |= inv_dims
 
-                else:
-                    invariant_dimensions[data] = inv_dims
+            else:
+                invariant_dimensions[data] = inv_dims
 
         return (subgraph_contains_data, transients_created,
                 invariant_dimensions)
@@ -686,8 +723,19 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         global_map_exit.add_in_connector(in_conn)
                         global_map_exit.add_out_connector(out_conn)
 
+                        # for each transient created, create a union
+                        # of outgoing memlets' subsets. this is
+                        # a cheap fix to override assignments in invariant
+                        # dimensions
+                        union = None
+                        for oe in graph.out_edges(transients_created[dst]):
+                            union = subsets.union(union, oe.data.subset)
                         inner_memlet = dcpy(edge.data)
-                        inner_memlet.other_subset = dcpy(edge.data.subset)
+                        for i,s in enumerate(edge.data.subset):
+                            if i in invariant_dimensions[dst.label]:
+                                inner_memlet.subset[i] = union[i]
+
+                        inner_memlet.other_subset = dcpy(inner_memlet.subset)
 
                         e_inner = graph.add_edge(dst, None, global_map_exit,
                                                  in_conn, inner_memlet)
