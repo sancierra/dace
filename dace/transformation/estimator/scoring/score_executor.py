@@ -1,6 +1,6 @@
 """ This file implements the ExecutionScore class """
 
-from dace.transformation.subgraph import SubgraphFusion, helpers
+from dace.transformation.subgraph import SubgraphFusion, StencilTiling, helpers
 from dace.properties import make_properties, Property
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
@@ -88,6 +88,7 @@ class ExecutionScore(ScoringFunction):
                             same as the output class variable
         :param set:         Set the output class variable to
                             the output produced by this call
+
         '''
         if map_entries is None:
             map_entries = helpers.get_outermost_scope_maps(sdfg, graph)
@@ -201,18 +202,22 @@ class ExecutionScore(ScoringFunction):
         subgraph_copy = SubgraphView(graph_copy, \
                                      [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
 
+        map_entries_copy = helpers.get_outermost_scope_maps(sdfg_copy, graph_copy)
+        print("SUBGRAPH:", subgraph_copy)
         for trafo_type in self._transformations:
             transformation = trafo_type(subgraph_copy)
             transformation.apply(sdfg_copy)
 
-            # if transformation has new field _outer_maps (e.g in StencilTiling),
-            # add those to the subgraph
-            if '_outer_maps' in transformation.__dict__:
-                subgraph_copy._subgraph_nodes += list(transformation._outer_maps)
+            # StencilTiling: add to nodes
+            if isinstance(trafo_type, StencilTiling):
+                for map_entry in map_entries_copy:
+                    outer_entry = graph_copy.in_edges(map_entry)[0].src
+                    outer_exit = graph.exit_node(outer_entry)
+                    subgraph_copy._subgraph_nodes += [outer_entry, outer_exit]
 
-        sdfg_copy.view()
+
         # run and measure
-        median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
+        median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy, map_entries_copy)
 
 
         return median_rt_fuse / self._median_rt_base

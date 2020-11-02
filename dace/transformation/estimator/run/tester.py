@@ -7,7 +7,7 @@ import numpy as np
 import sys
 
 from dace.sdfg.graph import SubgraphView
-from dace.transformation.subgraph import SubgraphFusion
+from dace.transformation.subgraph import SubgraphFusion, StencilTiling
 from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ExecutionScore
 from dace.transformation.estimator.programs import factory
 from typing import Type, List
@@ -58,7 +58,8 @@ def test_executor(program_name: str,
                   view: bool = False,
                   gpu: bool = False,
                   nruns: int = None,
-                  transformations = [SubgraphFusion]):
+                  transformations = [SubgraphFusion],
+                  condition_function = SubgraphFusion.can_be_applied):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
@@ -80,9 +81,8 @@ def test_executor(program_name: str,
                                   gpu=gpu,
                                   nruns=nruns,
                                   transformations = transformations)
-    condition_func = SubgraphFusion.can_be_applied
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
-                              condition_func)
+                              condition_function)
     print(subgraph_list)
     print("*** Results ***")
     print("Top 10")
@@ -113,9 +113,24 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
-    test_executor('hdiff',
+
+    test_executor('vadv',
                   ConnectedEnumerator,
                   nruns = 30)
+    '''
     test_executor('softmax',
-                  BruteForceEnumerator,
+                  ConnectedEnumerator,
                   nruns = 30)
+    test_executor('vadv',
+                  ConnectedEnumerator,
+                  nruns = 30)
+    test_executor('hdiff_mini',
+                  ConnectedEnumerator,
+                  nruns = 30)
+
+    test_executor('hdiff_mini',
+                  ConnectedEnumerator,
+                  nruns = 30,
+                  transformations = [StencilTiling, SubgraphFusion],
+                  condition_function = StencilTiling.can_be_applied)
+    '''
