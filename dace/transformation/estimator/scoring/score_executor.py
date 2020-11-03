@@ -203,7 +203,7 @@ class ExecutionScore(ScoringFunction):
                                      [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
 
         map_entries_copy = helpers.get_outermost_scope_maps(sdfg_copy, graph_copy)
-        print("SUBGRAPH:", subgraph_copy)
+        print("SUBGRAPH:", subgraph_copy.nodes())
         for trafo_type in self._transformations:
             transformation = trafo_type(subgraph_copy)
             transformation.apply(sdfg_copy)

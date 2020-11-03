@@ -181,7 +181,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         map_entries = set(
             helpers.get_outermost_scope_maps(sdfg, graph, subgraph))
         # 1.1: There has to be more than one outermost scope map entry
-        if len(map_entries) < 1:
+        if len(map_entries) <= 1:
             return False
 
         # 1.2: check basic constraints:
@@ -214,7 +214,10 @@ class StencilTiling(transformation.SubgraphTransformation):
         if not SubgraphFusion.check_topo_feasibility(
                 sdfg, graph, map_entries, intermediate_nodes, out_nodes):
             return False
-
+        # 1.5 nodes that are both intermediate and out nodes
+        # are not supported in StencilTiling
+        if len(intermediate_nodes & out_nodes) > 0:
+            return False 
         # get coverages for every map entry
         coverages = {}
         memlets = {}
@@ -229,7 +232,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         dag_neighbors = StencilTiling.topology(sdfg, graph, map_entries)
         (children_dict, parent_dict, sink_maps) = dag_neighbors
 
-        # 1.5: we now check coverage:
+        # 1.6: we now check coverage:
         # each outgoing coverage for a data memlet has to
         # be exactly equal to the union of incoming coverages
         # of all chidlren map memlets of this data
@@ -242,7 +245,6 @@ class StencilTiling(transformation.SubgraphTransformation):
         # 3. map parameter coverages are checked for each
         #    (map_entry, children of this map_entry) - pair
         for map_entry in map_entries:
-            print("-----------", map_entry, "------------")
             # get coverage from current map_entry
             map_coverage = coverages[map_entry][1]
 
@@ -250,7 +252,6 @@ class StencilTiling(transformation.SubgraphTransformation):
             param_parent_coverage = {p: None for p in map_entry.params}
             param_children_coverage = {p: None for p in map_entry.params}
             for child_entry in children_dict[map_entry]:
-                print("----", child_entry, "----")
                 # get mapping data_name -> coverage
                 for (data_name, cov) in map_coverage.items():
                     parent_coverage = cov
@@ -262,12 +263,16 @@ class StencilTiling(transformation.SubgraphTransformation):
 
                     # extend mapping map_parameter -> coverage
                     # by the previous mapping
+                    '''
                     print("data_name", data_name)
                     print("parent_coverage", parent_coverage)
                     print("child_coverage", children_coverage)
+                    '''
                     for i, (p_subset, c_subset) in enumerate(zip(parent_coverage, children_coverage)):
+                        '''
                         print("p_subset", p_subset)
                         print("c_subset", c_subset)
+                        '''
                         # transform into subset
                         p_subset = subsets.Range((p_subset,))
                         c_subset = subsets.Range((c_subset,))
@@ -278,7 +283,6 @@ class StencilTiling(transformation.SubgraphTransformation):
                         if params1 != params2:
                             return False
                         params = params1
-                        print("***PARAMS", params)
                         if len(params) > 1:
                             # this is not supported
                             return False
@@ -295,7 +299,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                                               "that has no map parameter associated.")
                             pass
 
-            # 1.5: parameter mapping must be the same
+            # 1.6: parameter mapping must be the same
             if param_parent_coverage != param_children_coverage:
                 print("NOT THE SAME")
                 print(param_parent_coverage)

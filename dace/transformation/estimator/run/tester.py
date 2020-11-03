@@ -8,6 +8,7 @@ import sys
 
 from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling
+from dace.transformation.subgraph.composite import CompositeFusion
 from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ExecutionScore
 from dace.transformation.estimator.programs import factory
 from typing import Type, List
@@ -113,11 +114,11 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
-
+    '''
     test_executor('vadv',
                   ConnectedEnumerator,
                   nruns = 30)
-    '''
+
     test_executor('softmax',
                   ConnectedEnumerator,
                   nruns = 30)
@@ -127,10 +128,9 @@ if __name__ == "__main__":
     test_executor('hdiff_mini',
                   ConnectedEnumerator,
                   nruns = 30)
-
+    '''
     test_executor('hdiff_mini',
                   ConnectedEnumerator,
                   nruns = 30,
-                  transformations = [StencilTiling, SubgraphFusion],
-                  condition_function = StencilTiling.can_be_applied)
-    '''
+                  transformations = [CompositeFusion],
+                  condition_function = CompositeFusion.can_be_applied)
