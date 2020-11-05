@@ -30,7 +30,7 @@ def enumerate(sdfg, graph, enumerator_type, scoring_function,
                            condition_function=condition_function,
                            scoring_function=scoring_function)
 
-    subgraph_list = enum.list(include_score = True)
+    subgraph_list = enum.list(include_score=True)
     for sg in subgraph_list:
         print(sg)
     enum.histogram()
@@ -59,8 +59,8 @@ def test_executor(program_name: str,
                   view: bool = False,
                   gpu: bool = False,
                   nruns: int = None,
-                  transformation_function = CompositeFusion,
-                  condition_function = CompositeFusion.can_be_applied):
+                  transformation_function=CompositeFusion,
+                  condition_function=CompositeFusion.can_be_applied):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
@@ -74,14 +74,15 @@ def test_executor(program_name: str,
     # create ExecutionScore class
     io = factory.get_args(program_name)
     (inputs, outputs, symbols) = io
-    scoring_func = ExecutionScore(sdfg=sdfg,
-                                  graph=graph,
-                                  inputs=inputs,
-                                  outputs=outputs,
-                                  symbols=symbols,
-                                  gpu=gpu,
-                                  nruns=nruns,
-                                  transformation_function = transformation_function)
+    scoring_func = ExecutionScore(
+        sdfg=sdfg,
+        graph=graph,
+        inputs=inputs,
+        outputs=outputs,
+        symbols=symbols,
+        gpu=gpu,
+        nruns=nruns,
+        transformation_function=transformation_function)
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_function)
     print(subgraph_list)
@@ -95,13 +96,10 @@ def test_executor(program_name: str,
 
 
 if __name__ == "__main__":
-    program_options = ['synthetic',
-                       'softmax',
-                       'vadv'
-                       'hdiff',
-                       'hdiff_mini',
-                       'transformer',
-                       'correlation']
+    program_options = [
+        'synthetic', 'softmax', 'vadv'
+        'hdiff', 'hdiff_mini', 'transformer', 'correlation'
+    ]
 
     # Part I: Just list up all the subgraphs
     '''
@@ -114,9 +112,7 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
-    test_executor('softmax',
-                  ConnectedEnumerator,
-                  nruns = 5)
+    test_executor('softmax', ConnectedEnumerator, nruns=5)
     '''
     test_executor('vadv',
                   ConnectedEnumerator,

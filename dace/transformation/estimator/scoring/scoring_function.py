@@ -14,6 +14,7 @@ from typing import Set, Union, List, Callable, Type
 
 import json
 
+
 @make_properties
 class ScoringFunction:
     '''
@@ -26,7 +27,7 @@ class ScoringFunction:
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  transformation_function: Type = CompositeFusion,
-                 scope_dict = None,
+                 scope_dict=None,
                  **kwargs):
 
         # set sdfg-related variables
@@ -43,28 +44,31 @@ class ScoringFunction:
             # detect whether the state is assigned to GPU
             schedule = next(iter(map_entries)).schedule
             if any([m.schedule != schedule for m in map_entries]):
-                raise RuntimeError("Schedules in maps to analyze should be the same")
-            self._gpu = True if schedule in [dtypes.ScheduleType.GPU_Device, dtypes.ScheduleType.GPU_ThreadBlock] else False
+                raise RuntimeError(
+                    "Schedules in maps to analyze should be the same")
+            self._gpu = True if schedule in [
+                dtypes.ScheduleType.GPU_Device,
+                dtypes.ScheduleType.GPU_ThreadBlock
+            ] else False
         else:
             self._gpu = gpu
 
         # search for outermost map entries
-        self._map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph)
+        self._map_entries = helpers.get_outermost_scope_maps(
+            sdfg, graph, subgraph)
 
         # compile kwargs into search space
         self._search_space = {}
-        for (k,v) in kwargs:
+        for (k, v) in kwargs:
             if isinstance(v, (list, set)):
                 self._search_space[k] = v
             else:
                 self._search_space[k] = [v]
 
-
-
-    def score(self, subgraph: SubgraphView, ** kwargs):
+    def score(self, subgraph: SubgraphView, **kwargs):
         # NOTE: self._subgraph and subgraph are not the same!
         # subgraph has to be a subgraph of self._subgraph
         raise NotImplementedError
 
-    def __call__(self, subgraph: SubgraphView, ** kwargs):
+    def __call__(self, subgraph: SubgraphView, **kwargs):
         return self.score(subgraph, **kwargs)

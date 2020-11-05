@@ -19,6 +19,7 @@ import warnings
 import os
 import numpy as np
 
+
 @make_properties
 class ExecutionScore(ScoringFunction):
     '''
@@ -33,11 +34,15 @@ class ExecutionScore(ScoringFunction):
                  symbols: Dict,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
-                 nruns = None,
+                 nruns=None,
                  transformation_function: Type = SubgraphFusion,
                  **kwargs):
-        super().__init__(sdfg = sdfg, graph = graph, subgraph = subgraph, gpu = gpu, transformation_function = transformation_function, **kwargs)
-
+        super().__init__(sdfg=sdfg,
+                         graph=graph,
+                         subgraph=subgraph,
+                         gpu=gpu,
+                         transformation_function=transformation_function,
+                         **kwargs)
 
         # input arguments: we just create a class variable
         self._inputs = inputs
@@ -51,20 +56,18 @@ class ExecutionScore(ScoringFunction):
         # run the graph to create a baseline
         # Use sdfg_init for this it if is not None, else just our sdfg
         self._median_rt_base = self.run_with_instrumentation(
-                sdfg = self._sdfg,
-                graph = self._graph,
-                map_entries = self._map_entries,
-                check = False,
-                set = True)
-
+            sdfg=self._sdfg,
+            graph=self._graph,
+            map_entries=self._map_entries,
+            check=False,
+            set=True)
 
     def run_with_instrumentation(self,
                                  sdfg: SDFG,
                                  graph: SDFGState,
-                                 map_entries = None,
-                                 check = True,
-                                 set = False):
-
+                                 map_entries=None,
+                                 check=True,
+                                 set=False):
         '''
         runs an sdfg with instrumentation on all outermost scope
         maps and returns their added runtimes
@@ -109,8 +112,10 @@ class ExecutionScore(ScoringFunction):
 
         # execute and instrument
         try:
-            sdfg_inputs = {k:v for (k,v) in self._inputs.items()
-                           if k not in outputs_local}
+            sdfg_inputs = {
+                k: v
+                for (k, v) in self._inputs.items() if k not in outputs_local
+            }
             r = sdfg(**sdfg_inputs, **outputs_local, **self._symbols)
             outputs_local['__return'] = r
 
@@ -131,8 +136,9 @@ class ExecutionScore(ScoringFunction):
                         nv = False
                     print('ERROR in array')
                     print(ok)
-                    print('L2 Original Output:',np.linalg.norm(ov))
-                    print('L2 Transformed Ouput:', np.linalg.norm(outputs_local[ok]))
+                    print('L2 Original Output:', np.linalg.norm(ov))
+                    print('L2 Transformed Ouput:',
+                          np.linalg.norm(outputs_local[ok]))
                 elif ov is not None:
                     # the output appears to be correct
                     print("PASS")
@@ -149,17 +155,18 @@ class ExecutionScore(ScoringFunction):
                 print(ok)
                 self._outputs[ok] = ov
 
-
         # remove old maps instrumentation
         for map_entry in map_entries:
             map_entry.map.instrument = dtypes.InstrumentationType.No_Instrumentation
 
         # get timing results
-        files = [f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
-                                                    if f.startswith('report-')]
+        files = [
+            f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
+            if f.startswith('report-')
+        ]
         assert len(files) > 0
 
-        json_file = sorted(files, reverse = True)[0]
+        json_file = sorted(files, reverse=True)[0]
         runtime = 0.0
         path = os.path.join(sdfg.build_folder, 'perf', json_file)
         with open(path) as f:
@@ -198,6 +205,5 @@ class ExecutionScore(ScoringFunction):
 
         # run and measure
         median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
-
 
         return median_rt_fuse / self._median_rt_base

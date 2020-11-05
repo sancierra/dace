@@ -84,6 +84,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         graph = subgraph.graph
         for node in subgraph.nodes():
             if node not in graph.nodes():
+                print("not in graph")
                 return False
 
         # next, get all the maps
@@ -94,6 +95,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # 1. basic checks:
         # 1.1 we need to have at least two maps
         if len(maps) <= 1:
+            print("len")
             return False
         '''
         # 1.2 Special Case: If we can establish a valid permutation, we can
@@ -104,15 +106,19 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         base_map = maps[0]
         for map in maps:
             if map.get_param_num() != base_map.get_param_num():
+                print("params")
                 return False
             if not all(
                 [p1 == p2 for (p1, p2) in zip(map.params, base_map.params)]):
+                print("params")
                 return False
             if not map.range == base_map.range:
+                print("ranges")
                 return False
         # 1.3 check whether all map entries have the same schedule
         schedule = map_entries[0].schedule
         if not all([entry.schedule == schedule for entry in map_entries]):
+            print("scheudule")
             return False
 
         # 2. check intermediate feasiblility
@@ -129,6 +135,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # 2.2 topological feasibility:
         if not SubgraphFusion.check_topo_feasibility(
                 sdfg, graph, map_entries, intermediate_nodes, out_nodes):
+            print("TOPO")
             return False
 
         # 2.3 memlet feasibility
@@ -183,6 +190,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                 contiguous_upper = helpers.find_contiguous_subsets(
                     upper_subsets)
                 if len(contiguous_upper) > 1:
+                    print("CONT. SUBSETS")
                     return False
             except TypeError:
                 warnings.warn(
@@ -203,6 +211,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
             # every lower subset must be completely covered by union_upper
             for lower_subset in lower_subsets:
                 if not union_upper.covers(lower_subset):
+                    print("COVERAGE")
                     return False
 
         return True

@@ -13,6 +13,7 @@ from collections import deque, defaultdict, ChainMap
 from typing import Set, Union, List, Callable
 import itertools
 
+
 @make_properties
 class BruteForceEnumerator(Enumerator):
     def __init__(self,
@@ -20,16 +21,16 @@ class BruteForceEnumerator(Enumerator):
                  graph: SDFGState,
                  subgraph: SubgraphView = None,
                  condition_function: Callable = None,
-                 scoring_function = None):
+                 scoring_function=None):
         # initialize base class
-        super().__init__(sdfg, graph,
-                         subgraph = subgraph,
-                         condition_function = condition_function,
-                         scoring_function = scoring_function)
-
+        super().__init__(sdfg,
+                         graph,
+                         subgraph=subgraph,
+                         condition_function=condition_function,
+                         scoring_function=scoring_function)
 
     def brute_force(self):
-        for i in range(1, len(self._map_entries)+1):
+        for i in range(1, len(self._map_entries) + 1):
             for sg in itertools.combinations(self._map_entries, i):
                 # check whether either
                 # (1) no path between all maps
@@ -38,12 +39,14 @@ class BruteForceEnumerator(Enumerator):
                 # We just call can_be_applied which does more or less that
                 # with a bit of boilerplate.
 
-                current_subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, sg, self._scope_dict)
+                current_subgraph = helpers.subgraph_from_maps(
+                    self._sdfg, self._graph, sg, self._scope_dict)
 
                 # evaluate condition if specified
                 conditional_eval = True
                 if self._condition_function:
-                    conditional_eval = self._condition_function(self._sdfg, current_subgraph)
+                    conditional_eval = self._condition_function(
+                        self._sdfg, current_subgraph)
 
                 # evaluate score if possible
                 score = 0
@@ -53,7 +56,8 @@ class BruteForceEnumerator(Enumerator):
                 # yield element if condition is True
                 if conditional_eval:
                     self._histogram[len(sg)] += 1
-                    yield (list(sg), score) if self.mode == 'map_entries' else (current_subgraph, score)
+                    yield (list(sg), score) if self.mode == 'map_entries' else (
+                        current_subgraph, score)
 
     def iterator(self):
         self._histogram = defaultdict(int)

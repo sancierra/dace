@@ -188,12 +188,17 @@ class StencilTiling(transformation.SubgraphTransformation):
         # - all parameters have to be the same (this implies same length)
         # - no parameter permutations here as ambiguity is very high then
         # - same strides everywhere
-        params = dcpy(next(iter(map_entries)).map.params)
-        strides = next(iter(map_entries)).map.range.strides()
+        first_map = next(iter(map_entries))
+        params = dcpy(first_map.map.params)
+        strides = first_map.map.range.strides()
+        schedule = first_map.map.schedule
+
         for map_entry in map_entries:
             if map_entry.map.params != params:
                 return False
             if map_entry.map.range.strides() != strides:
+                return False
+            if map_entry.map.schedule != schedule:
                 return False
 
         # 1.3: check whether all map entries only differ by a const amount
@@ -217,7 +222,7 @@ class StencilTiling(transformation.SubgraphTransformation):
         # 1.5 nodes that are both intermediate and out nodes
         # are not supported in StencilTiling
         if len(intermediate_nodes & out_nodes) > 0:
-            return False 
+            return False
         # get coverages for every map entry
         coverages = {}
         memlets = {}
@@ -566,6 +571,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 stripmine.tile_size = str(tile_stride)
                 stripmine.tile_stride = str(tile_stride)
                 outer_map = stripmine.apply(sdfg)
+                outer_map.schedule = original_schedule
 
 
                 # apply to the new map the schedule of the original one
