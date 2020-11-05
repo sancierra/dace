@@ -59,8 +59,8 @@ def test_executor(program_name: str,
                   view: bool = False,
                   gpu: bool = False,
                   nruns: int = None,
-                  transformations = [SubgraphFusion],
-                  condition_function = SubgraphFusion.can_be_applied):
+                  transformation_function = CompositeFusion,
+                  condition_function = CompositeFusion.can_be_applied):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
@@ -81,7 +81,7 @@ def test_executor(program_name: str,
                                   symbols=symbols,
                                   gpu=gpu,
                                   nruns=nruns,
-                                  transformations = transformations)
+                                  transformation_function = transformation_function)
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_function)
     print(subgraph_list)
@@ -109,17 +109,16 @@ if __name__ == "__main__":
                  ConnectedEnumerator,
                  view = False)
     test_listing('softmax',
-                 BruteForceEnumerator,
+            ¨     BruteForceEnumerator,
                  view = False)
     '''
 
     # Part II: List up all the subgraphs and execute them
+    test_executor('softmax',
+                  ConnectedEnumerator,
+                  nruns = 5)
     '''
     test_executor('vadv',
-                  ConnectedEnumerator,
-                  nruns = 30)
-
-    test_executor('softmax',
                   ConnectedEnumerator,
                   nruns = 30)
     test_executor('vadv',
@@ -128,9 +127,8 @@ if __name__ == "__main__":
     test_executor('hdiff_mini',
                   ConnectedEnumerator,
                   nruns = 30)
-    '''
     test_executor('hdiff_mini',
                   ConnectedEnumerator,
                   nruns = 30,
-                  transformations = [CompositeFusion],
                   condition_function = CompositeFusion.can_be_applied)
+    '''

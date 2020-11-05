@@ -34,24 +34,11 @@ class ExecutionScore(ScoringFunction):
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  nruns = None,
-                 transformations: List[Type] = [SubgraphFusion]
-                 ):
-        super().__init__(sdfg, graph, subgraph)
+                 transformation_function: Type = SubgraphFusion,
+                 **kwargs):
+        super().__init__(sdfg = sdfg, graph = graph, subgraph = subgraph, gpu = gpu, transformation_function = transformation_function, **kwargs)
 
-        map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph)
-        if gpu is None:
-            # detect whether the state is assigned to GPU
-            schedule = next(iter(map_entries)).schedule
-            if any([m.schedule != schedule for m in map_entries]):
-                raise RuntimeError("Schedules in maps to analyze should be the same")
-            self._gpu = True if schedule in [dtypes.ScheduleType.GPU_Device, dtypes.ScheduleType.GPU_ThreadBlock] else False
-        else:
-            self._gpu = gpu
 
-        self._sdfg_id = sdfg.sdfg_id
-        self._state_id = sdfg.nodes().index(graph)
-        self._map_entries = map_entries
-        self._transformations = transformations
         # input arguments: we just create a class variable
         self._inputs = inputs
         self._outputs = outputs
@@ -62,6 +49,7 @@ class ExecutionScore(ScoringFunction):
             dace.config.Config.set('treps', value=nruns)
 
         # run the graph to create a baseline
+        # Use sdfg_init for this it if is not None, else just our sdfg
         self._median_rt_base = self.run_with_instrumentation(
                 sdfg = self._sdfg,
                 graph = self._graph,
@@ -195,29 +183,21 @@ class ExecutionScore(ScoringFunction):
         and returning the runtime
         '''
         # generate an instance of SubgraphFusion
-        # deepcopy the subgraph via json and apply transformation
+        # deepcopy the subgraph via json and apply transformation_function
 
         sdfg_copy = SDFG.from_json(self._sdfg.to_json())
         graph_copy = sdfg_copy.nodes()[self._state_id]
         subgraph_copy = SubgraphView(graph_copy, \
                                      [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
 
-        map_entries_copy = helpers.get_outermost_scope_maps(sdfg_copy, graph_copy)
         print("SUBGRAPH:", subgraph_copy.nodes())
-        for trafo_type in self._transformations:
-            transformation = trafo_type(subgraph_copy)
-            transformation.apply(sdfg_copy)
 
-            # StencilTiling: add to nodes
-            if isinstance(trafo_type, StencilTiling):
-                for map_entry in map_entries_copy:
-                    outer_entry = graph_copy.in_edges(map_entry)[0].src
-                    outer_exit = graph.exit_node(outer_entry)
-                    subgraph_copy._subgraph_nodes += [outer_entry, outer_exit]
-
+        transformation_function = self._transformation(subgraph_copy)
+        # assign properties to transformation
+        transformation_function.apply(sdfg_copy)
 
         # run and measure
-        median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy, map_entries_copy)
+        median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
 
         return median_rt_fuse / self._median_rt_base
