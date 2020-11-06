@@ -2,6 +2,7 @@
 import dace
 import dace.transformation.subgraph.helpers as helpers
 import dace.sdfg.nodes as nodes
+import dace.dtypes as dtypes
 
 import numpy as np
 import sys
@@ -48,6 +49,8 @@ def test_listing(program_name: str,
     # search up program
     sdfg = factory.get_program(program_name)
     sdfg.apply_strict_transformations()
+    if gpu:
+        sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
     if view:
         sdfg.view()
@@ -60,13 +63,15 @@ def test_executor(program_name: str,
                   gpu: bool = False,
                   nruns: int = None,
                   transformation_function=CompositeFusion,
-                  condition_function=CompositeFusion.can_be_applied):
+                  condition_function=CompositeFusion.can_be_applied,
+                  **kwargs):
     '''
     Tests listing all subgraphs with an ExecutionScore
     as a scoring function
     '''
     sdfg = factory.get_program(program_name)
-    #sdfg.view()
+    if gpu:
+        sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
     if view:
         sdfg.view()
@@ -82,7 +87,8 @@ def test_executor(program_name: str,
         symbols=symbols,
         gpu=gpu,
         nruns=nruns,
-        transformation_function=transformation_function)
+        transformation_function=transformation_function,
+        **kwargs)
     subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
                               condition_function)
     print(subgraph_list)
@@ -112,7 +118,13 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
-    test_executor('softmax', ConnectedEnumerator, nruns=5)
+    test_executor('softmax',
+                  ConnectedEnumerator,
+                  nruns=5,
+                  gpu = True,
+                  transient_allocation = dtypes.StorageType.GPU_Shared,
+                  schedule_innermaps = dtypes.ScheduleType.GPU_ThreadBlock,
+                  debug = True)
     '''
     test_executor('vadv',
                   ConnectedEnumerator,

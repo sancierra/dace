@@ -1,6 +1,7 @@
 """ This file implements the ExecutionScore class """
 
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling, helpers
+from dace.transformation.subgraph.composite import CompositeFusion
 from dace.properties import make_properties, Property
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
@@ -35,7 +36,7 @@ class ExecutionScore(ScoringFunction):
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  nruns=None,
-                 transformation_function: Type = SubgraphFusion,
+                 transformation_function: Type = CompositeFusion,
                  **kwargs):
         super().__init__(sdfg=sdfg,
                          graph=graph,
@@ -183,7 +184,7 @@ class ExecutionScore(ScoringFunction):
         print("RUNTIME", runtime)
         return runtime
 
-    def score(self, subgraph: SubgraphView, **kwargs):
+    def score(self, subgraph: SubgraphView):
         '''
         scores a subgraph (within the given graph / subgraph
         that was passed to the initializer) by running it
@@ -194,16 +195,26 @@ class ExecutionScore(ScoringFunction):
 
         sdfg_copy = SDFG.from_json(self._sdfg.to_json())
         graph_copy = sdfg_copy.nodes()[self._state_id]
-        subgraph_copy = SubgraphView(graph_copy, \
-                                     [graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph])
+        subgraph_copy = SubgraphView(graph_copy, [
+            graph_copy.nodes()[self._graph.nodes().index(n)] for n in subgraph
+        ])
 
         print("SUBGRAPH:", subgraph_copy.nodes())
 
         transformation_function = self._transformation(subgraph_copy)
         # assign properties to transformation
+        for (arg, val) in self._kwargs.items():
+            try:
+                setattr(transformation_function, arg, val)
+            except AttributeError:
+                warnigns.warn(f"Attribute {arg} not found in transformation")
+            except (TypeError, ValueError):
+                warnings.warn(f"Attribute {arg} has invalid value {val}")
+
         transformation_function.apply(sdfg_copy)
 
         # run and measure
         median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
-        return median_rt_fuse / self._median_rt_base
+        #return median_rt_fuse / self._median_rt_base
+        return median_rt_fuse

@@ -57,13 +57,8 @@ class ScoringFunction:
         self._map_entries = helpers.get_outermost_scope_maps(
             sdfg, graph, subgraph)
 
-        # compile kwargs into search space
-        self._search_space = {}
-        for (k, v) in kwargs:
-            if isinstance(v, (list, set)):
-                self._search_space[k] = v
-            else:
-                self._search_space[k] = [v]
+        # kwargs define current part of search space to explore
+        self._kwargs = kwargs
 
     def score(self, subgraph: SubgraphView, **kwargs):
         # NOTE: self._subgraph and subgraph are not the same!

@@ -100,7 +100,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
             if self.transient_allocation not in [dtypes.StorageType.Register, dtypes.StorageType.GPU_Shared]:
                 warnings.warn("Ambiguous transient allocation "
                               "in a GPU State for Fusion")
-            if self.schedule_innermaps not in [dtypes.ScheduleType.Sequential, dtypes.StorageType.GPU_ThreadBlock]:
+            if self.schedule_innermaps not in [dtypes.ScheduleType.Sequential, dtypes.ScheduleType.GPU_ThreadBlock]:
                 warnings.warn("Ambiguous innermap scheduling "
                               "in a GPU State for Fusion")
 
