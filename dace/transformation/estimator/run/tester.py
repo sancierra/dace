@@ -122,8 +122,8 @@ if __name__ == "__main__":
                   ConnectedEnumerator,
                   nruns=5,
                   gpu = True,
-                  transient_allocation = dtypes.StorageType.GPU_Shared,
-                  schedule_innermaps = dtypes.ScheduleType.GPU_ThreadBlock,
+                  transient_allocation = dtypes.StorageType.Register,
+                  schedule_innermaps = dtypes.ScheduleType.Sequential,
                   debug = True)
     '''
     test_executor('vadv',

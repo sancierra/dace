@@ -19,6 +19,7 @@ import json
 import warnings
 import os
 import numpy as np
+import sys 
 
 
 @make_properties
@@ -27,6 +28,16 @@ class ExecutionScore(ScoringFunction):
     Evaluates Subgraphs by just running their
     SDFG and returning the runtime
     '''
+    debug = Property(desc = "Debug Mode", 
+                     dtype = bool,
+                     default = True)
+
+    exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
+                             dtype = bool,
+                             default = False)
+    view_on_error = Property(desc = "View program if faulty",
+                             dtype = bool,
+                             default = False)
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
@@ -49,7 +60,7 @@ class ExecutionScore(ScoringFunction):
         self._inputs = inputs
         self._outputs = outputs
         self._symbols = symbols
-
+        
         # if nruns is defined, change config
         if nruns is not None:
             dace.config.Config.set('treps', value=nruns)
@@ -106,6 +117,7 @@ class ExecutionScore(ScoringFunction):
                 outputs_local[ok] = ov.copy()
                 outputs_local[ok].fill(0)
 
+        # TODO: remove 
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
@@ -113,28 +125,39 @@ class ExecutionScore(ScoringFunction):
 
         # execute and instrument
         try:
+            # grab all inputs needed 
             sdfg_inputs = {
                 k: v
                 for (k, v) in self._inputs.items() if k not in outputs_local
             }
-            r = sdfg(**sdfg_inputs, **outputs_local, **self._symbols)
+            # specialize sdfg
+            sdfg.specialize(self._symbols)
+            r = sdfg(**sdfg_inputs, **outputs_local)
             outputs_local['__return'] = r
 
         except Exception as e:
             warnings.warn("ERROR")
             print("Runtime Error in current Configuration:")
             print(e)
+            # in debug mode, exit and fail 
+            if self.debug:
+                i = 0
+                while(os.path.exists(f"error{i}.sdfg")):
+                    i += 1
+                sdfg.save('error.sdfg')
+                if self.exit_on_error:
+                    sys.exit(0)
+            
+            return -1
 
         if check:
             # this block asserts whether outputs are the same
-            nv = True
+            faulty = False
             for (ok, ov) in self._outputs.items():
                 if ov is not None and not np.allclose(outputs_local[ok], ov):
+                    faulty = True
                     # the output is wrong, generate warning and output info
                     warnings.warn('WRONG OUTPUT!')
-                    if nv:
-                        sdfg.view()
-                        nv = False
                     print('ERROR in array')
                     print(ok)
                     print('L2 Original Output:', np.linalg.norm(ov))
@@ -148,13 +171,21 @@ class ExecutionScore(ScoringFunction):
                 else:
                     # function has no return value
                     pass
+            if faulty and self.view_on_error:
+                sdfg.view()
+            if faulty and self.exit_on_error:
+                sys.exit(0)
         if set:
             # this block sets self._outputs according to the local
             # result. used for initialization.
             for (ok, ov) in outputs_local.items():
-                print("##")
-                print(ok)
                 self._outputs[ok] = ov
+                if np.linalg.norm(ov) == 0.0:
+                    warnings.warn(f"Output has norm Zero for Array{ok}")
+                    if self.view_on_error:
+                        sdfg.view()
+                    if self.exit_on_error:
+                        sys.exit(0)
 
         # remove old maps instrumentation
         for map_entry in map_entries:
@@ -175,11 +206,15 @@ class ExecutionScore(ScoringFunction):
             for _, runtime_vec in data.items():
                 runtime += np.mean(runtime_vec)
         if runtime == 0.0:
-            print("????? Runtime == 0")
+            warnings.warning("Runtime is equal to Zero")
+            if self.view_on_error:
+                sdfg.view()
+            if self.exit_on_error:
+                sys.exit(0)
             print("map_entries", map_entries)
-            sdfg.view()
         else:
             os.remove(path)
+        
         print("DONE.")
         print("RUNTIME", runtime)
         return runtime
