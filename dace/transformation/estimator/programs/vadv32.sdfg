@@ -28,7 +28,7 @@
             "K"
           ],
           "transient": false,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Scope",
           "location": {},
           "debuginfo": null
@@ -58,7 +58,7 @@
             "K"
           ],
           "transient": false,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Scope",
           "location": {},
           "debuginfo": null
@@ -88,7 +88,7 @@
             "K"
           ],
           "transient": false,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Scope",
           "location": {},
           "debuginfo": null
@@ -118,7 +118,7 @@
             "K"
           ],
           "transient": false,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Scope",
           "location": {},
           "debuginfo": null
@@ -148,7 +148,7 @@
             "K"
           ],
           "transient": false,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Scope",
           "location": {},
           "debuginfo": null
@@ -238,7 +238,7 @@
             "K"
           ],
           "transient": true,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Persistent",
           "location": {},
           "debuginfo": null
@@ -328,7 +328,7 @@
             "K"
           ],
           "transient": true,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Persistent",
           "location": {},
           "debuginfo": null
@@ -508,7 +508,7 @@
             "K"
           ],
           "transient": true,
-          "storage": "CPU_Heap",
+          "storage": "Default",
           "lifetime": "Persistent",
           "location": {},
           "debuginfo": null
@@ -1084,7 +1084,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1114,7 +1114,7 @@
                         "K"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1144,7 +1144,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1174,7 +1174,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1204,7 +1204,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1234,7 +1234,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1264,7 +1264,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1294,7 +1294,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -1324,7 +1324,7 @@
                         "K - 2"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -2758,7 +2758,7 @@
               ],
               "sdfg_list_id": 1
             },
-            "schedule": "CPU_Multicore",
+            "schedule": "Default",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
@@ -3259,7 +3259,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -3289,7 +3289,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -3319,7 +3319,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -3349,7 +3349,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -3379,7 +3379,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -3409,7 +3409,7 @@
                         "K - 1"
                       ],
                       "transient": false,
-                      "storage": "CPU_Heap",
+                      "storage": "Default",
                       "lifetime": "Scope",
                       "location": {},
                       "debuginfo": null
@@ -4197,7 +4197,7 @@
               ],
               "sdfg_list_id": 2
             },
-            "schedule": "CPU_Multicore",
+            "schedule": "Default",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
