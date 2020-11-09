@@ -179,7 +179,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -209,7 +209,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -239,7 +239,7 @@
           ],
           "transient": true,
           "storage": "Default",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -269,7 +269,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -299,7 +299,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -329,7 +329,7 @@
           ],
           "transient": true,
           "storage": "Default",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -359,7 +359,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -389,7 +389,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -419,7 +419,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -449,7 +449,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -479,7 +479,7 @@
           ],
           "transient": true,
           "storage": "Register",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
@@ -509,7 +509,7 @@
           ],
           "transient": true,
           "storage": "Default",
-          "lifetime": "Persistent",
+          "lifetime": "Scope",
           "location": {},
           "debuginfo": null
         }
