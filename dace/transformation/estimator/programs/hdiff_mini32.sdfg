@@ -529,7 +529,7 @@
     },
     "orig_sdfg": null,
     "transformation_hist": [],
-    "name": "baseline"
+    "name": "horizontal_diffusion_type2"
   },
   "nodes": [
     {
