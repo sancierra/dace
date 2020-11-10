@@ -14,6 +14,8 @@ from dace.properties import make_properties, Property, ShapeProperty
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
 
+import warnings
+
 @registry.autoregister_params(singlestate=True)
 @make_properties
 class CompositeFusion(transformation.SubgraphTransformation):
