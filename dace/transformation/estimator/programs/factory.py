@@ -89,7 +89,7 @@ def get_args(program_name):
         })
 
     elif program_name == 'vadv':
-        I, K, J = 128, 128, 80
+        I, J, K = 128, 128, 80
         wcon = np.random.rand(I + 1, J, K).astype(DATATYPE)
         u_stage = np.random.rand(I, J, K).astype(DATATYPE)
         utens_stage = np.random.rand(I, J, K).astype(DATATYPE)
@@ -104,25 +104,25 @@ def get_args(program_name):
         }, {
             'utens_stage': utens_stage
         }, {
-            '_gt_loc__dtr_stage': 1.4242424,
+            '_gt_loc__dtr_stage': np.float32(1.4242424),
             'I': I,
             'J': J,
-            'K': 80,
-            '_utens_stage_J_stride': 1,
-            '_utens_stage_K_stride': 128,
-            '_utens_stage_I_stride': 10240,
-            '_u_stage_J_stride': 1,
-            '_u_stage_K_stride': 128,
-            '_u_stage_I_stride': 10240,
-            '_wcon_J_stride': 1,
-            '_wcon_K_stride': 128,
-            '_wcon_I_stride': 10240,
-            '_u_pos_J_stride': 1,
-            '_u_pos_K_stride': 128,
-            '_u_pos_I_stride': 10240,
-            '_utens_J_stride': 1,
-            '_utens_K_stride': 128,
-            '_utens_I_stride': 10240
+            'K': K,
+            '_utens_stage_J_stride': K,
+            '_utens_stage_K_stride': 1,
+            '_utens_stage_I_stride': K*J,
+            '_u_stage_J_stride': K,
+            '_u_stage_K_stride': 1,
+            '_u_stage_I_stride': K*J,
+            '_wcon_J_stride': K,
+            '_wcon_K_stride': 1,
+            '_wcon_I_stride': K*J,
+            '_u_pos_J_stride': K,
+            '_u_pos_K_stride': 1,
+            '_u_pos_I_stride': K*J,
+            '_utens_J_stride': K,
+            '_utens_K_stride': 1,
+            '_utens_I_stride': K*J
         })
 
     elif program_name == 'hdiff_mini':

@@ -2,7 +2,350 @@
   "type": "SDFG",
   "attributes": {
     "arg_types": [],
-    "constants_prop": {},
+    "constants_prop": {
+      "_gt_loc__dtr_stage": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "float32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1.4242424"
+      ],
+      "I": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "128"
+      ],
+      "J": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "128"
+      ],
+      "K": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_utens_stage_K_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1"
+      ],
+      "_utens_stage_J_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_utens_stage_I_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "10240"
+      ],
+      "_u_stage_K_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1"
+      ],
+      "_u_stage_J_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_u_stage_I_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "10240"
+      ],
+      "_wcon_K_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1"
+      ],
+      "_wcon_J_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_wcon_I_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "10240"
+      ],
+      "_u_pos_K_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1"
+      ],
+      "_u_pos_J_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_u_pos_I_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "10240"
+      ],
+      "_utens_K_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "1"
+      ],
+      "_utens_J_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "80"
+      ],
+      "_utens_I_stride": [
+        {
+          "type": "Scalar",
+          "attributes": {
+            "allow_conflicts": false,
+            "dtype": "int32",
+            "shape": [
+              "1"
+            ],
+            "transient": false,
+            "storage": "Default",
+            "lifetime": "Scope",
+            "location": {},
+            "debuginfo": null
+          }
+        },
+        "10240"
+      ]
+    },
     "_arrays": {
       "utens_stage": {
         "type": "Array",
@@ -2758,7 +3101,7 @@
               ],
               "sdfg_list_id": 1
             },
-            "schedule": "Default",
+            "schedule": "CPU_Multicore",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
@@ -4197,7 +4540,7 @@
               ],
               "sdfg_list_id": 2
             },
-            "schedule": "Default",
+            "schedule": "CPU_Multicore",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
