@@ -133,12 +133,12 @@ def fuse_stencils(sdfg, gpu,
 
     kwargs = {}
     kwargs['propagate_source'] = False
-    if gpu:
+    if gpu and not sequential:
         kwargs['transient_allocation'] = dace.dtypes.StorageType.GPU_Shared
-    if sequential:
-        # will override gpu, ok
+        kwargs['schedule_innermaps'] = dace.dtypes.ScheduleType.GPU_ThreadBlock
+    if gpu and sequential:
         kwargs['transient_allocation'] = dace.dtypes.StorageType.Register
-        kwargs['sequential_innermaps'] = True
+        kwargs['schedule_innermaps'] = dace.dtypes.ScheduleType.Sequential
     if deduplicate:
         kwargs['consolidate_source'] = True
         kwargs['deduplicate_source'] = True
@@ -178,7 +178,7 @@ def test(compile = True, view = True,
     v_in = np.random.rand( J, K+1, I).astype(DATATYPE)
 
 
-    # compile -- first without anyting
+    # compile -- first without anything
     sdfg = get_sdfg()
     #sdfg._propagate = False
     #sdfg.propagate = False
@@ -195,7 +195,9 @@ def test(compile = True, view = True,
 
     if view:
         sdfg.view()
-
+    
+    sdfg.save('test3.sdfg')
+    '''
     if compile:
         pp1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         w1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
@@ -210,27 +212,29 @@ def test(compile = True, view = True,
               pp = pp1, w = w1, v = v1, u = u1,
               I=I, J=J, K=K, halo = halo)
 
-
+    '''
     apply_map_fission(sdfg)
     if not nested:
         sdfg.apply_strict_transformations()
     if view:
         sdfg.view()
-    if compile:
-        pp2 = np.zeros([ J, K, I ], dtype = DATATYPE)
-        w2 = np.zeros([ J, K, I ], dtype = DATATYPE)
-        v2 = np.zeros([ J, K, I ], dtype = DATATYPE)
-        u2 = np.zeros([ J, K, I ], dtype = DATATYPE)
-
-        #sdfg._name = 'fission'
-        #csdfg = sdfg.compile()
-        #csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-        #      acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-        #      hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-        #      pp_out = pp2, w_out = w2, v_out = v2, u_out = u2,
-        #      I=I, J=J, K=K, halo = halo)
-
+    '''
+    #if compile:
+        pp2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
+        w2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
+        v2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
+        u2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
+    
+        sdfg._name = 'fission'
+        csdfg = sdfg.compile()
+        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
+              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
+              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
+              pp = pp2, w = w2, v = v2, u = u2,
+              I=I, J=J, K=K, halo = halo)
+    '''
     collapse_outer_maps(sdfg, nested=nested)
+    sdfg.save('test.sdfg')
     if view:
         sdfg.view()
     if compile:
@@ -245,7 +249,8 @@ def test(compile = True, view = True,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
-
+    
+    print(np.linalg.norm(pp4))
     # force everything sequential
     #for node in sdfg.nodes()[0].nodes():
     #    if isinstance(node, nodes.MapEntry):
@@ -254,10 +259,7 @@ def test(compile = True, view = True,
     apply_stencil_tiling(sdfg, tile_size=tile_size,
                          nested=nested, sequential = sequential,
                          gpu = gpu, unroll = unroll)
-
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, nodes.MapEntry):
-            node.schedule = dace.dtypes.ScheduleType.Sequential
+    sdfg.save('test2.sdfg')
 
     if view:
         sdfg.view()
@@ -274,6 +276,7 @@ def test(compile = True, view = True,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
               pp = pp3, w = w3, v = v3, u = u3,
               I=I, J=J, K=K, halo = halo)
+        del csdfg
 
     if compile:
         print(np.linalg.norm(pp4))
@@ -284,11 +287,6 @@ def test(compile = True, view = True,
         print(np.linalg.norm(v3))
         print(np.linalg.norm(u4))
         print(np.linalg.norm(u3))
-        print("Baseline")
-        print(np.allclose(pp1, pp4))
-        print(np.allclose(w1, w4))
-        print(np.allclose(v1, v4))
-        print(np.allclose(u1, u4))
         print("Pre Tiling")
         print(np.allclose(pp4, pp3))
         print(np.allclose(w4, w3))
@@ -300,6 +298,7 @@ def test(compile = True, view = True,
                   nested=nested,
                   deduplicate = deduplicate,
                   sequential = sequential)
+    sdfg.save('test4.sdfg')
     if view:
         sdfg.view()
     if compile:
@@ -314,6 +313,7 @@ def test(compile = True, view = True,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
               pp = pp5, w = w5, v = v5, u = u5,
               I=I, J=J, K=K, halo = halo)
+        del csdfg
 
     if compile:
         print(np.linalg.norm(pp4))
@@ -361,8 +361,8 @@ if __name__ == '__main__':
         tile2 = int(sys.argv[3])
 
     except:
-        print("Useage: mode tile1 tile2")
+        print("Usage: mode tile1 tile2")
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
-         gpu = False, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential, unroll = True)
+         gpu = True, deduplicate = False, tile_size = (tile1, tile2),
+         sequential = sequential, unroll =  True)
