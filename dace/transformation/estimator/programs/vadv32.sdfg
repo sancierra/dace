@@ -2758,7 +2758,7 @@
               ],
               "sdfg_list_id": 1
             },
-            "schedule": "CPU_Multicore",
+            "schedule": "Default",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
@@ -4197,7 +4197,7 @@
               ],
               "sdfg_list_id": 2
             },
-            "schedule": "CPU_Multicore",
+            "schedule": "Default",
             "symbol_mapping": {
               "I": "I",
               "J": "J",
