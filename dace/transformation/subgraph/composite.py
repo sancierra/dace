@@ -88,9 +88,9 @@ class CompositeFusion(transformation.SubgraphTransformation):
                         warnings.warn("Warning: GPU Reduce node is going to "
                                       "be expanded with default - behaviour.")
                     elif self.transient_allocation == dtypes.StorageType.Register:
-                        node.implementation = 'sequential'
+                        node.implementation = 'pure'
                     elif self.transient_allocation == dtypes.StorageType.GPU_Shared:
-                        node.implementation = 'CUDA (block)'
+                        node.implementation = 'CUDA (block allreduce)'
                     else:
                         raise RuntimeError("For GPU useage, transient allocation has to be "
                                            "either register or shared memory.")

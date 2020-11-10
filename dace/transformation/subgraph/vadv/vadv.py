@@ -112,7 +112,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
             kstride = dace.symbol(f"_{aname}_K_stride")
             arr.strides = [istride, jstride, kstride]
 
-            dimtuple = (0,2,1)
+            dimtuple = (0,1,2)
 
             s = 1
             for i in reversed(dimtuple):
@@ -168,32 +168,28 @@ def test_fuse_all_numerically(gpu = False, view = False):
                 J=np.int32(J),
                 K=np.int32(K),
                 **strides)
-
+    sdfg.specialize(args1)
     for k, v in args1.items():
         print(k, v)
-    args1.update({'wcon': wcon.copy(), 'u_stage': u_stage.copy(),
+    args1 = {'wcon': wcon.copy(), 'u_stage': u_stage.copy(),
                   'utens_stage': utens_stage.copy(), 'u_pos': u_pos.copy(),
-                  'utens': utens.copy()})
+                  'utens': utens.copy()}
 
     args2 = copy.deepcopy(args1)
 
-    #sdfg.specialize(dict(I=I, J=J, K=K))
+   # sdfg.specialize(dict(I=I, J=J, K=K))
     #dace.Config.set('compiler', 'use_cache', value=True)
 
     sdfg.save('vadv32.sdfg')
     if view:
         sdfg.view()
-    csdfg = sdfg.compile()
-    csdfg(**args1)
-    del csdfg
+    sdfg(**args1)
 
 
     fusion(sdfg, graph)
 
     sdfg._name = 'fused'
-    csdfg = sdfg.compile()
-    csdfg(**args2)
-    del csdfg
+    sdfg(**args2)
 
     if view:
         sdfg.view()
@@ -317,6 +313,7 @@ def test_fuse_partial_numerically(gpu = False, view = False):
                 J=np.int32(J),
                 K=np.int32(K),
                 **strides)
+    sdfg.specialize(args1)
     args1.update({'wcon': wcon.copy(), 'u_stage': u_stage.copy(),
                   'utens_stage': utens_stage.copy(), 'u_pos': u_pos.copy(),
                   'utens': utens.copy()})
@@ -343,7 +340,8 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 
     if view:
         sdfg.view()
-
+    
+    print(np.linalg.norm(utens_stage))
     print(np.linalg.norm(args2['utens_stage']))
     print(np.linalg.norm(args1['utens_stage']))
     assert np.allclose(args1['utens_stage'], args2['utens_stage'])
@@ -352,7 +350,7 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 #view_all()
 #test_matching()
 #test_fuse_all()
-test_fuse_all_numerically(view = True, gpu = False )
+test_fuse_all_numerically(view = False, gpu = True)
 #test_fuse_partial_numerically(view = False, gpu = False)
 
 #test_fuse_partial()
