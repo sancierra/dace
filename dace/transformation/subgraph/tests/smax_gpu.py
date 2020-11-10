@@ -21,7 +21,7 @@ from dace.measure.runner import Runner
 from dace.sdfg.graph import SubgraphView
 import dace.sdfg.nodes as nodes
 
-dace_dtype = dace.float16
+dace_dtype = dace.float32
 H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 
@@ -126,7 +126,7 @@ def test_allfuse():
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
    
-    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float16)
+    A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
     
     for node in graph.nodes():
         if isinstance(node, stdlib.nodes.reduce.Reduce):
@@ -134,16 +134,16 @@ def test_allfuse():
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
     result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-
+    
     for node in graph.nodes():
         if isinstance(node, stdlib.nodes.reduce.Reduce):
             node.implementation = 'pure'
     ####################################################
     pipeline.expand_reduce(sdfg, graph, cuda_expand = False)
-    
+     
     ## Manually fix codegen bug ## 
     sdfg.expand_library_nodes()
-    sdfg.view()
+    '''
     for node in sdfg.nodes()[0].nodes():
         if isinstance(node, dace.sdfg.nodes.NestedSDFG):
             for state in node.sdfg.nodes():
@@ -153,13 +153,14 @@ def test_allfuse():
                     if isinstance(snode, dace.sdfg.nodes.MapEntry):
                         snode.schedule = dace.dtypes.ScheduleType.Sequential
     ##
+    '''
     sdfg._name = 'reduce'
     csdfg = sdfg.compile_directly()
     result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-    
+    print(np.linalg.norm(result_base))
+    print(np.linalg.norm(result1))
     ######################################################
     pipeline.expand_maps(sdfg, graph)
-    sdfg.view()
 
     sdfg._name = 'expansion'
     csdfg = sdfg.compile_directly()
@@ -171,12 +172,11 @@ def test_allfuse():
     sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
-    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'CUDA (block)')
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'pure')
     pipeline.expand_maps(sdfg, graph)
-    pipeline.fusion(sdfg, graph)
+    pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.Register, schedule_innermaps = dace.dtypes.ScheduleType.Sequential)
     
     sdfg.apply_strict_transformations()
-    sdfg.view()
     
     sdfg._name = 'fusion'
     csdfg = sdfg.compile_directly()

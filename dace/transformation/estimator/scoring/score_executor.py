@@ -180,7 +180,7 @@ class ExecutionScore(ScoringFunction):
             # result. used for initialization.
             for (ok, ov) in outputs_local.items():
                 self._outputs[ok] = ov
-                if np.linalg.norm(ov) == 0.0:
+                if ov is not None and np.linalg.norm(ov) == 0.0:
                     warnings.warn(f"Output has norm Zero for Array{ok}")
                     if self.view_on_error:
                         sdfg.view()
