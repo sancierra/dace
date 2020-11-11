@@ -473,7 +473,10 @@ class StencilTiling(transformation.SubgraphTransformation):
                 warnings.warn(
                     f"StencilTiling::No Stencil pattern detected for parameter {p}"
                 )
-
+        
+        # during stripmining, we will create new outer map entries
+        # for easy access
+        self._outer_entries = set()
         # with inferred_ranges constructed, we can begin to strip mine
         for map_entry in map_entries:
             # Retrieve map entry and exit nodes.
@@ -614,6 +617,9 @@ class StencilTiling(transformation.SubgraphTransformation):
                                               mapcollapse_subgraph, 0)
                     mapcollapse.apply(sdfg)
                 last_map_entry = graph.in_edges(map_entry)[0].src
+            # add last instance of map entries to _outer_entries
+            if last_map_entry:
+                self._outer_entries.add(last_map_entry)
 
             # Map Unroll Feature: only unroll if conditions are met:
             # Only unroll if at least one of the inner map ranges is strictly larger than 1
@@ -663,3 +669,5 @@ class StencilTiling(transformation.SubgraphTransformation):
                 warnings.warn(
                     "Did not unroll loops. Either all ranges are equal to "
                     "one or range difference is symbolic.")
+        
+        self._outer_entries = list(self._outer_entries)
