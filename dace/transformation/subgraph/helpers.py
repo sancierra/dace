@@ -183,18 +183,18 @@ def get_outermost_scope_maps(sdfg, graph, subgraph=None, scope_dict=None):
     return maps
 
 
-def subgraph_from_maps(sdfg, graph, map_entries, scope_dict=None):
+def subgraph_from_maps(sdfg, graph, map_entries, scope_children=None):
     """
     given a list of map entries in a single graph,
     return a subgraph view that includes all nodes
     inside these maps as well as map entries and exits
     as well as adjacent nodes
     """
-    if not scope_dict:
-        scope_dict = graph.scope_dict()
+    if not scope_children:
+        scope_children = graph.scope_children()
     nodes = set()
     for map_entry in map_entries:
-        nodes |= set(scope_dict[map_entry])
+        nodes |= set(scope_children[map_entry])
         nodes |= set(e.dst for e in graph.out_edges(graph.exit_node(map_entry)))
         nodes |= set(e.src for e in graph.in_edges(map_entry))
         nodes.add(map_entry)

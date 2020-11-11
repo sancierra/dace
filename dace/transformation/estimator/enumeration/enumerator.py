@@ -35,7 +35,7 @@ class Enumerator:
 
         self._sdfg = sdfg
         self._graph = graph
-        self._scope_dict = graph.scope_children()
+        self._scope_children = graph.scope_children()
         self._condition_function = condition_function
         self._scoring_function = scoring_function
 

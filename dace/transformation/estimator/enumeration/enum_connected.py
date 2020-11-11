@@ -72,7 +72,7 @@ class ConnectedEnumerator(Enumerator):
             #print("*******")
             #print(current)
             current_subgraph = helpers.subgraph_from_maps(
-                self._sdfg, self._graph, current, self._scope_dict)
+                self._sdfg, self._graph, current, self._scope_children)
             #print(current_subgraph.nodes())
 
             # evaluate condition if specified
