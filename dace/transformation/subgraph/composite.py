@@ -74,7 +74,8 @@ class CompositeFusion(transformation.SubgraphTransformation):
         subgraph = self.subgraph_view(sdfg)
         graph = subgraph.graph
         scope_dict = graph.scope_dict()
-        first_entry = next(iter(helpers.get_outermost_scope_maps(sdfg, graph, subgraph, scope_dict)))
+        map_entries = helpers.get_outermost_scope_maps(sdfg, graph, subgraph, scope_dict)
+        first_entry = next(iter(map_entries))
 
         # check gpu related issues:
         is_gpu = False
@@ -125,12 +126,12 @@ class CompositeFusion(transformation.SubgraphTransformation):
             st.apply(sdfg)
 
             # StencilTiling: add to nodes
-            for map_entry in map_entries_copy:
-                outer_entry = graph_copy.in_edges(map_entry)[0].src
+            for map_entry in map_entries:
+                outer_entry = graph.in_edges(map_entry)[0].src
                 outer_exit = graph.exit_node(outer_entry)
                 subgraph._subgraph_nodes += [outer_entry, outer_exit]
 
-            sf = SubgraphFusion(self.subgraph_view(sdfg), self.sdfg_id, self.state_id)
+            sf = SubgraphFusion(subgraph, self.sdfg_id, self.state_id)
             # set SubgraphFusion properties
             sf.debug = self.debug
             sf.transient_allocation = self.transient_allocation

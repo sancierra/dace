@@ -172,9 +172,9 @@ def test_allfuse():
     sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
-    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'pure')
+    pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'CUDA (block allreduce)')
     pipeline.expand_maps(sdfg, graph)
-    pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.Register, schedule_innermaps = dace.dtypes.ScheduleType.Sequential)
+    pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared, schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock)
     
     sdfg.apply_strict_transformations()
     

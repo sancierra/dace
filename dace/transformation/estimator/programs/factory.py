@@ -78,7 +78,7 @@ def get_args(program_name):
             'O': O
         })
     elif program_name == 'softmax':
-        H, B, SN, SM = 16, 8, 20, 20
+        H, B, SN, SM = 16, 16, 128, 128
         return ({
             'X_in': np.random.rand(H, B, SN, SM).astype(DATATYPE)
         }, {}, {

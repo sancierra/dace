@@ -132,6 +132,7 @@ class ExecutionScore(ScoringFunction):
             }
             # specialize sdfg
             sdfg.specialize(self._symbols)
+            print("SPECIALIZING", self._symbols)
             r = sdfg(**sdfg_inputs, **outputs_local)
             outputs_local['__return'] = r
 
@@ -203,8 +204,9 @@ class ExecutionScore(ScoringFunction):
         path = os.path.join(sdfg.build_folder, 'perf', json_file)
         with open(path) as f:
             data = json.load(f)
+            print(data)
             for _, runtime_vec in data.items():
-                runtime += np.mean(runtime_vec)
+                runtime += sum(runtime_vec)
         if runtime == 0.0:
             warnings.warning("Runtime is equal to Zero")
             if self.view_on_error:
