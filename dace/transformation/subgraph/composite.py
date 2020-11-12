@@ -117,20 +117,15 @@ class CompositeFusion(transformation.SubgraphTransformation):
             sf.apply(sdfg)
 
         elif self.allow_tiling and StencilTiling.can_be_applied(sdfg, self.subgraph_view(sdfg)):
-            print("******** TILING")
             st = StencilTiling(self.subgraph_view(sdfg), self.sdfg_id, self.state_id)
             # set StencilTiling properties
             st.debug = self.debug
             st.unroll_loops = self.stencil_unroll_loops
             st.strides= self.stencil_strides
             st.apply(sdfg)
-
-            # StencilTiling: add to nodes
-            for map_entry in map_entries:
-                outer_entry = graph.in_edges(map_entry)[0].src
-                outer_exit = graph.exit_node(outer_entry)
-                subgraph._subgraph_nodes += [outer_entry, outer_exit]
-
+            # StencilTiling: update nodes
+            new_entries = st._outer_entries
+            subgraph = helpers.subgraph_from_maps(sdfg, graph, new_entries)
             sf = SubgraphFusion(subgraph, self.sdfg_id, self.state_id)
             # set SubgraphFusion properties
             sf.debug = self.debug

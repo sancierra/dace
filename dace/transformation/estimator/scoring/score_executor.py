@@ -38,6 +38,9 @@ class ExecutionScore(ScoringFunction):
     view_on_error = Property(desc = "View program if faulty",
                              dtype = bool,
                              default = False)
+    save_on_error = Property(desc = "Save SDFG if faulty",
+                             dtype = bool,
+                             default = True)
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
@@ -95,16 +98,15 @@ class ExecutionScore(ScoringFunction):
         '''
         if map_entries is None:
             map_entries = helpers.get_outermost_scope_maps(sdfg, graph)
-
         # instrumentation:
         # mark all mapentries  with instrumentation
         for map_entry in map_entries:
-            # GPU_Events TODO
             if self._gpu:
                 map_entry.map.instrument = dtypes.InstrumentationType.GPU_Events
             else:
                 map_entry.map.instrument = dtypes.InstrumentationType.Timer
-
+        # TODO: clear the runtime folder 
+        
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
         outputs_local = {}
@@ -132,81 +134,82 @@ class ExecutionScore(ScoringFunction):
             }
             # specialize sdfg
             sdfg.specialize(self._symbols)
-            print("SPECIALIZING", self._symbols)
-            r = sdfg(**sdfg_inputs, **outputs_local)
+            r = sdfg(**sdfg_inputs, **outputs_local, **self._symbols)
             outputs_local['__return'] = r
-
+            success = True
         except Exception as e:
             warnings.warn("ERROR")
             print("Runtime Error in current Configuration:")
             print(e)
             # in debug mode, exit and fail 
-            if self.debug:
-                i = 0
-                while(os.path.exists(f"error{i}.sdfg")):
-                    i += 1
-                sdfg.save('error.sdfg')
-                if self.exit_on_error:
-                    sys.exit(0)
-            
-            return -1
-
-        if check:
-            # this block asserts whether outputs are the same
+            success = False 
+        # this block asserts whether outputs are correct
+        if success and check:
             faulty = False
             for (ok, ov) in self._outputs.items():
                 if ov is not None and not np.allclose(outputs_local[ok], ov):
                     faulty = True
-                    # the output is wrong, generate warning and output info
                     warnings.warn('WRONG OUTPUT!')
-                    print('ERROR in array')
-                    print(ok)
+                    print(f'ERROR in array {ok}')
                     print('L2 Original Output:', np.linalg.norm(ov))
                     print('L2 Transformed Ouput:',
                           np.linalg.norm(outputs_local[ok]))
                 elif ov is not None:
                     # the output appears to be correct
                     print("PASS")
-                    print(np.linalg.norm(ov))
-                    print(np.linalg.norm(outputs_local[ok]))
                 else:
                     # function has no return value
                     pass
-            if faulty and self.view_on_error:
-                sdfg.view()
-            if faulty and self.exit_on_error:
-                sys.exit(0)
-        if set:
+
+            # no success if any output was faulty 
+            if faulty:
+                success = False
+        if success and set:
             # this block sets self._outputs according to the local
             # result. used for initialization.
             for (ok, ov) in outputs_local.items():
                 self._outputs[ok] = ov
                 if ov is not None and np.linalg.norm(ov) == 0.0:
                     warnings.warn(f"Output has norm Zero for Array{ok}")
-                    if self.view_on_error:
-                        sdfg.view()
-                    if self.exit_on_error:
-                        sys.exit(0)
+                    success = False
 
         # remove old maps instrumentation
         for map_entry in map_entries:
             map_entry.map.instrument = dtypes.InstrumentationType.No_Instrumentation
-
+        
+        # if not succeeded in any part, output if necessary and return -1
+        if not success:
+            if self.view_on_error:
+                sdfg.view()
+            if self.save_on_error:
+                i = 0
+                while(os.path.exists(f"error{i}.sdfg")):
+                    i += 1
+                sdfg.save('error.sdfg')
+            if self.exit_on_error:
+                sys.exit(0)
+            return -1
+        
+        
         # get timing results
         files = [
             f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
             if f.startswith('report-')
         ]
         assert len(files) > 0
-
-        json_file = sorted(files, reverse=True)[0]
+        
         runtime = 0.0
-        path = os.path.join(sdfg.build_folder, 'perf', json_file)
-        with open(path) as f:
-            data = json.load(f)
-            print(data)
-            for _, runtime_vec in data.items():
-                runtime += sum(runtime_vec)
+        for json_file in files:
+            runtime = 0.0
+            path = os.path.join(sdfg.build_folder, 'perf', json_file)
+            with open(path) as f:
+                data = json.load(f)
+                print(data)
+                for _, runtime_vec in data.items():
+                    runtime += sum(runtime_vec)
+        
+        # normalize runtime
+        runtime /= len(files)
         if runtime == 0.0:
             warnings.warning("Runtime is equal to Zero")
             if self.view_on_error:
