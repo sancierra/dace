@@ -19,7 +19,7 @@ import json
 import warnings
 import os
 import numpy as np
-import sys 
+import sys
 
 
 @make_properties
@@ -28,7 +28,7 @@ class ExecutionScore(ScoringFunction):
     Evaluates Subgraphs by just running their
     SDFG and returning the runtime
     '''
-    debug = Property(desc = "Debug Mode", 
+    debug = Property(desc = "Debug Mode",
                      dtype = bool,
                      default = True)
 
@@ -63,7 +63,7 @@ class ExecutionScore(ScoringFunction):
         self._inputs = inputs
         self._outputs = outputs
         self._symbols = symbols
-        
+
         # if nruns is defined, change config
         if nruns is not None:
             dace.config.Config.set('treps', value=nruns)
@@ -105,8 +105,10 @@ class ExecutionScore(ScoringFunction):
                 map_entry.map.instrument = dtypes.InstrumentationType.GPU_Events
             else:
                 map_entry.map.instrument = dtypes.InstrumentationType.Timer
-        # TODO: clear the runtime folder 
-        
+        # TODO: clear the runtime folder
+        for f in os.listdir(os.path.join(sdfg.build_folder, 'perf')):
+            if f.startswith('report-'):
+                os.remove(f)
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
         outputs_local = {}
@@ -119,7 +121,7 @@ class ExecutionScore(ScoringFunction):
                 outputs_local[ok] = ov.copy()
                 outputs_local[ok].fill(0)
 
-        # TODO: remove 
+        # TODO: remove
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
@@ -127,7 +129,7 @@ class ExecutionScore(ScoringFunction):
 
         # execute and instrument
         try:
-            # grab all inputs needed 
+            # grab all inputs needed
             sdfg_inputs = {
                 k: v
                 for (k, v) in self._inputs.items() if k not in outputs_local
@@ -141,8 +143,8 @@ class ExecutionScore(ScoringFunction):
             warnings.warn("ERROR")
             print("Runtime Error in current Configuration:")
             print(e)
-            # in debug mode, exit and fail 
-            success = False 
+            # in debug mode, exit and fail
+            success = False
         # this block asserts whether outputs are correct
         if success and check:
             faulty = False
@@ -161,7 +163,7 @@ class ExecutionScore(ScoringFunction):
                     # function has no return value
                     pass
 
-            # no success if any output was faulty 
+            # no success if any output was faulty
             if faulty:
                 success = False
         if success and set:
@@ -176,7 +178,7 @@ class ExecutionScore(ScoringFunction):
         # remove old maps instrumentation
         for map_entry in map_entries:
             map_entry.map.instrument = dtypes.InstrumentationType.No_Instrumentation
-        
+
         # if not succeeded in any part, output if necessary and return -1
         if not success:
             if self.view_on_error:
@@ -189,15 +191,15 @@ class ExecutionScore(ScoringFunction):
             if self.exit_on_error:
                 sys.exit(0)
             return -1
-        
-        
+
+
         # get timing results
         files = [
             f for f in os.listdir(os.path.join(sdfg.build_folder, 'perf'))
             if f.startswith('report-')
         ]
         assert len(files) > 0
-        
+
         runtime = 0.0
         for json_file in files:
             runtime = 0.0
@@ -207,7 +209,7 @@ class ExecutionScore(ScoringFunction):
                 print(data)
                 for _, runtime_vec in data.items():
                     runtime += sum(runtime_vec)
-        
+
         # normalize runtime
         runtime /= len(files)
         if runtime == 0.0:
@@ -219,7 +221,7 @@ class ExecutionScore(ScoringFunction):
             print("map_entries", map_entries)
         else:
             os.remove(path)
-        
+
         print("DONE.")
         print("RUNTIME", runtime)
         return runtime
