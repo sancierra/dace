@@ -16,6 +16,7 @@ iprint = lambda *args: print(*args)
 # Do not use O(x) or Order(x) in sympy, it's not working as intended
 bigo = sympy.Function('bigo')
 
+DEBUG = True
 
 def count_moved_data(sdfg: dace.SDFG, symbols: Dict[str, Any] = None) -> int:
     result = 0
@@ -28,7 +29,7 @@ def count_moved_data(sdfg: dace.SDFG, symbols: Dict[str, Any] = None) -> int:
 def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
                                                                 Any] = None) -> int:
     stree_root = state.scope_tree()[None]
-    sdict = state.scope_dict(node_to_children=True)
+    sdict = state.scope_children()
     result = 0
     symbols = symbols or {}
 
@@ -45,9 +46,10 @@ def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
             # Do not count edges twice
             edges_counted |= set(state.all_edges(node))
 
-            iprint(
-                type(node).__name__, node, 'inputs:', inputs, 'outputs:',
-                outputs)
+            if DEBUG:
+                iprint(
+                    type(node).__name__, node, 'inputs:', inputs, 'outputs:',
+                    outputs)
             node_result += inputs + outputs
         elif isinstance(node, dace.nodes.EntryNode):
             # Gather inputs from entry node
@@ -61,9 +63,10 @@ def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
                           for e in state.out_edges(exit_node)
                           if e not in edges_counted)
             edges_counted |= set(state.out_edges(exit_node))
-            iprint('Scope',
-                   type(node).__name__, node, 'inputs:', inputs, 'outputs:',
-                   outputs)
+            if DEBUG:
+                iprint('Scope',
+                       type(node).__name__, node, 'inputs:', inputs, 'outputs:',
+                       outputs)
             node_result += inputs + outputs
         result += node_result
     return result
@@ -71,7 +74,7 @@ def count_moved_data_state(state: dace.SDFGState, symbols: Dict[str,
 def count_moved_data_subgraph(state: dace.SDFGState, subgraph: SubgraphView, symbols: Dict[str,Any] = None) -> int:
 
     stree_root = state.scope_tree()[None]
-    sdict = state.scope_dict(node_to_children=True)
+    sdict = state.scope_children()
     result = 0
     symbols = symbols or {}
 
@@ -88,9 +91,10 @@ def count_moved_data_subgraph(state: dace.SDFGState, subgraph: SubgraphView, sym
                 # Do not count edges twice
                 edges_counted |= set(state.all_edges(node))
 
-                iprint(
-                    type(node).__name__, node, 'inputs:', inputs, 'outputs:',
-                    outputs)
+                if DEBUG:
+                    iprint(
+                        type(node).__name__, node, 'inputs:', inputs, 'outputs:',
+                        outputs)
                 node_result += inputs + outputs
             elif isinstance(node, dace.nodes.EntryNode):
                 # Gather inputs from entry node
@@ -104,9 +108,10 @@ def count_moved_data_subgraph(state: dace.SDFGState, subgraph: SubgraphView, sym
                               for e in state.out_edges(exit_node)
                               if e not in edges_counted and e.dst in subgraph)
                 edges_counted |= set(state.out_edges(exit_node))
-                iprint('Scope',
-                       type(node).__name__, node, 'inputs:', inputs, 'outputs:',
-                       outputs)
+                if DEBUG:
+                    iprint('Scope',
+                           type(node).__name__, node, 'inputs:', inputs, 'outputs:',
+                           outputs)
                 node_result += inputs + outputs
             result += node_result
     return result

@@ -6,11 +6,12 @@ import dace
 from dace import dtypes, registry, symbolic, subsets, data
 from dace.sdfg import nodes, utils, replace, SDFG, scope_contains_scope
 from dace.sdfg.graph import SubgraphView
+from dace.sdfg.scope import ScopeTree
 from dace.memlet import Memlet
 from dace.transformation import transformation
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr, overapproximate
-from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet
+from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet, propagate_memlets_scope
 from dace.transformation.subgraph import helpers
 from dace.transformation.dataflow import RedundantArray
 from dace.sdfg.utils import consolidate_edges_scope
@@ -41,7 +42,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
     """
 
-    debug = Property(desc="Show debug info", dtype=bool, default=True)
+    debug = Property(desc="Show debug info", dtype=bool, default=False)
 
     transient_allocation = Property(
         desc="Storage Location to push transients to that are "
@@ -49,23 +50,22 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         dtype=dtypes.StorageType,
         default=dtypes.StorageType.Default)
 
+    schedule_innermaps = Property(desc="Schedule of inner maps",
+                                  dtype=dtypes.ScheduleType,
+                                  default=dtypes.ScheduleType.Default,
+                                  allow_none=True)
     consolidate = Property(
         desc="Consolidate edges that enter and exit the fused map.",
         dtype=bool,
         default=False)
 
-    schedule_innermaps = Property(desc="Schedule of inner maps",
-                                  dtype=dtypes.ScheduleType,
-                                  default=dtypes.ScheduleType.Default,
-                                  allow_none=True)
-
-    propagate_source = Property(
-        desc="Propagate memlets of edges that enter the fused map "
-        "from source arrays in order to get a correct volume estimate."
+    propagate = Property(
+        desc="Propagate memlets of edges that enter and exit the fused map."
         "Disable if this causes problems. (If memlet propagation does"
         "not work correctly)",
         dtype=bool,
         default=True)
+
 
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
@@ -155,14 +155,20 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
             # find upper_subsets
             for in_edge in graph.in_edges(node):
+                in_in_edge = graph.memlet_path(in_edge)[-2]
                 # first check for WCRs
                 if in_edge.data.wcr:
-                    return False
+                    # check whether the WCR is actually produced at
+                    # this edge or further up in the memlet path. If not,
+                    # we can still fuse!
+                    # TODO: verify
+                    subset_params = set([str(s) for s in in_in_edge.subset.free_symbols()])
+                    if any([p not in subset_params for p in in_edge.src.map.params])
+                        return False
                 if in_edge.src in map_exits:
-                    edge = graph.memlet_path(in_edge)[-2]
-                    subset_to_add = dcpy(edge.data.subset\
-                                         if edge.data.data == node.data\
-                                         else edge.data.other_subset)
+                    subset_to_add = dcpy(in_in_edge.data.subset\
+                                         if in_in_edge.data.data == node.data\
+                                         else in_in_edge.data.other_subset)
                     subset_to_add.pop(dims_to_discard)
                     upper_subsets.add(subset_to_add)
                 else:
@@ -947,44 +953,18 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                             oedge.data.other_subset = dcpy(oedge.data.subset)
                             oedge.data.other_subset.offset(min_offset, True)
 
-
-
+        # consolidate edges if desired
         if self.consolidate:
             consolidate_edges_scope(graph, global_map_entry)
             consolidate_edges_scope(graph, global_map_exit)
 
-        # do one last pass to correct outside memlets adjacent to global map
-        for out_connector in global_map_entry.out_connectors:
-            # find corresponding in_connector
-            # and the in-connecting edge
-            in_connector = 'IN' + out_connector[3:]
-            for iedge in graph.in_edges(global_map_entry):
-                if iedge.dst_conn == in_connector:
-                    in_edge = iedge
+        # propagate edges adjacent to global map entry and exit
+        # if desired
+        if self.propagate:
+            scope_tree = ScopeTree(global_map_entry, global_map_exit)
+            scope_tree.parent = ScopeTree(None, None)
+            propagate_memlets_scope(sdfg, graph, scope_tree)
 
-            # find corresponding out_connector
-            # and all out-connecting edges that belong to it
-            # count them
-            oedge_counter = 0
-            oedge_set = set()
-            for oedge in graph.out_edges(global_map_entry):
-                if oedge.src_conn == out_connector:
-                    oedge_set.add(oedge)
-                    oedge_counter += 1
-
-            # do memlet propagation
-            # if there are several out edges, else there is no need
-
-            if oedge_counter > 1:
-                if self.propagate_source:
-                    memlet_out = propagate_memlet(dfg_state=graph,
-                                                  memlet=next(
-                                                      iter(oedge_set)).data,
-                                                  scope_node=global_map_entry,
-                                                  union_inner_edges=True)
-                    # override number of accesses
-                    in_edge.data.volume = memlet_out.volume
-                    in_edge.data.subset = memlet_out.subset
 
         # create a hook for outside access to global_map
         self._global_map_entry = global_map_entry

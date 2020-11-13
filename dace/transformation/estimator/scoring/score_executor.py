@@ -108,7 +108,7 @@ class ExecutionScore(ScoringFunction):
         # TODO: clear the runtime folder
         for f in os.listdir(os.path.join(sdfg.build_folder, 'perf')):
             if f.startswith('report-'):
-                os.remove(f)
+                os.remove(os.path.join(sdfg.build_folder, 'perf',f))
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
         outputs_local = {}
@@ -136,7 +136,7 @@ class ExecutionScore(ScoringFunction):
             }
             # specialize sdfg
             sdfg.specialize(self._symbols)
-            r = sdfg(**sdfg_inputs, **outputs_local, **self._symbols)
+            r = sdfg(**sdfg_inputs, **outputs_local)
             outputs_local['__return'] = r
             success = True
         except Exception as e:

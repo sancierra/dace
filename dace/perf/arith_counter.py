@@ -82,7 +82,7 @@ def count_arithmetic_ops_state(state: dace.SDFGState,
     global INDENT
     symbols = symbols or {}
     stree_root = state.scope_tree()[None]
-    sdict = state.scope_dict(node_to_children=True)
+    sdict = state.scope_children()
     result = 0
 
     def traverse(scope: Scope) -> int:
@@ -154,7 +154,7 @@ def count_arithmetic_ops_subgraph(subgraph: SubgraphView, state: dace.SDFGState,
                                symbols: Dict[str, Any] = None) -> int:
     global INDENT
     stree_root = state.scope_tree()[None]
-    sdict = state.scope_dict(node_to_children=True)
+    sdict = state.scope_children()
     result = 0
     symbols = symbols or {}
 

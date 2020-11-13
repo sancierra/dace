@@ -10,17 +10,23 @@ import sys
 from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling
 from dace.transformation.subgraph.composite import CompositeFusion
-from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ExecutionScore
+from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ExecutionScore, MemletScore
 from dace.transformation.estimator.programs import factory
 from typing import Type, List
 
 
-def prep(sdfg, graph):
-    expand_reduce(sdfg, graph)
-    expand_maps(sdfg, graph)
+def list_top(subgraph_scores, n, list_all = False):
+    ''' Lists the n best subgraph scores '''
+    if list_all:
+        print("********** All Subgraphs **********")
+        print(subgraph_scores)
+    print(f"********** Top {n} **********")
+    for (i,(subgraph, runtime)) in enumerate(sorted(subgraph_scores, key=lambda a: a[1])[0:10]):
+        print(f"------------{i+1}-------------")
+        print("Runtime:", runtime)
+        print(subgraph)
 
-
-def enumerate(sdfg, graph, enumerator_type, scoring_function,
+def enumerator(sdfg, graph, enumerator_type, scoring_function,
               condition_function):
     '''
     Enumerate all possibilities and score
@@ -54,7 +60,7 @@ def test_listing(program_name: str,
     graph = sdfg.nodes()[0]
     if view:
         sdfg.view()
-    enumerate(sdfg, graph, enumerator_type, None, None)
+    enumerator(sdfg, graph, enumerator_type, None, None)
 
 
 def test_executor(program_name: str,
@@ -89,17 +95,38 @@ def test_executor(program_name: str,
         nruns=nruns,
         transformation_function=transformation_function,
         **kwargs)
-    subgraph_list = enumerate(sdfg, graph, enumerator_type, scoring_func,
+    subgraph_list = enumerator(sdfg, graph, enumerator_type, scoring_func,
                               condition_function)
-    print(subgraph_list)
-    print("*** Results ***")
-    print("Top 10")
-    for (subgraph, runtime) in sorted(subgraph_list, key=lambda a: a[1])[0:10]:
-        print("-------")
-        print("Runtime:", runtime)
-        print(subgraph)
-        print("-------")
+    list_top(subgraph_list, 10)
 
+def test_memlet(program_name: str,
+                enumerator_type: Type,
+                view: bool = False,
+                gpu: bool = False,
+                nruns: int = None,
+                transformation_function = CompositeFusion,
+                condition_function = CompositeFusion.can_be_applied,
+                **kwargs):
+    '''
+    Tests listing all subgraphs with MemletScore as ScoringFunction
+    '''
+    sdfg = factory.get_program(program_name)
+    if gpu:
+        sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    io = factory.get_args(program_name)
+    (_, _, symbols) = io
+    scoring_func  = MemletScore(
+        sdfg = sdfg,
+        graph = graph,
+        symbols = symbols,
+        gpu = gpu,
+        transformation_function = transformation_function,
+        ** kwargs
+    )
+    subgraph_list = enumerator(sdfg, graph, enumerator_type, scoring_func,
+                              condition_function)
+    list_top(subgraph_list, 10)
 
 if __name__ == "__main__":
     program_options = [
@@ -118,14 +145,17 @@ if __name__ == "__main__":
     '''
 
     # Part II: List up all the subgraphs and execute them
+    test_memlet('softmax',
+                  ConnectedEnumerator,
+                  nruns=5,
+                  gpu = False,
+                  debug = True)
+    '''
     test_executor('softmax',
                   ConnectedEnumerator,
                   nruns=5,
-                  gpu = True,
-                  transient_allocation = dtypes.StorageType.Register,
-                  schedule_innermaps = dtypes.ScheduleType.Sequential,
+                  gpu = False,
                   debug = True)
-    '''
     test_executor('vadv',
                   ConnectedEnumerator,
                   nruns = 30)

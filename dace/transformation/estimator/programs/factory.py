@@ -1,6 +1,6 @@
 from dace.sdfg import SDFG
 import numpy as np
-import os
+import os, sys
 
 from .util import expand_maps, expand_reduce, fusion, stencil_tiling
 
@@ -16,6 +16,7 @@ def prepare_expansion(sdfg, graph):
 def get_program(program_name):
     '''
     returns a post-processed SDFG of the given program
+    as well as the graph of interest for analysis
     '''
     data_suffix = None
     if DATATYPE == np.float32:
@@ -24,6 +25,7 @@ def get_program(program_name):
         data_suffix = str(64)
     else:
         raise NotImplementedError("Wrong Datatype")
+
 
     if program_name == 'synthetic':
         sdfg = SDFG.from_file(
@@ -43,9 +45,9 @@ def get_program(program_name):
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'softmax' + data_suffix + '.sdfg'))
         prepare_expansion(sdfg, sdfg.nodes()[0])
-    elif program_name == 'correlation':
+    elif program_name == 'gemver':
         sdfg = SDFG.from_file(
-            os.path.join(PATH, 'correlation' + data_suffix + '.sdfg'))
+            os.path.join(PATH, 'gemver' + data_suffix + '.sdfg'))
         prepare_expansion(sdfg, sdfg.nodes()[0])
     elif program_name == 'transformer':
         sdfg = SDFG.from_file(
@@ -78,7 +80,7 @@ def get_args(program_name):
             'O': O
         })
     elif program_name == 'softmax':
-        H, B, SN, SM = 16, 16, 128, 128
+        H, B, SN, SM = 16, 16, 20, 20
         return ({
             'X_in': np.random.rand(H, B, SN, SM).astype(DATATYPE)
         }, {}, {
@@ -175,6 +177,29 @@ def get_args(program_name):
             'K': K,
             'halo': halo
         })
+
+    elif program_name == 'gemver':
+        N = 100
+        A = np.random.rand(N,N).astype(DATATYPE)
+        u1 = np.random.rand(N).astype(DATATYPE)
+        u2 = np.random.rand(N).astype(DATATYPE)
+        v1 = np.random.rand(N).astype(DATATYPE)
+        v2 = np.random.rand(N).astype(DATATYPE)
+        beta = np.random.rand(N).astype(DATATYPE)
+        y = np.random.rand(N).astype(DATATYPE)
+        u1 = np.random.rand(N).astype(DATATYPE)
+
+        return({
+                'A': A,
+                'u1': u1,
+                'u2': u2,
+                'v1': v1,
+                'v2': v2,
+                'beta': beta, 
+                'y': y
+                },
+                {'A': A},
+                {'N': N})
 
     elif program_name == 'transformer':
         raise NotImplementedError("TODO")

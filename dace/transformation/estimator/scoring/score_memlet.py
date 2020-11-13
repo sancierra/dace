@@ -9,6 +9,9 @@ from dace.sdfg.graph import SubgraphView
 from dace.perf.movement_counter import count_moved_data_state
 from dace.perf.movement_counter import count_moved_data_subgraph
 
+import dace.sdfg.propagation as propagation
+import dace.symbolic as symbolic
+import sympy
 
 from typing import Set, Union, List, Callable, Dict, Type
 
@@ -31,15 +34,21 @@ class MemletScore(ScoringFunction):
                      dtype = bool,
                      default = True)
 
-    exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
+    propagate_all = Property(desc = "Do a final propagation step "
+                                    "before evaluation "
+                                    "using propagate_memlets_state()",
                              dtype = bool,
                              default = False)
+
+    exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
+                             dtype = bool,
+                             default = True)
     view_on_error = Property(desc = "View program if faulty",
                              dtype = bool,
                              default = False)
     save_on_error = Property(desc = "Save SDFG if faulty",
                              dtype = bool,
-                             default = True)
+                             default = False)
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
@@ -58,14 +67,45 @@ class MemletScore(ScoringFunction):
         self._symbols = symbols
         self._base_traffic = self.estimate_traffic(sdfg, graph)
 
+    def symbolic_evaluation(self, term):
+
+        # take care of special functions appearing in term and resolve those
+        x, y = sympy.symbols('x y')
+        sym_locals = {sympy.Function('int_floor') : sympy.Lambda((x,y), sympy.functions.elementary.integers.floor  (x/y)),
+                      sympy.Function('int_ceil')  : sympy.Lambda((x,y), sympy.functions.elementary.integers.ceiling(x/y)),
+                      sympy.Function('floor')     : sympy.Lambda((x),   sympy.functions.elementary.integers.floor(x)),
+                      sympy.Function('ceiling')   : sympy.Lambda((x),   sympy.functions.elementary.integers.ceiling(x)),
+                      }
+        for fun, lam in sym_locals.items():
+            term.replace(fun, lam)
+
+        result = symbolic.evaluate(term, self._symbols)
+        result = float(result)
+        return result
+
+
     def estimate_traffic(self, sdfg, graph):
         try:
-            traffic = count_moved_data_state(sdfg, graph, self._symbols)
+            # get traffic count
+            traffic_symbolic = count_moved_data_state(graph)
+            # evaluate w.r.t. symbols
+            traffic = self.symbolic_evaluation(traffic_symbolic)
+            if traffic == 0:
+                raise RuntimeError("Traffic is Zero")
         except Exception as e:
-            print("ERROR in score_memlet")
+            print("ERROR in score_memlet:")
             print(e)
             traffic = 0
-
+            if self.view_on_error:
+                sdfg.view()
+            if self.save_on_error:
+                i = 0
+                while(os.path.exists(f"error{i}.sdfg")):
+                    i += 1
+                sdfg.save('error.sdfg')
+            if self.exit_on_error:
+                sys.exit(0)
+        sdfg.view()
         return traffic
 
     def score(self, subgraph: SubgraphView):
@@ -95,5 +135,8 @@ class MemletScore(ScoringFunction):
                 warnings.warn(f"Attribute {arg} has invalid value {val}")
 
         transformation_function.apply(sdfg_copy)
+        if self.propagate_all:
+            propagation.propagate_memlets_state(sdfg_copy, graph_copy)
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
+        print("CURRENT", current_traffic)
         return current_traffic / self._base_traffic

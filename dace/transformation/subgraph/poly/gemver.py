@@ -1,8 +1,5 @@
-
-
 import math
 import dace
-import polybench
 
 N = dace.symbol('N')
 
@@ -79,4 +76,5 @@ def gemver(A, u1, v1, u2, v2, w, x, y, z, alpha, beta):
 
 
 if __name__ == '__main__':
-   polybench.main(sizes, args, outputs, init_array, gemver)
+    sdfg = gemver.to_sdfg()
+    sdfg.view()
