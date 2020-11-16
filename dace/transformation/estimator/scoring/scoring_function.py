@@ -10,7 +10,7 @@ import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
 from collections import deque, defaultdict, ChainMap
-from typing import Set, Union, List, Callable, Type
+from typing import Set, Union, List, Callable, Type, Dict
 
 import json
 
@@ -24,6 +24,7 @@ class ScoringFunction:
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
+                 io: Dict = None,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  transformation_function: Type = CompositeFusion,
@@ -56,6 +57,10 @@ class ScoringFunction:
         # search for outermost map entries
         self._map_entries = helpers.get_outermost_scope_maps(
             sdfg, graph, subgraph)
+
+        # set IO if defined
+        if io:
+            self._inputs, self._outputs, self._symbols = io
 
         # kwargs define current part of search space to explore
         self._kwargs = kwargs

@@ -44,9 +44,7 @@ class ExecutionScore(ScoringFunction):
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
-                 inputs: Dict,
-                 outputs: Dict,
-                 symbols: Dict,
+                 io: Dict,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  nruns=None,
@@ -55,14 +53,10 @@ class ExecutionScore(ScoringFunction):
         super().__init__(sdfg=sdfg,
                          graph=graph,
                          subgraph=subgraph,
+                         io = io,
                          gpu=gpu,
                          transformation_function=transformation_function,
                          **kwargs)
-
-        # input arguments: we just create a class variable
-        self._inputs = inputs
-        self._outputs = outputs
-        self._symbols = symbols
 
         # if nruns is defined, change config
         if nruns is not None:
@@ -106,9 +100,10 @@ class ExecutionScore(ScoringFunction):
             else:
                 map_entry.map.instrument = dtypes.InstrumentationType.Timer
         # TODO: clear the runtime folder
-        for f in os.listdir(os.path.join(sdfg.build_folder, 'perf')):
-            if f.startswith('report-'):
-                os.remove(os.path.join(sdfg.build_folder, 'perf',f))
+        if os.path.exists(os.path.join(sdfg.build_folder, 'perf')):
+            for f in os.listdir(os.path.join(sdfg.build_folder, 'perf')):
+                if f.startswith('report-'):
+                    os.remove(os.path.join(sdfg.build_folder, 'perf',f))
         # create a local copy of all the outputs and set all outputs
         # to zero. this will serve as an output for the current iteration
         outputs_local = {}

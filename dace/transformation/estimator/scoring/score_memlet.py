@@ -52,7 +52,7 @@ class MemletScore(ScoringFunction):
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
-                 symbols: Dict,
+                 io: Dict,
                  subgraph: SubgraphView = None,
                  gpu: bool = None,
                  transformation_function: Type = CompositeFusion,
@@ -60,11 +60,13 @@ class MemletScore(ScoringFunction):
         super().__init__(sdfg=sdfg,
                          graph=graph,
                          subgraph=subgraph,
+                         io = io,
                          gpu=gpu,
                          transformation_function=transformation_function,
                          **kwargs)
 
-        self._symbols = symbols
+        # inputs and outputs not needed
+        self._outputs, self._inputs = None, None
         self._base_traffic = self.estimate_traffic(sdfg, graph)
 
     def symbolic_evaluation(self, term):
@@ -105,7 +107,6 @@ class MemletScore(ScoringFunction):
                 sdfg.save('error.sdfg')
             if self.exit_on_error:
                 sys.exit(0)
-        sdfg.view()
         return traffic
 
     def score(self, subgraph: SubgraphView):
