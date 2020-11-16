@@ -163,7 +163,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     # we can still fuse!
                     # TODO: verify
                     subset_params = set([str(s) for s in in_in_edge.subset.free_symbols()])
-                    if any([p not in subset_params for p in in_edge.src.map.params])
+                    if any([p not in subset_params for p in in_edge.src.map.params]):
                         return False
                 if in_edge.src in map_exits:
                     subset_to_add = dcpy(in_in_edge.data.subset\
