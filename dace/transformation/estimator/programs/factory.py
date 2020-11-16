@@ -185,9 +185,10 @@ def get_args(program_name):
         u2 = np.random.rand(N).astype(DATATYPE)
         v1 = np.random.rand(N).astype(DATATYPE)
         v2 = np.random.rand(N).astype(DATATYPE)
-        beta = np.random.rand(N).astype(DATATYPE)
         y = np.random.rand(N).astype(DATATYPE)
-        u1 = np.random.rand(N).astype(DATATYPE)
+        w = np.zeros([N], dtype=DATATYPE)
+        alpha = np.random.rand(1).astype(DATATYPE)
+        beta = np.random.rand(1).astype(DATATYPE)
 
         return({
                 'A': A,
@@ -195,8 +196,9 @@ def get_args(program_name):
                 'u2': u2,
                 'v1': v1,
                 'v2': v2,
-                'beta': beta, 
-                'y': y
+                'y': y,
+                'alpha': alpha,
+                'beta': beta
                 },
                 {'A': A},
                 {'N': N})
