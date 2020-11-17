@@ -1,6 +1,7 @@
 # Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
 import dace
 import dace.transformation.subgraph.helpers as helpers
+
 import dace.sdfg.nodes as nodes
 import dace.dtypes as dtypes
 
@@ -10,6 +11,7 @@ import sys
 from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling
 from dace.transformation.subgraph.composite import CompositeFusion
+from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps
 from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ScoringFunction, ExecutionScore, MemletScore
 from dace.transformation.estimator.programs import factory
 from typing import Type, List, Dict, Callable
@@ -87,7 +89,11 @@ def test(program_name: str,
     sdfg = factory.get_program(program_name)
     if gpu:
         sdfg.apply_gpu_transformations()
+    sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
+    expand_reduce(sdfg, graph)
+    expand_maps(sdfg, graph)
+
     io = factory.get_args(program_name)
     test_scorer(sdfg = sdfg,
                 graph = graph,
@@ -110,5 +116,5 @@ if __name__ == "__main__":
     test(program_name = 'softmax',
          enumerator_type = ConnectedEnumerator,
          scoring_type = MemletScore,
-         gpu = False,
+         gpu = True,
          debug = True)

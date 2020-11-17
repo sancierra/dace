@@ -9,11 +9,6 @@ DATATYPE = np.float32
 PATH = os.path.expanduser('~/dace/dace/transformation/estimator/programs')
 
 
-def prepare_expansion(sdfg, graph):
-    expand_reduce(sdfg, graph)
-    expand_maps(sdfg, graph)
-
-
 def get_program(program_name):
     '''
     returns a post-processed SDFG of the given program
@@ -31,11 +26,9 @@ def get_program(program_name):
     if program_name == 'synthetic':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'synthetic' + data_suffix + '.sdfg'))
-        prepare_expansion(sdfg, sdfg.nodes()[0])
     elif program_name == 'vadv':
         sdfg = SDFG.from_file(os.path.join(PATH,
                                            'vadv' + data_suffix + '.sdfg'))
-        prepare_expansion(sdfg, sdfg.nodes()[0])
     elif program_name == 'hdiff':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'hdiff' + data_suffix + '.sdfg'))
@@ -47,15 +40,12 @@ def get_program(program_name):
     elif program_name == 'softmax':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'softmax' + data_suffix + '.sdfg'))
-        prepare_expansion(sdfg, sdfg.nodes()[0])
     elif program_name == 'gemver':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'gemver' + data_suffix + '.sdfg'))
-        prepare_expansion(sdfg, sdfg.nodes()[0])
     elif program_name == 'transformer':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'transformer' + data_suffix + '.sdfg'))
-        prepare_expansion(sdfg, sdfg.nodes()[0])
     else:
         raise NotImplementedError("Program not found")
 
