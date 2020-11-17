@@ -1,3 +1,4 @@
+from dace.sdfg.propagation import propagate_memlets_sdfg
 from dace.sdfg import SDFG
 import numpy as np
 import os, sys
@@ -41,6 +42,8 @@ def get_program(program_name):
     elif program_name == 'hdiff_mini':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'hdiff_mini' + data_suffix + '.sdfg'))
+        # fix the memlet mess
+        propagate_memlets_sdfg(sdfg)
     elif program_name == 'softmax':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'softmax' + data_suffix + '.sdfg'))

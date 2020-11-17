@@ -7,6 +7,7 @@ from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
 
 from dace.perf.movement_counter import count_moved_data_state
+from dace.perf.movement_counter import count_moved_data_state_composite
 from dace.perf.movement_counter import count_moved_data_subgraph
 
 import dace.sdfg.propagation as propagation
@@ -38,7 +39,7 @@ class MemletScore(ScoringFunction):
                                     "before evaluation "
                                     "using propagate_memlets_state()",
                              dtype = bool,
-                             default = False)
+                             default = True)
 
     exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
                              dtype = bool,
@@ -89,7 +90,8 @@ class MemletScore(ScoringFunction):
     def estimate_traffic(self, sdfg, graph):
         try:
             # get traffic count
-            traffic_symbolic = count_moved_data_state(graph)
+            traffic_symbolic = count_moved_data_state_composite(graph)
+            print("****", traffic_symbolic)
             # evaluate w.r.t. symbols
             traffic = self.symbolic_evaluation(traffic_symbolic)
             if traffic == 0:

@@ -25,7 +25,7 @@ def list_top(subgraph_scores, n=10, list_all = False):
     print(f"********** Top {n} **********")
     for (i,(subgraph, runtime)) in enumerate(subgraph_scores[0:n]):
         print(f"------------{i+1}-------------")
-        print("Runtime:", runtime)
+        print("Objective:", runtime)
         print(subgraph)
 
 def score(sdfg, graph, enumerator_type, scoring_function,
@@ -104,11 +104,11 @@ def test(program_name: str,
 if __name__ == "__main__":
     program_options = [
         'synthetic', 'softmax', 'vadv'
-        'hdiff', 'hdiff_mini', 'transformer', 'correlation'
+        'hdiff', 'hdiff_mini', 'transformer', 'gemver'
     ]
 
     test(program_name = 'softmax',
          enumerator_type = ConnectedEnumerator,
-         scoring_type = ExecutionScore,
+         scoring_type = MemletScore,
          gpu = False,
          debug = True)
