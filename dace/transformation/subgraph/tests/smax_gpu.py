@@ -26,14 +26,14 @@ H, B, SN, SM = (dace.symbol(s) for s in ('H', 'B', 'SN', 'SM'))
 
 
 @dace.program
-def softmax(X_in: dace_dtype[H, B, SN, 512]):
+def softmax(X_in: dace_dtype[H, B, SN, SM]):
     tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3, identity = 0)
     #TEST[:] = tmp_max
-    tmp_out = np.ndarray([H, B, SN, 512], dtype=dace_dtype)
-    out = np.ndarray([H, B, SN, 512], dtype=dace_dtype)
+    tmp_out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
+    out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
 
     # No broadcasting rules
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:512]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:SM]:
         with dace.tasklet:
             inp << X_in[i, j, k, l]
             mx << tmp_max[i, j, k]
@@ -42,7 +42,7 @@ def softmax(X_in: dace_dtype[H, B, SN, 512]):
     #tmp_out = np.exp(X_in - tmp_max)
 
     tmp_sum = dace.reduce(lambda a, b: a + b, tmp_out, identity=0, axis=3)
-    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:512]:
+    for i, j, k, l in dace.map[0:H, 0:B, 0:SN, 0:SM]:
         with dace.tasklet:
             inp << tmp_out[i, j, k, l]
             sm << tmp_sum[i, j, k]
@@ -52,7 +52,7 @@ def softmax(X_in: dace_dtype[H, B, SN, 512]):
     return out
 
 
-H.set(16); B.set(8); SN.set(512); SM.set(512)
+H.set(16); B.set(16); SN.set(128); SM.set(128)
 
 def test_graph():
     sdfg = softmax.to_sdfg()
@@ -131,9 +131,11 @@ def test_allfuse():
     for node in graph.nodes():
         if isinstance(node, stdlib.nodes.reduce.Reduce):
             node.implementation = 'CUDA (device)'
+    sdfg.specialize({'H':H.get(), 'B':B.get(), 'SM':SM.get(), 'SN':SN.get()})
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
     result_base = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
+    del csdfg
     
     for node in graph.nodes():
         if isinstance(node, stdlib.nodes.reduce.Reduce):
@@ -172,6 +174,7 @@ def test_allfuse():
     sdfg = softmax.to_sdfg()
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
+    sdfg.specialize({'H':H.get(), 'B':B.get(), 'SM':SM.get(), 'SN':SN.get()})
     pipeline.expand_reduce(sdfg, graph, cuda_expand = True, reduce_implementation = 'CUDA (block allreduce)')
     pipeline.expand_maps(sdfg, graph)
     pipeline.fusion(sdfg, graph, transient_allocation = dace.dtypes.StorageType.GPU_Shared, schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock)
@@ -206,7 +209,6 @@ def test_partialfuse():
     graph = sdfg.nodes()[0]
     subgraph = get_partition(sdfg, graph)
     A = np.random.rand(H.get(), B.get(), SN.get(), SM.get()).astype(np.float32)
-    #TEST = np.random.rand(H.get(), B.get(), SN.get()).astype(np.float32)
 
     sdfg._name = 'baseline'
     csdfg = sdfg.compile_directly()
@@ -231,7 +233,6 @@ def test_partialfuse():
     sdfg._name = 'reduce'
     csdfg = sdfg.compile_directly()
     result1 = csdfg(X_in = A, H=H, B=B, SN=SN, SM=SM)
-    #TEST_ref = TEST.copy()
     ######################################################
     pipeline.expand_maps(sdfg, graph, subgraph)
     sdfg.view()
