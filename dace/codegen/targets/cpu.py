@@ -4,12 +4,12 @@ import itertools
 import warnings
 
 from dace import data, dtypes, registry, memlet as mmlt, subsets, symbolic, Config
-from dace.codegen import cppunparse
+from dace.codegen import cppunparse, exceptions as cgx
 from dace.codegen.prettycode import CodeIOStream
 from dace.codegen.targets import cpp
 from dace.codegen.targets.common import codeblock_to_cpp
-from dace.codegen.targets.target import (TargetCodeGenerator, make_absolute,
-                                         DefinedType, TargetDispatcher)
+from dace.codegen.targets.target import TargetCodeGenerator, make_absolute
+from dace.codegen.dispatcher import DefinedType, TargetDispatcher
 from dace.frontend import operations
 from dace.sdfg import nodes
 from dace.sdfg import (ScopeSubgraphView, SDFG, scope_contains_scope,
@@ -47,6 +47,10 @@ class CPUCodeGen(TargetCodeGenerator):
 
         # Keep track of traversed nodes
         self._generated_nodes = set()
+
+        # Keep track of generated NestedSDG, and the name of the assigned function
+        self._generated_nested_sdfg = dict()
+
         # Keeps track of generated connectors, so we know how to access them in
         # nested scopes
         for name, arg_type in sdfg.arglist().items():
@@ -116,12 +120,12 @@ class CPUCodeGen(TargetCodeGenerator):
         return False
 
     def generate_scope(
-        self,
-        sdfg: SDFG,
-        dfg_scope: ScopeSubgraphView,
-        state_id,
-        function_stream,
-        callsite_stream,
+            self,
+            sdfg: SDFG,
+            dfg_scope: ScopeSubgraphView,
+            state_id,
+            function_stream,
+            callsite_stream,
     ):
         entry_node = dfg_scope.source_nodes()[0]
         cpp.presynchronize_streams(sdfg, dfg_scope, state_id, entry_node,
@@ -150,7 +154,6 @@ class CPUCodeGen(TargetCodeGenerator):
 
         # Mark node as "generated"
         self._generated_nodes.add(node)
-
         self._locals.clear_scope(self._ldepth + 1)
 
     def allocate_array(self, sdfg, dfg, state_id, node, function_stream,
@@ -359,15 +362,15 @@ class CPUCodeGen(TargetCodeGenerator):
             return
 
     def copy_memory(
-        self,
-        sdfg,
-        dfg,
-        state_id,
-        src_node,
-        dst_node,
-        edge,
-        function_stream,
-        callsite_stream,
+            self,
+            sdfg,
+            dfg,
+            state_id,
+            src_node,
+            dst_node,
+            edge,
+            function_stream,
+            callsite_stream,
     ):
         if isinstance(src_node, nodes.Tasklet):
             src_storage = dtypes.StorageType.Register
@@ -407,17 +410,17 @@ class CPUCodeGen(TargetCodeGenerator):
         )
 
     def _emit_copy(
-        self,
-        sdfg,
-        state_id,
-        src_node,
-        src_storage,
-        dst_node,
-        dst_storage,
-        dst_schedule,
-        edge,
-        dfg,
-        stream,
+            self,
+            sdfg,
+            state_id,
+            src_node,
+            src_storage,
+            dst_node,
+            dst_storage,
+            dst_schedule,
+            edge,
+            dfg,
+            stream,
     ):
         u, uconn, v, vconn, memlet = edge
 
@@ -914,8 +917,7 @@ class CPUCodeGen(TargetCodeGenerator):
                     memlet_params.append(memlet_expr)
                 else:
                     if def_type != DefinedType.Pointer:
-                        from dace.codegen.codegen import CodegenError
-                        raise CodegenError(
+                        raise cgx.CodegenError(
                             "Cannot offset address of connector {} of type {}".
                             format(memlet_name, def_type))
                     memlet_params.append(memlet_expr + " + " + offset)
@@ -1189,7 +1191,7 @@ class CPUCodeGen(TargetCodeGenerator):
 
                 self._dispatcher.dispatch_output_definition(
                     node, dst_node, edge, sdfg, state_dfg, state_id,
-                     function_stream, inner_stream)
+                    function_stream, inner_stream)
 
                 # Also define variables in the C++ unparser scope
                 self._locals.define(edge.src_conn, -1, self._ldepth + 1,
@@ -1382,13 +1384,13 @@ class CPUCodeGen(TargetCodeGenerator):
         return memlet_references
 
     def _generate_NestedSDFG(
-        self,
-        sdfg,
-        dfg: ScopeSubgraphView,
-        state_id,
-        node: nodes.NestedSDFG,
-        function_stream: CodeIOStream,
-        callsite_stream: CodeIOStream,
+            self,
+            sdfg,
+            dfg: ScopeSubgraphView,
+            state_id,
+            node: nodes.NestedSDFG,
+            function_stream: CodeIOStream,
+            callsite_stream: CodeIOStream,
     ):
         self._dispatcher.defined_vars.enter_scope(sdfg, can_access_parent=False)
         state_dfg = sdfg.nodes()[state_id]
@@ -1396,8 +1398,23 @@ class CPUCodeGen(TargetCodeGenerator):
         # Emit nested SDFG as a separate function
         nested_stream = CodeIOStream()
         nested_global_stream = CodeIOStream()
+
+        unique_functions = Config.get_bool('compiler', 'unique_functions')
+
         sdfg_label = "%s_%d_%d_%d" % (node.sdfg.name, sdfg.sdfg_id, state_id,
                                       dfg.node_id(node))
+
+        if unique_functions:
+            code_already_generated = False
+
+            # Use hashing to check whether this Nested SDFG has been already generated. If that is the case,
+            # use the saved name to call it, otherwise save the hash and the associated name
+            hash = node.sdfg.hash_sdfg()
+            if hash in self._generated_nested_sdfg:
+                code_already_generated = True
+                sdfg_label = self._generated_nested_sdfg[hash]
+            else:
+                self._generated_nested_sdfg[hash] = sdfg_label
 
         #########################################
         # Take care of nested SDFG I/O (arguments)
@@ -1406,41 +1423,42 @@ class CPUCodeGen(TargetCodeGenerator):
         memlet_references = codegen.generate_nsdfg_arguments(
             sdfg, state_dfg, node)
 
-        nested_stream.write(
-            codegen.generate_nsdfg_header(sdfg, state_dfg, node,
-                                          memlet_references, sdfg_label), sdfg,
-            state_id, node)
+        if not unique_functions or not code_already_generated:
+            nested_stream.write(
+                codegen.generate_nsdfg_header(sdfg, state_dfg, node,
+                                              memlet_references, sdfg_label),
+                sdfg, state_id, node)
 
         #############################
         # Generate function contents
-        self._frame.generate_constants(node.sdfg, nested_stream)
 
-        old_schedule = self._toplevel_schedule
-        self._toplevel_schedule = node.schedule
+        if not unique_functions or not code_already_generated:
+            self._frame.generate_constants(node.sdfg, nested_stream)
 
-        # Generate code for internal SDFG
-        (global_code, local_code, used_targets,
-         used_environments) = self._frame.generate_code(node.sdfg,
-                                                        node.schedule,
-                                                        sdfg_label)
-        self._dispatcher._used_environments |= used_environments
+            old_schedule = self._toplevel_schedule
+            self._toplevel_schedule = node.schedule
 
-        self._toplevel_schedule = old_schedule
+            # Generate code for internal SDFG
+            global_code, local_code, used_targets, used_environments = self._frame.generate_code(
+                node.sdfg, node.schedule, sdfg_label)
+            self._dispatcher._used_environments |= used_environments
 
-        nested_stream.write(local_code)
+            self._toplevel_schedule = old_schedule
 
-        # Process outgoing memlets with the internal SDFG
-        self.process_out_memlets(sdfg,
-                                 state_id,
-                                 node,
-                                 state_dfg,
-                                 self._dispatcher,
-                                 nested_stream,
-                                 True,
-                                 nested_global_stream,
-                                 skip_wcr=True)
+            nested_stream.write(local_code)
 
-        nested_stream.write('}\n\n', sdfg, state_id, node)
+            # Process outgoing memlets with the internal SDFG
+            self.process_out_memlets(sdfg,
+                                     state_id,
+                                     node,
+                                     state_dfg,
+                                     self._dispatcher,
+                                     nested_stream,
+                                     True,
+                                     nested_global_stream,
+                                     skip_wcr=True)
+
+            nested_stream.write('}\n\n', sdfg, state_id, node)
 
         ########################
         # Generate function call
@@ -1453,20 +1471,21 @@ class CPUCodeGen(TargetCodeGenerator):
         ###############################################################
         # Write generated code in the proper places (nested SDFG writes
         # location info)
-        function_stream.write(global_code)
+        if not unique_functions or not code_already_generated:
+            function_stream.write(global_code)
         function_stream.write(nested_global_stream.getvalue())
         function_stream.write(nested_stream.getvalue())
 
         self._dispatcher.defined_vars.exit_scope(sdfg)
 
     def _generate_MapEntry(
-        self,
-        sdfg,
-        dfg,
-        state_id,
-        node: nodes.MapEntry,
-        function_stream,
-        callsite_stream,
+            self,
+            sdfg,
+            dfg,
+            state_id,
+            node: nodes.MapEntry,
+            function_stream,
+            callsite_stream,
     ):
         state_dfg = sdfg.node(state_id)
         map_params = node.map.params
@@ -1614,13 +1633,13 @@ class CPUCodeGen(TargetCodeGenerator):
         callsite_stream.write('}', sdfg, state_id, node)
 
     def _generate_ConsumeEntry(
-        self,
-        sdfg,
-        dfg,
-        state_id,
-        node: nodes.MapEntry,
-        function_stream,
-        callsite_stream,
+            self,
+            sdfg,
+            dfg,
+            state_id,
+            node: nodes.MapEntry,
+            function_stream,
+            callsite_stream,
     ):
         result = callsite_stream
 

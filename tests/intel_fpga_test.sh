@@ -115,6 +115,13 @@ run_all() {
 
     ## Multiple kernels
     run_sample fpga/multiple_kernels multiple_kernels "\n"
+
+    #Unique nested sdfg
+    run_sample fpga/unique_nested_sdfg_fpga two_vecAdd "\n"
+
+    ## BLAS
+    run_sample blas/nodes/axpy_test blas_axpy_test "\n" --target intel_fpga
+    
 }
 
 # Check if aoc is vailable

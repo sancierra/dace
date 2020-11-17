@@ -96,6 +96,7 @@ class Language(aenum.AutoNumberEnum):
 
     Python = ()
     CPP = ()
+    SystemVerilog = ()
 
 
 class AccessType(aenum.AutoNumberEnum):
@@ -152,6 +153,7 @@ _CTYPES = {
     complex: "dace::complex64",
     bool: "bool",
     numpy.bool: "bool",
+    numpy.bool_: "bool",
     numpy.int8: "char",
     numpy.int16: "short",
     numpy.int32: "int",
@@ -174,6 +176,7 @@ _OCL_TYPES = {
     float: "float",
     bool: "bool",
     numpy.bool: "bool",
+    numpy.bool_: "bool",
     numpy.int8: "char",
     numpy.int16: "short",
     numpy.int32: "int",
@@ -213,6 +216,7 @@ _FFI_CTYPES = {
     complex: ctypes.c_uint64,
     bool: ctypes.c_bool,
     numpy.bool: ctypes.c_bool,
+    numpy.bool_: ctypes.c_bool,
     numpy.int8: ctypes.c_int8,
     numpy.int16: ctypes.c_int16,
     numpy.int32: ctypes.c_int32,
@@ -236,6 +240,7 @@ _BYTES = {
     complex: 8,
     bool: 1,
     numpy.bool: 1,
+    numpy.bool_: 1,
     numpy.int8: 1,
     numpy.int16: 2,
     numpy.int32: 4,
@@ -416,8 +421,10 @@ def result_type_of(lhs, *rhs):
 
     # Extract the type if symbolic or data
     from dace.data import Data
-    lhs = lhs.dtype if (type(lhs).__name__ == 'symbol' or isinstance(lhs, Data)) else lhs
-    rhs = rhs.dtype if (type(rhs).__name__ == 'symbol' or isinstance(rhs, Data)) else rhs
+    lhs = lhs.dtype if (type(lhs).__name__ == 'symbol'
+                        or isinstance(lhs, Data)) else lhs
+    rhs = rhs.dtype if (type(rhs).__name__ == 'symbol'
+                        or isinstance(rhs, Data)) else rhs
 
     if lhs == rhs:
         return lhs  # Types are the same, return either
@@ -825,6 +832,7 @@ class callback(typeclass):
 
 # Helper function to determine whether a global variable is a constant
 _CONSTANT_TYPES = [
+    type(None),
     int,
     float,
     complex,
@@ -852,7 +860,8 @@ _CONSTANT_TYPES = [
 
 def isconstant(var):
     """ Returns True if a variable is designated a constant (i.e., that can be
-        directly generated in code). """
+        directly generated in code).
+    """
     return type(var) in _CONSTANT_TYPES
 
 
@@ -890,10 +899,18 @@ DTYPE_TO_TYPECLASS = {
     numpy.float32: float32,
     numpy.float64: float64,
     numpy.complex64: complex64,
-    numpy.complex128: complex128
+    numpy.complex128: complex128,
+    # FIXME
+    numpy.longlong: int64,
+    numpy.ulonglong: uint64
 }
 
 TYPECLASS_STRINGS = [
+    "int",
+    "float",
+    "complex",
+    "bool",
+    "bool_",
     "int8",
     "int16",
     "int32",
@@ -906,7 +923,20 @@ TYPECLASS_STRINGS = [
     "float32",
     "float64",
     "complex64",
-    "complex128",
+    "complex128"
+]
+
+INTEGER_TYPES = [
+    bool,
+    bool_,
+    int8,
+    int16,
+    int32,
+    int64,
+    uint8,
+    uint16,
+    uint32,
+    uint64
 ]
 
 #######################################################
@@ -956,9 +986,17 @@ def ismodule_and_allowed(var):
     return False
 
 
-def isallowed(var):
-    """ Returns True if a given object is allowed in a DaCe program. """
+def isallowed(var, allow_recursive=False):
+    """ Returns True if a given object is allowed in a DaCe program.
+
+        :param allow_recursive: whether to allow dicts or lists containing constants.
+    """
     from dace.symbolic import symbol
+
+    if allow_recursive:
+        if isinstance(var, (list, tuple)):
+            return all(isallowed(v, allow_recursive=False) for v in var)
+
     return isconstant(var) or ismodule(var) or isinstance(
         var, symbol) or isinstance(var, typeclass)
 
@@ -1055,6 +1093,8 @@ def deduplicate(iterable):
 
 def validate_name(name):
     if not isinstance(name, str) or len(name) == 0:
+        return False
+    if name in {'True', 'False', 'None'}:
         return False
     if re.match(r'^[a-zA-Z_][a-zA-Z_0-9]*$', name) is None:
         return False

@@ -32,7 +32,7 @@ def nest_state_subgraph(sdfg: SDFG,
     """
     if state.parent != sdfg:
         raise KeyError('State does not belong to given SDFG')
-    if subgraph.graph != state:
+    if subgraph is not state and subgraph.graph is not state:
         raise KeyError('Subgraph does not belong to given state')
 
     # Find the top-level scope
@@ -59,7 +59,8 @@ def nest_state_subgraph(sdfg: SDFG,
         scope_node = scope_dict[node]
         if scope_node not in subgraph.nodes():
             if top_scopenode != -1 and top_scopenode != scope_node:
-                raise ValueError('Subgraph is contained in more than one scope')
+                raise ValueError(
+                    'Subgraph is contained in more than one scope')
             top_scopenode = scope_node
 
     scope = scope_tree[top_scopenode]
@@ -200,16 +201,16 @@ def nest_state_subgraph(sdfg: SDFG,
         node = nstate.add_read(name)
         new_edge = copy.deepcopy(edge.data)
         new_edge.data = name
-        edges_to_offset.append(
-            (edge, nstate.add_edge(node, None, edge.dst, edge.dst_conn,
-                                   new_edge)))
+        edges_to_offset.append((edge,
+                                nstate.add_edge(node, None, edge.dst,
+                                                edge.dst_conn, new_edge)))
     for name, edge in zip(output_names, outputs):
         node = nstate.add_write(name)
         new_edge = copy.deepcopy(edge.data)
         new_edge.data = name
-        edges_to_offset.append(
-            (edge, nstate.add_edge(edge.src, edge.src_conn, node, None,
-                                   new_edge)))
+        edges_to_offset.append((edge,
+                                nstate.add_edge(edge.src, edge.src_conn, node,
+                                                None, new_edge)))
 
     # Offset memlet paths inside nested SDFG according to subsets
     for original_edge, new_edge in edges_to_offset:
@@ -320,12 +321,14 @@ def state_fission(sdfg: SDFG, subgraph: graph.SubgraphView) -> SDFGState:
     return newstate
 
 
-def unsqueeze_memlet(internal_memlet: Memlet, external_memlet: Memlet):
+def unsqueeze_memlet(internal_memlet: Memlet, external_memlet: Memlet,
+                     preserve_minima: bool = False) -> Memlet:
     """ Unsqueezes and offsets a memlet, as per the semantics of nested
         SDFGs.
         :param internal_memlet: The internal memlet (inside nested SDFG)
                                 before modification.
         :param external_memlet: The external memlet before modification.
+        :param preserve_minima: Do not change the subset's minimum elements.
         :return: Offset Memlet to set on the resulting graph.
     """
     result = copy.deepcopy(internal_memlet)
@@ -338,7 +341,8 @@ def unsqueeze_memlet(internal_memlet: Memlet, external_memlet: Memlet):
         # Special case: If internal memlet is one element and the top
         # memlet uses all its dimensions, ignore the internal element
         # TODO: There must be a better solution
-        if (len(internal_memlet.subset) == 1 and ones == list(range(len(shape)))
+        if (len(internal_memlet.subset) == 1
+                and ones == list(range(len(shape)))
                 and (internal_memlet.subset[0] == (0, 0, 1)
                      or internal_memlet.subset[0] == 0)):
             to_unsqueeze = ones[1:]
@@ -350,12 +354,18 @@ def unsqueeze_memlet(internal_memlet: Memlet, external_memlet: Memlet):
         # Try to squeeze internal memlet
         result.subset.squeeze()
         if len(result.subset) != len(external_memlet.subset):
-            raise ValueError('Unexpected extra dimensions in internal memlet '
-                             'while un-squeezing memlet.\nExternal memlet: %s\n'
-                             'Internal memlet: %s' %
-                             (external_memlet, internal_memlet))
+            raise ValueError(
+                'Unexpected extra dimensions in internal memlet '
+                'while un-squeezing memlet.\nExternal memlet: %s\n'
+                'Internal memlet: %s' % (external_memlet, internal_memlet))
 
     result.subset.offset(external_memlet.subset, False)
+
+    if preserve_minima:
+        original_minima = external_memlet.subset.min_element()
+        for i in set(range(len(original_minima))):
+            rb, re, rs = result.subset.ranges[i]
+            result.subset.ranges[i] = (original_minima[i], re, rs)
 
     # TODO: Offset rest of memlet according to other_subset
     if external_memlet.other_subset is not None:
