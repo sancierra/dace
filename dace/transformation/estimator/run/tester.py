@@ -91,9 +91,9 @@ def test(program_name: str,
         sdfg.apply_gpu_transformations()
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
-    expand_reduce(sdfg, graph)
+    expand_reduce(sdfg, graph, reduce_implementation = 'pure' if not gpu else 'CUDA (block allreduce)')
     expand_maps(sdfg, graph)
-
+    sdfg.save('program.sdfg')
     io = factory.get_args(program_name)
     test_scorer(sdfg = sdfg,
                 graph = graph,
@@ -115,6 +115,8 @@ if __name__ == "__main__":
 
     test(program_name = 'softmax',
          enumerator_type = ConnectedEnumerator,
-         scoring_type = MemletScore,
+         scoring_type = ExecutionScore,
          gpu = True,
-         debug = True)
+         debug = True,
+         transient_allocation = dace.dtypes.StorageType.GPU_Shared,
+         schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock)

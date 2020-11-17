@@ -197,7 +197,6 @@ class ExecutionScore(ScoringFunction):
 
         runtime = 0.0
         for json_file in files:
-            runtime = 0.0
             path = os.path.join(sdfg.build_folder, 'perf', json_file)
             with open(path) as f:
                 data = json.load(f)
