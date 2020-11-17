@@ -185,8 +185,8 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     for oedge in graph.out_edges(out_edge.dst):
                         if oedge.src_conn[3:] == out_edge.dst_conn[2:]:
                             subset_to_add = dcpy(oedge.data.subset \
-                                                 if edge.data.data == node.data \
-                                                 else edge.data.other_subset)
+                                                 if oedge.data.data == node.data \
+                                                 else oedge.data.other_subset)
                             subset_to_add.pop(dims_to_discard)
                             lower_subsets.add(subset_to_add)
 
