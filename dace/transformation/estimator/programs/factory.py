@@ -29,6 +29,8 @@ def get_program(program_name):
     elif program_name == 'vadv':
         sdfg = SDFG.from_file(os.path.join(PATH,
                                            'vadv' + data_suffix + '.sdfg'))
+        propagate_memlets_sdfg(sdfg)
+
     elif program_name == 'hdiff':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'hdiff' + data_suffix + '.sdfg'))

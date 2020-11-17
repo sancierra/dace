@@ -123,7 +123,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
         # 2. check intermediate feasiblility
         # see map_fusion.py for similar checks
-        # we are being more relaxed here
+        # with the restrictions below being more relaxed
 
         # 2.1 do some preparation work first:
         # calculate all out_nodes and intermediate_nodes
@@ -150,9 +150,11 @@ class SubgraphFusion(transformation.SubgraphTransformation):
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
             total_dims = len(sdfg.data(node.data).shape)
-            dims_to_discard = SubgraphFusion.get_invariant_dimensions(
-                sdfg, graph, map_entries, map_exits, node)
-
+            try:
+                dims_to_discard = SubgraphFusion.get_invariant_dimensions(
+                    sdfg, graph, map_entries, map_exits, node)
+            except NotImplementedError:
+                return False
             # find upper_subsets
             for in_edge in graph.in_edges(node):
                 in_in_edge = graph.memlet_path(in_edge)[-2]
@@ -295,16 +297,23 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         else:
                             # add to out_nodes
                             out_nodes.add(current_node)
-                for e in graph.in_edges(current_node):
-                    if e.src not in map_exits:
-                        raise NotImplementedError(
-                            "Nodes between two maps to be"
-                            "fused with *incoming* edges"
-                            "from outside the maps are not"
-                            "allowed yet.")
+                '''
+                TODO: REMOVE THIS
+
+                '''
 
         # any intermediate_nodes currently in in_nodes shouldnt be there
         in_nodes -= intermediate_nodes
+
+        for node in intermediate_nodes:
+            for e in graph.in_edges(node):
+                if e.src not in map_exits:
+                    warnings.warn(
+                    "Nodes between two maps to be"
+                    "fused with *incoming* edges"
+                    "from outside the maps are not"
+                    "allowed yet.")
+                    raise NotImplementedError()
 
         return (in_nodes, intermediate_nodes, out_nodes)
 
@@ -355,7 +364,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         on a non-fused graph, return a set of
         indices that correspond to array dimensions that
         do not change when we are entering maps
-        for an access node
+        for an intermediate access node
         '''
         variate_dimensions = set()
         subset_length = -1
@@ -372,10 +381,10 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     if ssbs1 != ssbs2:
                         variate_dimensions.add(idx)
             else:
-                raise NotImplementedError("Nodes between two maps to be"
-                                          "fused with *incoming* edges"
-                                          "from outside the maps are not"
-                                          "allowed yet.")
+                warnings.warn("Nodes between two maps to be"
+                              "fused with *incoming* edges"
+                              "from outside the maps are not"
+                              "allowed yet.")
 
             if subset_length < 0:
                 subset_length = other_subset.dims()
