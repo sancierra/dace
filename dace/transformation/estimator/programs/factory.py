@@ -92,6 +92,22 @@ def get_args(program_name):
         utens_stage = np.random.rand(I, J, K).astype(DATATYPE)
         u_pos = np.random.rand(I, J, K).astype(DATATYPE)
         utens = np.random.rand(I, J, K).astype(DATATYPE)
+
+        # define strides
+        strides = {}
+        arrays = ['_utens_stage', '_u_stage', '_wcon', '_u_pos', '_utens']
+        dimtuple = (0,1,2)
+        for array in arrays:
+            istride = f"_{array}_I_stride"
+            jstride = f"_{array}_J_stride"
+            kstride = f"_{array}_K_stride"
+            stride_names = [istride, jstride, kstride]
+
+            s = 0
+            for i in reversed(dimtuple):
+                strides[stride_names[i]] = s
+                s *= (I, J, K)[i]
+
         return ({
             'wcon': wcon,
             'u_stage': u_stage,
@@ -105,21 +121,7 @@ def get_args(program_name):
             'I': I,
             'J': J,
             'K': K,
-            '_utens_stage_J_stride': K,
-            '_utens_stage_K_stride': 1,
-            '_utens_stage_I_stride': K*J,
-            '_u_stage_J_stride': K,
-            '_u_stage_K_stride': 1,
-            '_u_stage_I_stride': K*J,
-            '_wcon_J_stride': K,
-            '_wcon_K_stride': 1,
-            '_wcon_I_stride': K*J,
-            '_u_pos_J_stride': K,
-            '_u_pos_K_stride': 1,
-            '_u_pos_I_stride': K*J,
-            '_utens_J_stride': K,
-            '_utens_K_stride': 1,
-            '_utens_I_stride': K*J
+            **strides
         })
 
     elif program_name == 'hdiff_mini':
