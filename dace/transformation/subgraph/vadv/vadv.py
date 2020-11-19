@@ -86,7 +86,6 @@ def test_fuse_all_numerically(gpu = False, view = False):
     I, J, K = (dace.symbol(s) for s in 'IJK')
     dtype = dace.float32
     np_dtype = np.float32
-    i, j = (dace.symbol(s) for s in 'ij')
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
     sdfg = vadv_unfused
@@ -115,7 +114,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
             # bad:
             #dimtuple = (0,1,2) 
             # works best:
-            #dimtuple = (0,2,1)
+            dimtuple = (0,2,1)
             # works ok:
             #dimtuple = (1,2,0)
             # works well:
@@ -184,10 +183,6 @@ def test_fuse_all_numerically(gpu = False, view = False):
 
     args2 = copy.deepcopy(args1)
 
-   # sdfg.specialize(dict(I=I, J=J, K=K))
-    #dace.Config.set('compiler', 'use_cache', value=True)
-
-    sdfg.save('vadv32.sdfg')
     if view:
         sdfg.view()
     sdfg(**args1)
@@ -327,10 +322,7 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 
     args2 = copy.deepcopy(args1)
 
-    #sdfg.specialize(dict(I=I, J=J, K=K))
-    #dace.Config.set('compiler', 'use_cache', value=True)
-
-    sdfg.save('vadv32.sdfg')
+ 
     if view:
         sdfg.view()
     csdfg = sdfg.compile()

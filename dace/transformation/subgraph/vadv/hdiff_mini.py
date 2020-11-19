@@ -16,16 +16,10 @@ import sys
 DATATYPE = np.float32
 
 def view_graphs():
-    dace.sdfg.SDFG.from_file('hdiff_full.sdfg').view()
-    dace.sdfg.SDFG.from_file('hdiff_partial.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_v2.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_full.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/dedup.sdfg').view()
-def get_sdfg():
-    sdfg = dace.sdfg.SDFG.from_file('hdiff_mini.sdfg')
-    sdfg.apply_strict_transformations()
-    graph = sdfg.nodes()[0]
-    return sdfg
+
 
 def eliminate_k_memlet(sdfg):
     SYM = 'y'
@@ -179,65 +173,19 @@ def test(compile = True, view = True,
 
 
     # compile -- first without anything
-    sdfg = get_sdfg()
-    #sdfg._propagate = False
-    #sdfg.propagate = False
-    sdfg.add_symbol('halo', int)
+    sdfg = dace.sdfg.SDFG.from_file('hdiff_mini32.sdfg')
 
     #fix_arrays(sdfg)
-    eliminate_k_memlet(sdfg)
+    ###eliminate_k_memlet(sdfg)
 
     if gpu:
         sdfg.apply_gpu_transformations()
-        for node in sdfg.nodes()[0].nodes():
-            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-                node.schedule = dace.dtypes.ScheduleType.GPU_Device
 
     if view:
         sdfg.view()
     
-    sdfg.save('test3.sdfg')
-    '''
     if compile:
-        pp1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        w1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        v1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        u1 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-
-        sdfg._name = 'baseline'
-        csdfg = sdfg.compile()
-        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp1, w = w1, v = v1, u = u1,
-              I=I, J=J, K=K, halo = halo)
-
-    '''
-    apply_map_fission(sdfg)
-    if not nested:
-        sdfg.apply_strict_transformations()
-    if view:
-        sdfg.view()
-    '''
-    #if compile:
-        pp2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        w2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        v2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-        u2 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
-    
-        sdfg._name = 'fission'
-        csdfg = sdfg.compile()
-        csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
-              acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
-              hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
-              pp = pp2, w = w2, v = v2, u = u2,
-              I=I, J=J, K=K, halo = halo)
-    '''
-    collapse_outer_maps(sdfg, nested=nested)
-    sdfg.save('test.sdfg')
-    if view:
-        sdfg.view()
-    if compile:
+        
         pp4 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         w4 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         v4 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
@@ -249,22 +197,18 @@ def test(compile = True, view = True,
               hdmask = hdmask, w_in = w_in, v_in = v_in, u_in = u_in,
               pp = pp4, w = w4, v = v4, u = u4,
               I=I, J=J, K=K, halo = halo)
-    
-    print(np.linalg.norm(pp4))
-    # force everything sequential
-    #for node in sdfg.nodes()[0].nodes():
-    #    if isinstance(node, nodes.MapEntry):
-    #        node.schedule = dace.dtypes.ScheduleType.Sequential
+ 
 
     apply_stencil_tiling(sdfg, tile_size=tile_size,
                          nested=nested, sequential = sequential,
                          gpu = gpu, unroll = unroll)
-    sdfg.save('test2.sdfg')
 
     if view:
         sdfg.view()
-    #sys.exit(0)
+
     if compile:
+        pass
+        
         pp3 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         w3 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
         v3 = np.zeros([ J, K+1, I ], dtype = DATATYPE)
@@ -277,28 +221,20 @@ def test(compile = True, view = True,
               pp = pp3, w = w3, v = v3, u = u3,
               I=I, J=J, K=K, halo = halo)
         del csdfg
-
+        
     if compile:
-        print(np.linalg.norm(pp4))
-        print(np.linalg.norm(pp3))
-        print(np.linalg.norm(w4))
-        print(np.linalg.norm(w3))
-        print(np.linalg.norm(v4))
-        print(np.linalg.norm(v3))
-        print(np.linalg.norm(u4))
-        print(np.linalg.norm(u3))
-        print("Pre Tiling")
+        print("Pre Tiling Results")
         print(np.allclose(pp4, pp3))
         print(np.allclose(w4, w3))
         print(np.allclose(v4, v3))
         print(np.allclose(u4, u3))
-
+        
     fuse_stencils(sdfg,
                   gpu=gpu,
                   nested=nested,
                   deduplicate = deduplicate,
                   sequential = sequential)
-    sdfg.save('test4.sdfg')
+    sdfg.apply_strict_transformations()
     if view:
         sdfg.view()
     if compile:
@@ -314,7 +250,7 @@ def test(compile = True, view = True,
               pp = pp5, w = w5, v = v5, u = u5,
               I=I, J=J, K=K, halo = halo)
         del csdfg
-
+    return
     if compile:
         print(np.linalg.norm(pp4))
         print(np.linalg.norm(pp3))
@@ -332,13 +268,6 @@ def test(compile = True, view = True,
         print(np.linalg.norm(u3))
         print(np.linalg.norm(u5))
 
-        #print(u3[10:12, 10:12, 10:12])
-        #print(u4[10:12, 10:12, 10:12])
-        print("Baseline")
-        print(np.allclose(pp4, pp4))
-        print(np.allclose(w4, w4))
-        print(np.allclose(v4, v4))
-        print(np.allclose(u4, u4))
         print("Pre Tiling")
         print(np.allclose(pp4, pp3))
         print(np.allclose(w4, w3))
