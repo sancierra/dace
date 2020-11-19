@@ -111,8 +111,15 @@ def test_fuse_all_numerically(gpu = False, view = False):
             jstride = dace.symbol(f"_{aname}_J_stride")
             kstride = dace.symbol(f"_{aname}_K_stride")
             arr.strides = [istride, jstride, kstride]
-
-            dimtuple = (0,1,2)
+            
+            # bad:
+            #dimtuple = (0,1,2) 
+            # works best:
+            #dimtuple = (0,2,1)
+            # works ok:
+            #dimtuple = (1,2,0)
+            # works well:
+            #dimtuple = (2,0,1)
 
             s = 1
             for i in reversed(dimtuple):

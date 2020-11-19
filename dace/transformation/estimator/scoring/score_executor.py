@@ -252,5 +252,5 @@ class ExecutionScore(ScoringFunction):
         # run and measure
         median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
-        #return median_rt_fuse / self._median_rt_base
-        return median_rt_fuse
+        return median_rt_fuse / self._median_rt_base if median_rt_fuse != -1 else -1
+        #return median_rt_fuse
