@@ -507,7 +507,7 @@
       "I": "int32",
       "J": "int32",
       "K": "int32",
-      "halo": "int64"
+      "halo": "int32"
     },
     "global_code": {
       "frame": {
