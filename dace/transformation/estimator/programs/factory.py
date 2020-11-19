@@ -39,6 +39,7 @@ def get_program(program_name):
             os.path.join(PATH, 'hdiff_mini' + data_suffix + '.sdfg'))
         # fix the memlet mess
         propagate_memlets_sdfg(sdfg)
+        print("*****", sdfg.constants)
     elif program_name == 'softmax':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'softmax' + data_suffix + '.sdfg'))
@@ -127,7 +128,6 @@ def get_args(program_name):
     elif program_name == 'hdiff_mini':
         I, J, K = 128, 128, 80
         halo = 4
-        print("****")
         return ({
             'pp_in': np.random.rand(J, K + 1, I).astype(DATATYPE),
             'u_in': np.random.rand(J, K + 1, I).astype(DATATYPE),
@@ -135,7 +135,12 @@ def get_args(program_name):
             'crlatu': np.random.rand(J).astype(DATATYPE),
             'hdmask': np.random.rand(J, K + 1, I).astype(DATATYPE),
             'w_in': np.random.rand(J, K + 1, I).astype(DATATYPE),
-            'v_in': np.random.rand(J, K + 1, I).astype(DATATYPE)
+            'v_in': np.random.rand(J, K + 1, I).astype(DATATYPE),
+            # needs symbols as well due to some glitch in the sdfg lol
+            'I': I,
+            'J': J,
+            'K': K,
+            'halo': halo
         }, {
             'pp': np.zeros([J, K + 1, I], dtype=DATATYPE),
             'w': np.zeros([J, K + 1, I], dtype=DATATYPE),
