@@ -76,6 +76,21 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
     list_top(subgraph_list)
     return subgraph_list
 
+def get_sdfg(program_name:str,
+             gpu: bool):
+    '''
+    Returns SDFG from factory and prepares it so that it is ready for testing
+    '''
+
+    sdfg = factory.get_program(program_name)
+    if gpu:
+        sdfg.apply_gpu_transformations()
+    sdfg.apply_strict_transformations()
+    graph = sdfg.nodes()[0]
+    expand_reduce(sdfg, graph, reduce_implementation = 'pure' if not gpu else 'CUDA (block allreduce)')
+    expand_maps(sdfg, graph)
+    return sdfg, graph
+
 def test(program_name: str,
          enumerator_type: Type,
          scoring_type: Type,
@@ -84,17 +99,14 @@ def test(program_name: str,
          transformation_function: Callable = CompositeFusion,
          condition_function: Callable = CompositeFusion.can_be_applied,
          **kwargs):
-
-    # get sdfg, graph and IO
-    sdfg = factory.get_program(program_name)
-    if gpu:
-        sdfg.apply_gpu_transformations()
-    sdfg.apply_strict_transformations()
-    graph = sdfg.nodes()[0]
-    expand_reduce(sdfg, graph, reduce_implementation = 'pure' if not gpu else 'CUDA (block allreduce)')
-    expand_maps(sdfg, graph)
-    sdfg.save('program.sdfg')
+    '''
+    Tests a program that is defined in factory with enumerator and scoring function
+    '''
+    # get sdfg and graph
+    sdfg, graph = get_sdfg(program_name, gpu)
+    # get io
     io = factory.get_args(program_name)
+    # run and test 
     test_scorer(sdfg = sdfg,
                 graph = graph,
                 io = io,
@@ -113,10 +125,10 @@ if __name__ == "__main__":
         'hdiff', 'hdiff_mini', 'transformer', 'gemver'
     ]
 
-    test(program_name = 'softmax',
+    test(program_name = 'hdiff_mini',
          enumerator_type = ConnectedEnumerator,
          scoring_type = ExecutionScore,
-         gpu = True,
+         gpu = False,
          debug = True,
-         transient_allocation = dace.dtypes.StorageType.GPU_Shared,
-         schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock)
+         transient_allocation = dace.dtypes.StorageType.Register,
+         schedule_innermaps = dace.dtypes.ScheduleType.Sequential)

@@ -95,19 +95,19 @@ def get_args(program_name):
 
         # define strides
         strides = {}
-        arrays = ['_utens_stage', '_u_stage', '_wcon', '_u_pos', '_utens']
-        dimtuple = (0,1,2)
+        arrays = ['utens_stage', 'u_stage', 'wcon', 'u_pos', 'utens']
+        dimtuple = (0,2,1)
         for array in arrays:
             istride = f"_{array}_I_stride"
             jstride = f"_{array}_J_stride"
             kstride = f"_{array}_K_stride"
             stride_names = [istride, jstride, kstride]
 
-            s = 0
+            s = 1
             for i in reversed(dimtuple):
                 strides[stride_names[i]] = s
                 s *= (I, J, K)[i]
-
+        
         return ({
             'wcon': wcon,
             'u_stage': u_stage,
