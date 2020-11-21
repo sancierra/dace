@@ -194,15 +194,10 @@ class DeduplicateAccess(xf.Transformation):
 
         # Then find subsets for rest of the dimensions
         contiguous_subsets = self.find_contiguous_subsets(contiguous_subsets)
-        print("CONTIGUOUS SUBSETS", contiguous_subsets)
         # Map original edges to subsets
         edge_mapping = defaultdict(list)
         for e in edges:
-            print("EDGE", e.data.data, e.data.subset)
             for ind, subset in enumerate(contiguous_subsets):
-                print("******")
-                print(subset)
-                print(e.data.subset)
                 if subset.covers(e.data.subset):
                     edge_mapping[ind].append(e)
                     break

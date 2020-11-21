@@ -259,5 +259,5 @@ class ExecutionScore(ScoringFunction):
         #return median_rt_fuse
     
     @staticmethod
-    def name(self):
+    def name():
         return "Runtime / Base Runtime"

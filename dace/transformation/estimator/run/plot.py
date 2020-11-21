@@ -57,6 +57,7 @@ class Plotter:
                         save: bool = True,
                         view: bool = False,
                         save_base_name: str = 'correlation',
+                        plot_origin = True,
                         **kwargs):
         '''
         Creates a Correlation Plot of two ScoringFunctions
@@ -91,9 +92,10 @@ class Plotter:
         y = list(d[1] for d in datapoints)
 
         plt.plot(x, y, 'o')
-        plt.plot([1.0],[1.0],'ro')
-        x.append(1.0)
-        y.append(1.0)
+        if plot_origin:
+            plt.plot([1.0],[1.0],'ro')
+            x.append(1.0)
+            y.append(1.0)
         m,b = np.polyfit(x,y,1)
         corr = np.corrcoef(x,y)
         plt.plot(x, [m*e + b for e in x])

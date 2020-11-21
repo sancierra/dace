@@ -74,7 +74,17 @@ class MemletScore(ScoringFunction):
 
         # inputs and outputs not needed
         self._outputs, self._inputs = None, None
-        self._base_traffic = self.estimate_traffic(sdfg, graph)
+
+        # estimate traffic on base sdfg 
+        # also apply deduplication on baseline graph in order to get a more realistic estimate
+        if self.deduplicate:
+            sdfg_copy = SDFG.from_json(self._sdfg.to_json())
+            graph_copy = sdfg_copy.nodes()[self._state_id]
+            sdfg_copy.apply_transformations_repeated(DeduplicateAccess, states = [graph_copy])
+            self._base_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
+        else:
+            # can just use the graph directly
+            self._base_traffic = self.estimate_traffic(sdfg, graph)
         
         self._i = 0
 
@@ -160,5 +170,5 @@ class MemletScore(ScoringFunction):
         return current_traffic / self._base_traffic
 
     @ staticmethod
-    def name(self):
+    def name():
         return "Estimated Memlet Traffic"
