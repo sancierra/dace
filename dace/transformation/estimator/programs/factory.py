@@ -1,4 +1,6 @@
-from dace.sdfg.propagation import propagate_memlets_sdfg
+from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlets_scope
+from dace.sdfg.nodes import EntryNode, ExitNode
+from dace.symbolic import pystr_to_symbolic
 from dace.sdfg import SDFG
 import numpy as np
 import os, sys
@@ -29,7 +31,25 @@ def get_program(program_name):
     elif program_name == 'vadv':
         sdfg = SDFG.from_file(os.path.join(PATH,
                                            'vadv' + data_suffix + '.sdfg'))
+        # only propagate memlets at outermost maps, else propagation fails 
+        
+        graph = sdfg.nodes()[0]
+        # first full pass 
         propagate_memlets_sdfg(sdfg)
+        for node in graph.nodes():
+            if isinstance(node, EntryNode):
+                for e in graph.out_edges(node):
+                    if e.data.dynamic:
+                        e.data.dynamic = False 
+                        e.data.volume = pystr_to_symbolic('K-2')
+            if isinstance(node, ExitNode):
+                for e in graph.in_edges(node):
+                    if e.data.dynamic:
+                        e.data.dynamic = False 
+                        e.data.volume = pystr_to_symbolic('K-2')
+                
+        propagate_memlets_scope(sdfg, graph, graph.scope_leaves())
+
 
     elif program_name == 'hdiff':
         sdfg = SDFG.from_file(

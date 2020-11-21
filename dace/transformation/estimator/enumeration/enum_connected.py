@@ -25,7 +25,7 @@ class ConnectedEnumerator(Enumerator):
                             dtype=bool)
 
     prune = Property(desc="Perform Greedy Pruning during Enumeration",
-                     default=True,
+                     default=False,
                      dtype=bool)
 
     def __init__(self,

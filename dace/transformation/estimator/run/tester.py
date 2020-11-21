@@ -30,6 +30,7 @@ def list_top(subgraph_scores, n=10, list_all = False):
         print("Objective:", runtime)
         print(subgraph)
 
+
 def score(sdfg, graph, enumerator_type, scoring_function,
               condition_function):
     '''
@@ -48,7 +49,6 @@ def score(sdfg, graph, enumerator_type, scoring_function,
     return subgraph_list
 
 
-
 def test_scorer(sdfg: dace.sdfg.SDFG,
                 graph: dace.sdfg.SDFGState,
                 io: Dict,
@@ -58,6 +58,7 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
                 gpu: bool = False,
                 transformation_function = CompositeFusion,
                 condition_function = CompositeFusion.can_be_applied,
+                deduplicate = False,
                 **kwargs):
     '''
     Tests listing all subgraphs with a ScoringFunction
@@ -71,10 +72,15 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
         transformation_function = transformation_function,
         ** kwargs
     )
+    # deduplication: change property 
+
+    if deduplicate:
+        scoring_func.deduplicate = True
     subgraph_list = score(sdfg, graph, enumerator_type, scoring_func,
-                              condition_function)
+                              condition_function)        
     list_top(subgraph_list)
     return subgraph_list
+
 
 def get_sdfg(program_name:str,
              gpu: bool):
@@ -87,8 +93,9 @@ def get_sdfg(program_name:str,
         sdfg.apply_gpu_transformations()
     sdfg.apply_strict_transformations()
     graph = sdfg.nodes()[0]
-    expand_reduce(sdfg, graph, reduce_implementation = 'pure' if not gpu else 'CUDA (block allreduce)')
-    expand_maps(sdfg, graph)
+    if 'hdiff' not in program_name:
+        expand_reduce(sdfg, graph, reduce_implementation = 'pure' if not gpu else 'CUDA (block allreduce)')
+        expand_maps(sdfg, graph)
     return sdfg, graph
 
 def test(program_name: str,
@@ -125,10 +132,15 @@ if __name__ == "__main__":
         'hdiff', 'hdiff_mini', 'transformer', 'gemver'
     ]
 
-    test(program_name = 'hdiff_mini',
+    test(program_name = 'vadv',
          enumerator_type = ConnectedEnumerator,
-         scoring_type = ExecutionScore,
-         gpu = False,
+         scoring_type = MemletScore,
+         gpu = True, 
          debug = True,
          transient_allocation = dace.dtypes.StorageType.Register,
-         schedule_innermaps = dace.dtypes.ScheduleType.Sequential)
+         schedule_innermaps = dace.dtypes.ScheduleType.Sequential,
+         deduplicate = True,
+         propagate_all = False,
+         stencil_unroll_loops = False)
+
+    

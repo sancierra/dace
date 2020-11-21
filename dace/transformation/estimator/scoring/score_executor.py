@@ -130,7 +130,10 @@ class ExecutionScore(ScoringFunction):
                 for (k, v) in self._inputs.items() if k not in outputs_local
             }
             # specialize sdfg
+            print("***", sdfg.constants)
             sdfg.specialize(self._symbols)
+            print("***", sdfg.constants)
+
             r = sdfg(**sdfg_inputs, **outputs_local)
             outputs_local['__return'] = r
             success = True
@@ -254,3 +257,7 @@ class ExecutionScore(ScoringFunction):
 
         return median_rt_fuse / self._median_rt_base if median_rt_fuse != -1 else -1
         #return median_rt_fuse
+    
+    @staticmethod
+    def name(self):
+        return "Runtime / Base Runtime"

@@ -12,6 +12,8 @@ from dace.sdfg import nodes
 from dace.sdfg import utils as sdutil
 from dace.transformation import transformation as xf
 
+import warnings
+
 
 @registry.autoregister_params(singlestate=True)
 class DeduplicateAccess(xf.Transformation):
@@ -187,15 +189,20 @@ class DeduplicateAccess(xf.Transformation):
                 unique_subsets,
                 dim=next(i for i, s in enumerate(desc.strides) if s == 1))
         except (StopIteration, NotImplementedError):
+            warnings.warn("DeduplicateAcces::Not operating on Stride One Dimension!")
             contiguous_subsets = unique_subsets
 
         # Then find subsets for rest of the dimensions
         contiguous_subsets = self.find_contiguous_subsets(contiguous_subsets)
-
+        print("CONTIGUOUS SUBSETS", contiguous_subsets)
         # Map original edges to subsets
         edge_mapping = defaultdict(list)
         for e in edges:
+            print("EDGE", e.data.data, e.data.subset)
             for ind, subset in enumerate(contiguous_subsets):
+                print("******")
+                print(subset)
+                print(e.data.subset)
                 if subset.covers(e.data.subset):
                     edge_mapping[ind].append(e)
                     break

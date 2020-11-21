@@ -78,7 +78,7 @@ class Plotter:
         (s1, s2) = r
         for (subgraph1, sc1) in s1:
             if Plotter.ignore_failed_experiments and sc1 in [0,-1]:
-                continue
+                continue 
             subgraph1 = set(subgraph1)
             for (subgraph2, sc2) in s2:
                 if Plotter.ignore_failed_experiments and sc2 in [0,-1]:
@@ -98,8 +98,8 @@ class Plotter:
         corr = np.corrcoef(x,y)
         plt.plot(x, [m*e + b for e in x])
     
-        plt.xlabel(str(score1))
-        plt.ylabel(str(score2))
+        plt.xlabel(score1.name())
+        plt.ylabel(score2.name())
         plt.annotate(f"m={m}, c={corr}", (0,0))
 
         if view:
@@ -117,4 +117,6 @@ if __name__ == '__main__':
                              MemletScore,
                              gpu = True,
                              transient_allocation = dace.dtypes.StorageType.Register,
-                             schedule_innermaps = dace.dtypes.ScheduleType.Sequential)
+                             schedule_innermaps = dace.dtypes.ScheduleType.Sequential,
+                             stencil_unroll_loops = False,
+                             deduplicate = True)

@@ -2,6 +2,7 @@
 
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling, helpers
 from dace.transformation.subgraph.composite import CompositeFusion
+from dace.transformation.dataflow import DeduplicateAccess
 from dace.properties import make_properties, Property
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
@@ -41,6 +42,11 @@ class MemletScore(ScoringFunction):
                              dtype = bool,
                              default = True)
 
+    deduplicate = Property(desc = "Do a Deduplication step"
+                                  "after Subgraph Fusion ",
+                           dtype = bool,
+                           default = False)
+
     exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
                              dtype = bool,
                              default = True)
@@ -69,6 +75,8 @@ class MemletScore(ScoringFunction):
         # inputs and outputs not needed
         self._outputs, self._inputs = None, None
         self._base_traffic = self.estimate_traffic(sdfg, graph)
+        
+        self._i = 0
 
     def symbolic_evaluation(self, term):
 
@@ -133,13 +141,24 @@ class MemletScore(ScoringFunction):
             try:
                 setattr(transformation_function, arg, val)
             except AttributeError:
-                warnigns.warn(f"Attribute {arg} not found in transformation")
+                warnings.warn(f"Attribute {arg} not found in transformation")
             except (TypeError, ValueError):
                 warnings.warn(f"Attribute {arg} has invalid value {val}")
 
         transformation_function.apply(sdfg_copy)
-        if self.propagate_all:
-            propagation.propagate_memlets_state(sdfg_copy, graph_copy)
+        if self.deduplicate:
+            sdfg_copy.apply_transformations_repeated(DeduplicateAccess, states = [graph_copy])
+            print("DEDUPLICATE")
+        sdfg_copy.save('inspect_before.sdfg')
+        if self.propagate_all or self.deduplicate:
+            propagation.propagate_memlets_scope(sdfg_copy, graph_copy, graph_copy.scope_leaves())
+        
+        print("************************************* save")
+        sdfg_copy.save('asdf' + str(self._i) + '.sdfg')
+        self._i += 1
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
-        print("CURRENT", current_traffic)
         return current_traffic / self._base_traffic
+
+    @ staticmethod
+    def name(self):
+        return "Estimated Memlet Traffic"

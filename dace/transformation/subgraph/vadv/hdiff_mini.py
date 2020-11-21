@@ -5,6 +5,7 @@ from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
 from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
+from dace.transformation.subgraph.composite import CompositeFusion
 from dace.sdfg.propagation import propagate_memlets_sdfg
 from dace.sdfg.graph import SubgraphView
 import dace.sdfg.nodes as nodes
@@ -81,6 +82,7 @@ def apply_stencil_tiling(sdfg, nested = False,
                                    nsdfg.nodes().index(ngraph))
     transformation.unroll_loops = unroll
     assert transformation.can_be_applied(sdfg, subgraph)
+    assert CompositeFusion.can_be_applied(sdfg, subgraph)
     # TODO
     if len(tile_size) == 1:
         tile_size = tile_size * 2
@@ -174,7 +176,7 @@ def test(compile = True, view = True,
 
     # compile -- first without anything
     sdfg = dace.sdfg.SDFG.from_file('hdiff_mini32.sdfg')
-
+    sdfg.specialize({'I':I, 'J':J, 'K':K, 'halo':halo})
     #fix_arrays(sdfg)
     ###eliminate_k_memlet(sdfg)
 

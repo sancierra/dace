@@ -72,3 +72,7 @@ class ScoringFunction:
 
     def __call__(self, subgraph: SubgraphView, **kwargs):
         return self.score(subgraph, **kwargs)
+    
+    @staticmethod
+    def name(self):
+        return NotImplementedError
