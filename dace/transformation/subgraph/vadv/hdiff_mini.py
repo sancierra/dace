@@ -252,7 +252,7 @@ def test(compile = True, view = True,
               pp = pp5, w = w5, v = v5, u = u5,
               I=I, J=J, K=K, halo = halo)
         del csdfg
-    return
+
     if compile:
         print(np.linalg.norm(pp4))
         print(np.linalg.norm(pp3))

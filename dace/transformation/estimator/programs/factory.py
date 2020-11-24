@@ -54,6 +54,8 @@ def get_program(program_name):
     elif program_name == 'hdiff':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'hdiff' + data_suffix + '.sdfg'))
+
+        propagate_memlets_sdfg(sdfg)
     elif program_name == 'hdiff_mini':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'hdiff_mini' + data_suffix + '.sdfg'))
@@ -187,7 +189,12 @@ def get_args(program_name):
             'crlavu': np.random.rand(J).astype(DATATYPE),
             'hdmask': np.random.rand(J, K, I).astype(DATATYPE),
             'w_in': np.random.rand(J, K, I).astype(DATATYPE),
-            'v_in': np.random.rand(J, K, I).astype(DATATYPE)
+            'v_in': np.random.rand(J, K, I).astype(DATATYPE),
+            # re-add symbols
+            'I': I,
+            'J': J,
+            'K': K,
+            'halo': halo
         }, {
             'pp_out': np.zeros([J, K, I], dtype=DATATYPE),
             'w_out': np.zeros([J, K, I], dtype=DATATYPE),

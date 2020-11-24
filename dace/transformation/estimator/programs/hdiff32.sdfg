@@ -772,7 +772,7 @@
       "I": "int32",
       "J": "int32",
       "K": "int32",
-      "halo": "int64"
+      "halo": "int32"
     },
     "global_code": {
       "frame": {
@@ -1636,7 +1636,7 @@
           "label": "DoMethod_118",
           "attributes": {
             "code": {
-              "string_data": "__local_frac_1_dx_1660 = (acrlat0_in * 5729.58)\n__local_delta_1941 = (v_tmp_in[((- 0), 0)] - v_tmp_in[(1, 0)])\n__local_delta_1944 = (u_tmp_in[(0, (- 0))] - u_tmp_in[(0, 1)])\n__local_T_s_1667 = ((__local_delta_1941 * (5729.58 / 6371229.0)) - (__local_delta_1944 * __local_frac_1_dx_1660))\n__tmp_T_sqr_s_1351_out = (__local_T_s_1667 * __local_T_s_1667)\n__local_delta_1947 = (u_tmp_in[(1, 1)] - u_tmp_in[(0, 1)])\n__local_delta_1950 = (v_tmp_in[(1, 1)] - v_tmp_in[(1, 0)])\n__local_S_uv_1680 = ((__local_delta_1947 * (5729.58 / 6371229.0)) + (__local_delta_1950 * __local_frac_1_dx_1660))\n__tmp_S_sqr_uv_1352_out = (__local_S_uv_1680 * __local_S_uv_1680)",
+              "string_data": "__local_frac_1_dx_1660 = (acrlat0_in * float(5729.58))\n__local_delta_1941 = (v_tmp_in[((- 0), 0)] - v_tmp_in[(1, 0)])\n__local_delta_1944 = (u_tmp_in[(0, (- 0))] - u_tmp_in[(0, 1)])\n__local_T_s_1667 = ((__local_delta_1941 * (float(5729.58) / float(6371229.0))) - (__local_delta_1944 * __local_frac_1_dx_1660))\n__tmp_T_sqr_s_1351_out = (__local_T_s_1667 * __local_T_s_1667)\n__local_delta_1947 = (u_tmp_in[(1, 1)] - u_tmp_in[(0, 1)])\n__local_delta_1950 = (v_tmp_in[(1, 1)] - v_tmp_in[(1, 0)])\n__local_S_uv_1680 = ((__local_delta_1947 * (float(5729.58) / float(6371229.0))) + (__local_delta_1950 * __local_frac_1_dx_1660))\n__tmp_S_sqr_uv_1352_out = (__local_S_uv_1680 * __local_S_uv_1680)",
               "language": "Python"
             },
             "debuginfo": {

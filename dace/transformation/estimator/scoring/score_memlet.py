@@ -109,7 +109,6 @@ class MemletScore(ScoringFunction):
         try:
             # get traffic count
             traffic_symbolic = count_moved_data_state_composite(graph)
-            print("****", traffic_symbolic)
             # evaluate w.r.t. symbols
             traffic = self.symbolic_evaluation(traffic_symbolic)
             if traffic == 0:
@@ -158,13 +157,10 @@ class MemletScore(ScoringFunction):
         transformation_function.apply(sdfg_copy)
         if self.deduplicate:
             sdfg_copy.apply_transformations_repeated(DeduplicateAccess, states = [graph_copy])
-            print("DEDUPLICATE")
-        sdfg_copy.save('inspect_before.sdfg')
         if self.propagate_all or self.deduplicate:
             propagation.propagate_memlets_scope(sdfg_copy, graph_copy, graph_copy.scope_leaves())
         
-        print("************************************* save")
-        sdfg_copy.save('asdf' + str(self._i) + '.sdfg')
+
         self._i += 1
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
         return current_traffic / self._base_traffic

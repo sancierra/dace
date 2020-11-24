@@ -22,9 +22,8 @@ def view_graphs():
     dace.sdfg.SDFG.from_file('original_graphs/hdiff_full.sdfg').view()
     dace.sdfg.SDFG.from_file('original_graphs/dedup.sdfg').view()
 def get_sdfg():
-    sdfg = dace.sdfg.SDFG.from_file('hdiff_full.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('hdiff32.sdfg')
     sdfg.apply_strict_transformations()
-    graph = sdfg.nodes()[0]
     return sdfg
 
 def eliminate_k_memlet(sdfg):
@@ -100,39 +99,6 @@ def apply_stencil_tiling(sdfg, nested = False,
 
     return
 
-def apply_pre_tiling(sdfg, nested = False, tile_size = 32):
-    # for every map inside that is not kmap_fission
-    # pre_tile it accordingly
-    graph = sdfg.nodes()[0]
-    ngraph, nsdfg = None, None
-    if nested:
-        for node in graph.nodes():
-            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-                nsdfg = node.sdfg
-                ngraph = nsdfg.nodes()[0]
-    else:
-        nsdfg = sdfg
-        ngraph = graph
-
-    for node in ngraph.nodes():
-        if isinstance(node, dace.sdfg.nodes.MapEntry) \
-                        and node.label != 'kmap_fission':
-            first = [1365, 1392, 1419, 1446]
-            if any([str(f) in node.label for f in first]):
-                subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
-                transformation = MapTiling(0, 0, subgraph, 0)
-                transformation.tile_sizes = (tile_size + 2, 1, tile_size + 2)
-                transformation.strides = (tile_size, 1, tile_size)
-                transformation.tile_offset = (0,0)
-                transformation.apply(nsdfg)
-            else:
-                subgraph = {MapTiling._map_entry: ngraph.nodes().index(node)}
-                transformation = MapTiling(0, 0, subgraph, 0)
-                transformation.tile_sizes = (tile_size, 1, tile_size)
-                transformation.strides = (tile_size, 1, tile_size)
-                transformation.tile_offset = (0,0)
-                transformation.apply(nsdfg)
-    return
 
 
 def collapse_outer_maps(sdfg, nested = False):
@@ -159,7 +125,6 @@ def collapse_outer_maps(sdfg, nested = False):
 
 def fuse_stencils(sdfg, gpu,
                   nested = False,
-                  deduplicate = False,
                   sequential = False):
     graph = sdfg.nodes()[0]
     ngraph, nsdfg = None, None
@@ -168,13 +133,11 @@ def fuse_stencils(sdfg, gpu,
     kwargs['propagate_source'] = False
     if gpu:
         kwargs['transient_allocation'] = dace.dtypes.StorageType.GPU_Shared
+        kwargs['schedule_innermaps'] = dace.dtypes.ScheduleType.GPU_ThreadBlock
     if sequential:
-        # will override gpu, ok
         kwargs['transient_allocation'] = dace.dtypes.StorageType.Register
-        kwargs['sequential_innermaps'] = True
-    if deduplicate:
-        kwargs['consolidate_source'] = True
-        kwargs['deduplicate_source'] = True
+        kwargs['schedule_innermaps'] = dace.dtypes.ScheduleType.Sequential
+ 
     if nested:
         for node in graph.nodes():
             if isinstance(node, dace.sdfg.nodes.NestedSDFG):
@@ -188,7 +151,7 @@ def fuse_stencils(sdfg, gpu,
 
 def test(compile = True, view = True,
          gpu = False, nested = False,
-         tile_size = 32, deduplicate = False,
+         tile_size = 32, 
          sequential = False, datatype = np.float32,
          unroll = False):
     # define symbols
@@ -212,19 +175,23 @@ def test(compile = True, view = True,
 
     # compile -- first without anyting
     sdfg = get_sdfg()
+    if gpu:
+        sdfg.apply_gpu_transformations()
+
+    sdfg.specialize({'I':I, 'J':J, 'K':K, 'halo': halo})
     #sdfg._propagate = False
     #sdfg.propagate = False
-    sdfg.add_symbol('halo', int)
+    #sdfg.add_symbol('halo', int)
 
     #fix_arrays(sdfg)
     #eliminate_k_memlet(sdfg)
 
-    if gpu:
-        sdfg.apply_gpu_transformations()
-        for node in sdfg.nodes()[0].nodes():
-            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-                node.schedule = dace.dtypes.ScheduleType.GPU_Device
-
+    #if gpu:
+    #    sdfg.apply_gpu_transformations()
+    #    for node in sdfg.nodes()[0].nodes():
+    #        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
+    #            node.schedule = dace.dtypes.ScheduleType.GPU_Device
+    '''
     if view:
         sdfg.view()
 
@@ -263,8 +230,9 @@ def test(compile = True, view = True,
         #      pp_out = pp2, w_out = w2, v_out = v2, u_out = u2,
         #      I=I, J=J, K=K, halo = halo)
 
-    collapse_outer_maps(sdfg, nested=nested)
-    sdfg.save('hdiff32.sdfg')
+    #collapse_outer_maps(sdfg, nested=nested)
+    '''
+
     if view:
         sdfg.view()
     if compile:
@@ -280,18 +248,10 @@ def test(compile = True, view = True,
               pp_out = pp4, w_out = w4, v_out = v4, u_out = u4,
               I=I, J=J, K=K, halo = halo)
 
-    # force everything sequential
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, nodes.MapEntry):
-            node.schedule = dace.dtypes.ScheduleType.Sequential
-
+   
     apply_stencil_tiling(sdfg, tile_size=tile_size,
                          nested=nested, sequential = sequential,
                          gpu = gpu, unroll = unroll)
-
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, nodes.MapEntry):
-            node.schedule = dace.dtypes.ScheduleType.Sequential
 
     if view:
         sdfg.view()
@@ -318,11 +278,6 @@ def test(compile = True, view = True,
         print(np.linalg.norm(v3))
         print(np.linalg.norm(u4))
         print(np.linalg.norm(u3))
-        print("Baseline")
-        print(np.allclose(pp1, pp4))
-        print(np.allclose(w1, w4))
-        print(np.allclose(v1, v4))
-        print(np.allclose(u1, u4))
         print("Pre Tiling")
         print(np.allclose(pp4, pp3))
         print(np.allclose(w4, w3))
@@ -332,7 +287,6 @@ def test(compile = True, view = True,
     fuse_stencils(sdfg,
                   gpu=gpu,
                   nested=nested,
-                  deduplicate = deduplicate,
                   sequential = sequential)
     if view:
         sdfg.view()
@@ -398,5 +352,5 @@ if __name__ == '__main__':
         print("Useage: mode tile1 tile2")
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
-         gpu = False, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential, unroll = False)
+         gpu = True, tile_size = (tile1, tile2),
+         sequential = sequential, unroll = True)

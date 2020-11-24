@@ -14,7 +14,7 @@ import itertools
 import numpy as np
 import copy
 
-
+'''
 vadv_unfused = SDFG.from_file('vadv-input-fixed.sdfg')
 vadv_unfused.apply_transformations_repeated(StateFusion)
 for node in vadv_unfused.nodes()[0].nodes():
@@ -23,6 +23,7 @@ for node in vadv_unfused.nodes()[0].nodes():
 vadv_fused_partial = SDFG.from_file('vadv-2part.sdfg')
 vadv_fused_full = SDFG.from_file('vadv-fused.sdfg')
 print(vadv_unfused.symbols)
+'''
 
 def view_all():
     vadv_unfused.view()
@@ -88,18 +89,11 @@ def test_fuse_all_numerically(gpu = False, view = False):
     np_dtype = np.float32
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
-    sdfg = vadv_unfused
-    graph = sdfg.nodes()[0]
 
+    sdfg = dace.sdfg.SDFG.from_file('vadv32.sdfg')
     if gpu:
-        for array in sdfg.arrays.values():
-            array.storage = dace.dtypes.StorageType.Default
-        for node in graph.nodes():
-            if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-                node.schedule = dace.dtypes.ScheduleType.Default
         sdfg.apply_gpu_transformations()
-        graph = sdfg.nodes()[0]
-
+    graph = sdfg.nodes()[0]
     strides = {}
     for aname, arr in sdfg.arrays.items():
         if arr.transient:
@@ -109,46 +103,23 @@ def test_fuse_all_numerically(gpu = False, view = False):
             istride = dace.symbol(f"_{aname}_I_stride")
             jstride = dace.symbol(f"_{aname}_J_stride")
             kstride = dace.symbol(f"_{aname}_K_stride")
-            arr.strides = [istride, jstride, kstride]
             
             # bad:
             #dimtuple = (0,1,2) 
             # works best:
-            dimtuple = (0,2,1)
+            #dimtuple = (0,2,1)
             # works ok:
             #dimtuple = (1,2,0)
             # works well:
             #dimtuple = (2,0,1)
+            # ???
+            dimtuple = (2,1,0)
 
             s = 1
             for i in reversed(dimtuple):
                 strides[str(arr.strides[i])] = s
                 s *= (I, J, K)[i]
 
-        if aname in sdfg.arrays:
-            continue
-
-        acpy = copy.deepcopy(arr)
-        # TODO: change for GPU
-        acopy.stroage = dace.StorageType.Default
-        sdfg.add_datadesc(aname, acpy)
-
-    # Cast SDFG from float64 to float32
-    for sd, aname, arr in sdfg.arrays_recursive():
-        arr.dtype = dace.float32
-    for node, sd in sdfg.all_nodes_recursive():
-        if not isinstance(node, dace.nodes.Node):
-            continue
-        for cname, conn in node.in_connectors.items():
-            if isinstance(conn, dace.pointer):
-                node.in_connectors[cname] = dace.pointer(dace.float32)
-            elif conn is not None:
-                node.in_connectors[cname] = dace.float32
-        for cname, conn in node.out_connectors.items():
-            if isinstance(conn, dace.pointer):
-                node.out_connectors[cname] = dace.pointer(dace.float32)
-            elif conn is not None:
-                node.out_connectors[cname] = dace.float32
 
     #dace.Config.set('compiler', 'cuda', 'default_block_size', value=block_size)
 
@@ -174,6 +145,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
                 J=np.int32(J),
                 K=np.int32(K),
                 **strides)
+
     sdfg.specialize(args1)
     for k, v in args1.items():
         print(k, v)
@@ -213,16 +185,13 @@ def test_fuse_partial_numerically(gpu = False, view = False):
     I, J, K = (dace.symbol(s) for s in 'IJK')
     dtype = dace.float32
     np_dtype = np.float32
-    i, j = (dace.symbol(s) for s in 'ij')
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
-    sdfg = vadv_unfused
-    graph = sdfg.nodes()[0]
 
+    sdfg = dace.sdfg.SDFG.from_file('vadv32.sdfg')
     if gpu:
-        for array in sdfg.arrays.values():
-            array.storage = dace.dtypes.StorageType.Default
         sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
 
     set1 = set()
     set2 = set()

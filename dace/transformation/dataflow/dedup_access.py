@@ -93,6 +93,7 @@ class DeduplicateAccess(xf.Transformation):
     def are_subsets_contiguous(subset_a: subsets.Subset,
                                subset_b: subsets.Subset,
                                dim: int = None) -> bool:
+        
         if dim is not None:
             # A version that only checks for contiguity in certain
             # dimension (e.g., to prioritize stride-1 range)
@@ -119,7 +120,7 @@ class DeduplicateAccess(xf.Transformation):
 
         # General case
         bbunion = subsets.bounding_box_union(subset_a, subset_b)
-        return bbunion.num_elements() == (subset_a.num_elements() +
+        return bbunion.num_elements() <= (subset_a.num_elements() +
                                           subset_b.num_elements())
 
     @staticmethod
@@ -147,7 +148,7 @@ class DeduplicateAccess(xf.Transformation):
                     subset_set.remove(sa)
                     break
                 elif DeduplicateAccess.are_subsets_contiguous(sa, sb, dim):
-                    subset_set.remove(sa)
+                    subseustt_set.remove(sa)
                     subset_set.remove(sb)
                     subset_set.add(subsets.bounding_box_union(sa, sb))
                     break
@@ -191,7 +192,6 @@ class DeduplicateAccess(xf.Transformation):
         except (StopIteration, NotImplementedError):
             warnings.warn("DeduplicateAcces::Not operating on Stride One Dimension!")
             contiguous_subsets = unique_subsets
-
         # Then find subsets for rest of the dimensions
         contiguous_subsets = self.find_contiguous_subsets(contiguous_subsets)
         # Map original edges to subsets

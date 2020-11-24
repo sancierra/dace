@@ -310,29 +310,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                 print(param_parent_coverage)
                 print(param_children_coverage)
                 return False
-
-                '''
-
-                # if there are no children data edges at all, we just ignore
-                # this is just an ordinary exit to an array
-                # however, if there are any, we make sure that the children union
-                # is exactly the same
-                if children_coverage is not None and parent_coverage != children_coverage:
-
-                    print("******")
-                    print("children", children_dict[map_entry])
-                    print("coverage parent", coverages[map_entry][1])
-                    print("coverage child", coverages[child_entry][0])
-                    print(map_entry)
-                    print(data_name)
-                    print(parent_coverage)
-                    print(children_coverage)
-                    print("COV")
-
-                    return False
-                '''
-            # check whether all parameter dimensions are the same
-
+                
         # 1.6: we want all sink maps to have the same range size
         assert len(sink_maps) > 0
         first_sink_map = next(iter(sink_maps))
