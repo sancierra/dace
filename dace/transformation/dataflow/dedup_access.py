@@ -120,8 +120,13 @@ class DeduplicateAccess(xf.Transformation):
 
         # General case
         bbunion = subsets.bounding_box_union(subset_a, subset_b)
-        return bbunion.num_elements() <= (subset_a.num_elements() +
-                                          subset_b.num_elements())
+        try:
+            if bbunion.num_elements() <= (subset_a.num_elements() + subset_b.num_elements()):
+                return True 
+        except TypeError:
+            pass 
+        
+        return False 
 
     @staticmethod
     def find_contiguous_subsets(subset_list: List[subsets.Subset],
@@ -148,7 +153,7 @@ class DeduplicateAccess(xf.Transformation):
                     subset_set.remove(sa)
                     break
                 elif DeduplicateAccess.are_subsets_contiguous(sa, sb, dim):
-                    subseustt_set.remove(sa)
+                    subset_set.remove(sa)
                     subset_set.remove(sb)
                     subset_set.add(subsets.bounding_box_union(sa, sb))
                     break

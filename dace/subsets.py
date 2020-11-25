@@ -34,7 +34,6 @@ class Subset(object):
                                 self.min_element(), self.max_element_approx(),
                                 other.min_element(), other.max_element_approx())])
             except TypeError:
-                print("TYPEERROR <3")
                 return False
         
         else:
@@ -44,7 +43,7 @@ class Subset(object):
                             other.min_element_approx(), other.max_element_approx()):
 
                     # lower bound: first check whether symbolic positive condition applies 
-                    if not (len(re.free_symbols) == 0 and len(ore.free_symbols) == 1):
+                    if not (len(rb.free_symbols) == 0 and len(orb.free_symbols) == 1):
                         if not symbolic.simplify_ext(nng(rb)) <= symbolic.simplify_ext(nng(orb)):
                             return False 
                         
