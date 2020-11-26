@@ -268,16 +268,9 @@ class StencilTiling(transformation.SubgraphTransformation):
 
                     # extend mapping map_parameter -> coverage
                     # by the previous mapping
-                    '''
-                    print("data_name", data_name)
-                    print("parent_coverage", parent_coverage)
-                    print("child_coverage", children_coverage)
-                    '''
+                    
                     for i, (p_subset, c_subset) in enumerate(zip(parent_coverage, children_coverage)):
-                        '''
-                        print("p_subset", p_subset)
-                        print("c_subset", c_subset)
-                        '''
+                      
                         # transform into subset
                         p_subset = subsets.Range((p_subset,))
                         c_subset = subsets.Range((c_subset,))
@@ -306,9 +299,6 @@ class StencilTiling(transformation.SubgraphTransformation):
 
             # 1.6: parameter mapping must be the same
             if param_parent_coverage != param_children_coverage:
-                print("NOT THE SAME")
-                print(param_parent_coverage)
-                print(param_children_coverage)
                 return False
                 
         # 1.6: we want all sink maps to have the same range size
@@ -473,7 +463,6 @@ class StencilTiling(transformation.SubgraphTransformation):
 
             # strip mining each dimension where necessary
             removed_maps = 0
-            all_trivial = True
             for dim_idx, param in enumerate(map_entry.map.params):
                 # get current_node tile size
                 if dim_idx >= len(self.strides):
@@ -530,8 +519,7 @@ class StencilTiling(transformation.SubgraphTransformation):
                         dim_idx + removed_maps) in invariant_dims:
                     trivial = True
                     removed_maps += 1
-                else:
-                    all_trivial = False
+             
 
                 # indent all map ranges accordingly and then perform
                 # strip mining on these. Offset inner maps accordingly afterwards

@@ -11,7 +11,7 @@ from dace.memlet import Memlet
 from dace.transformation import transformation
 from dace.properties import make_properties, Property
 from dace.symbolic import symstr, overapproximate
-from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet, propagate_memlets_scope
+from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet, propagate_memlets_scope, _propagate_node
 from dace.transformation.subgraph import helpers
 from dace.transformation.dataflow import RedundantArray
 from dace.sdfg.utils import consolidate_edges_scope
@@ -50,7 +50,8 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         dtype=dtypes.StorageType,
         default=dtypes.StorageType.Default)
 
-    schedule_innermaps = Property(desc="Schedule of inner maps",
+    schedule_innermaps = Property(desc="Schedule of inner maps. If none, "
+                                       "keeps schedule.",
                                   dtype=dtypes.ScheduleType,
                                   default=dtypes.ScheduleType.Default,
                                   allow_none=True)
@@ -84,7 +85,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         graph = subgraph.graph
         for node in subgraph.nodes():
             if node not in graph.nodes():
-                print("not in graph")
                 return False
 
         # next, get all the maps
@@ -95,7 +95,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # 1. basic checks:
         # 1.1 we need to have at least two maps
         if len(maps) <= 1:
-            print("len")
             return False
         '''
         # 1.2 Special Case: If we can establish a valid permutation, we can
@@ -106,19 +105,15 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         base_map = maps[0]
         for map in maps:
             if map.get_param_num() != base_map.get_param_num():
-                print("params")
                 return False
             if not all(
                 [p1 == p2 for (p1, p2) in zip(map.params, base_map.params)]):
-                print("params")
                 return False
             if not map.range == base_map.range:
-                print("ranges")
                 return False
         # 1.3 check whether all map entries have the same schedule
         schedule = map_entries[0].schedule
         if not all([entry.schedule == schedule for entry in map_entries]):
-            print("scheudule")
             return False
 
         # 2. check intermediate feasiblility
@@ -135,7 +130,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # 2.2 topological feasibility:
         if not SubgraphFusion.check_topo_feasibility(
                 sdfg, graph, map_entries, intermediate_nodes, out_nodes):
-            print("TOPO")
             return False
 
         # 2.3 memlet feasibility
@@ -149,7 +143,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
             lower_subsets = set()
             # First, determine which dimensions of the memlet ranges
             # change with the map, we do not need to care about the other dimensions.
-            total_dims = len(sdfg.data(node.data).shape)
             try:
                 dims_to_discard = SubgraphFusion.get_invariant_dimensions(
                     sdfg, graph, map_entries, map_exits, node)
@@ -163,8 +156,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                     # check whether the WCR is actually produced at
                     # this edge or further up in the memlet path. If not,
                     # we can still fuse!
-                    # TODO: verify
-                    subset_params = set([str(s) for s in in_in_edge.subset.free_symbols()])
+                    subset_params = set([str(s) for s in in_in_edge.data.subset.free_symbols])
                     if any([p not in subset_params for p in in_edge.src.map.params]):
                         return False
                 if in_edge.src in map_exits:
@@ -198,7 +190,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                 contiguous_upper = helpers.find_contiguous_subsets(
                     upper_subsets)
                 if len(contiguous_upper) > 1:
-                    print("CONT. SUBSETS")
                     return False
             except TypeError:
                 warnings.warn(
@@ -219,7 +210,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
             # every lower subset must be completely covered by union_upper
             for lower_subset in lower_subsets:
                 if not union_upper.covers(lower_subset):
-                    print("COVERAGE")
                     return False
 
         return True
@@ -970,9 +960,13 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # propagate edges adjacent to global map entry and exit
         # if desired
         if self.propagate:
+            '''
             scope_tree = ScopeTree(global_map_entry, global_map_exit)
             scope_tree.parent = ScopeTree(None, None)
             propagate_memlets_scope(sdfg, graph, scope_tree)
+            '''
+            _propagate_node(graph, global_map_entry)
+            _propagate_node(graph, global_map_exit)
 
 
         # create a hook for outside access to global_map
