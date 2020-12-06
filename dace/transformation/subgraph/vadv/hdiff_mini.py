@@ -1,7 +1,7 @@
 import dace
 import math
 import numpy as np
-from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
+from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse, DeduplicateAccess
 from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
@@ -236,6 +236,7 @@ def test(compile = True, view = True,
                   nested=nested,
                   deduplicate = deduplicate,
                   sequential = sequential)
+    sdfg.apply_transformations_repeated(DeduplicateAccess)
     sdfg.apply_strict_transformations()
     if view:
         sdfg.view()
@@ -296,4 +297,4 @@ if __name__ == '__main__':
         raise RuntimeError()
     test(view = False, compile = True, nested = False,
          gpu = True, deduplicate = False, tile_size = (tile1, tile2),
-         sequential = sequential, unroll =  True)
+         sequential = sequential, unroll =  False)

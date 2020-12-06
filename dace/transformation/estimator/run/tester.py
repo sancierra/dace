@@ -29,6 +29,14 @@ def list_top(subgraph_scores, n=10, list_all = False):
         print(f"------------{i+1}-------------")
         print("Objective:", runtime)
         print(subgraph)
+    
+    dupes = 0
+    for i, (subgraph, _) in enumerate(subgraph_scores):
+        for j, (other_subgraph, _) in enumerate(subgraph_scores):
+            if i != j and all(s in other_subgraph for s in subgraph) and all(s in subgraph for s in other_subgraph):
+                dupes += 1
+                print("DUPLICATE", subgraph, i, j)
+    print(f"{dupes} DUPLICATES")
 
 
 def score(sdfg, graph, enumerator_type, scoring_function,
@@ -63,19 +71,22 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
     '''
     Tests listing all subgraphs with a ScoringFunction
     '''
-
-    scoring_func = scoring_type(
-        sdfg = sdfg,
-        graph = graph,
-        io = io,
-        gpu = gpu,
-        transformation_function = transformation_function,
-        ** kwargs
-    )
+    if scoring_type is not None:
+        scoring_func = scoring_type(
+            sdfg = sdfg,
+            graph = graph,
+            io = io,
+            gpu = gpu,
+            transformation_function = transformation_function,
+            ** kwargs
+        )
+        if deduplicate:
+            scoring_func.deduplicate = True
+    else:
+        scoring_func = None
     # deduplication: change property 
 
-    if deduplicate:
-        scoring_func.deduplicate = True
+   
     subgraph_list = score(sdfg, graph, enumerator_type, scoring_func,
                               condition_function)        
     list_top(subgraph_list)
@@ -87,7 +98,6 @@ def get_sdfg(program_name:str,
     '''
     Returns SDFG from factory and prepares it so that it is ready for testing
     '''
-
     sdfg = factory.get_program(program_name)
     if gpu:
         sdfg.apply_gpu_transformations()
