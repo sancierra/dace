@@ -1,0 +1,8 @@
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/rebuild_cache.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/experimentallib.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/edit_cache.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/optimizedlib.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/optimized.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/dacelib.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/experimental.dir
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/CMakeFiles/dace.dir

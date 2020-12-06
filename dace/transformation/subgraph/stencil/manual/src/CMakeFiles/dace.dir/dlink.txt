@@ -1,0 +1,1 @@
+/usr/local/cuda/bin/nvcc   -Xcompiler=-fPIC -Wno-deprecated-gpu-targets -shared -dlink CMakeFiles/dace.dir/main.cu.o -o CMakeFiles/dace.dir/cmake_device_link.o -Xnvlink libdacelib.so 

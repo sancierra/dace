@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/kernels.h
+
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/kernels_dace.cu
+cuda_runtime.h
+-
+kernels.h
+/home/lucalav/dace/dace/transformation/subgraph/stencil/manual/src/kernels.h
+stdio.h
+-
+
