@@ -14,3 +14,4 @@ add_definitions(-DDEBUG -Xptxas -v -O3)
 
 target_link_libraries(dace dacelib)
 target_link_libraries(optimized optimizedlib)
+

@@ -8,7 +8,7 @@ from dace.transformation.estimator import ConnectedEnumerator
 from dace.transformation.estimator.programs import factory
 from dace.transformation.subgraph.composite import CompositeFusion
 from dace.properties import make_properties, Property
-from dace.transformation.estimator.run.tester import test_scorer, get_sdfg
+from dace.transformation.estimator.run.tester import test_scorer, get_sdfg, list_top
 
 from typing import List, Type, Callable
 
@@ -111,14 +111,19 @@ class Plotter:
             save_base_name += '.pdf'
             plt.savefig(save_base_name)
         
+        print(score1)
+        list_top(s1)
+        print(score2)
+        list_top(s2)
+        
 
 
 if __name__ == '__main__':
-    Plotter.correlation_plot('vadv',
+    Plotter.correlation_plot('hdiff',
                              ExecutionScore,
                              MemletScore,
                              gpu = True,
                              transient_allocation = dace.dtypes.StorageType.Register,
                              schedule_innermaps = dace.dtypes.ScheduleType.Sequential,
-                             stencil_unroll_loops = False,
+                             stencil_unroll_loops = True,
                              deduplicate = True)

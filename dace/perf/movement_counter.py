@@ -175,23 +175,19 @@ def count_moved_data_state_composite(state: dace.SDFGState, symbols: Dict[str,
                                dace.dtypes.StorageType.GPU_Shared]
     for other_scope in other_scopes_of_interest:
         for node in sdict[other_scope]:
-            print("********", node)
             if isinstance(node, AccessNode):
-                print("*****************")
                 # check whether conditions are met
                 print(state.parent.data(node.label))
                 print(state.parent.data(node.label).transient)
 
                 if state.parent.data(node.label).storage not in inner_storage_locations:
-                    print("**********************")
                     local_sum = 0
                     for e in itertools.chain(state.out_edges(node), state.in_edges(node)):
                         mm_propagated = propagate_memlet(state, e.data, other_scope, False)
                         local_sum += mm_propagated.volume
                     if DEBUG:
-                        print("*****************************")
                         iprint('Inner',
-                               node.label, 'local_sum:', local_sum)
+                               node.label, 'added:', mm_propagated.volume)
                     result += local_sum
 
     return result

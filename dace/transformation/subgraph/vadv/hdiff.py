@@ -1,7 +1,7 @@
 import dace
 import math
 import numpy as np
-from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse
+from dace.transformation.dataflow import MapFission, MapTiling, MapCollapse, DeduplicateAccess
 from dace.transformation.interstate import InlineSDFG
 from dace.transformation.subgraph import pipeline
 from dace.transformation.subgraph.stencil_tiling import StencilTiling
@@ -296,6 +296,8 @@ def test(compile = True, view = True,
         v5 = np.zeros([ J, K, I ], dtype = DATATYPE)
         u5 = np.zeros([ J, K, I ], dtype = DATATYPE)
         sdfg._name = 'fused'
+        sdfg.apply_transformations_repeated(DeduplicateAccess)
+        sdfg.apply_strict_transformations()
         csdfg = sdfg.compile()
         csdfg(pp_in = pp_in, crlato = crlato, crlatu = crlatu,
               acrlat0 = acrlat0, crlavo = crlavo, crlavu =crlavu,
