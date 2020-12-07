@@ -251,6 +251,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
     @staticmethod
     def get_adjacent_nodes(sdfg, graph, map_entries):
+        ''' For given map entries, finds a set of in, out and intermediate nodes '''
         ### NOTE:
         #- in_nodes, out_nodes, intermediate_nodes refer to the configuration of the final fused map
         #- in_nodes and out_nodes are trivially disjoint
@@ -287,10 +288,7 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         else:
                             # add to out_nodes
                             out_nodes.add(current_node)
-                '''
-                TODO: REMOVE THIS
-
-                '''
+ 
 
         # any intermediate_nodes currently in in_nodes shouldnt be there
         in_nodes -= intermediate_nodes
@@ -310,6 +308,9 @@ class SubgraphFusion(transformation.SubgraphTransformation):
     @staticmethod
     def check_topo_feasibility(sdfg, graph, map_entries, intermediate_nodes,
                                out_nodes):
+        ''' Checks whether given map entries have topological structure 
+            so that they could be fused 
+        '''
         # For each intermediate and out node: must never reach any map
         # entry if it is not connected to map entry immediately
 
@@ -667,9 +668,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
                         in_conn = inconnectors_dict[src][1]
                         out_conn = inconnectors_dict[src][2]
-                        '''
-                        graph.remove_edge(edge)
-                        '''
 
                     else:
                         next_conn = global_map_entry.next_connector()
@@ -698,9 +696,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                                        new_src=src,
                                        new_src_conn=None,
                                        new_data=mm)
-                    '''
-                    graph.remove_edge(edge)
-                    '''
 
             for edge in graph.out_edges(map_entry):
                 # special case: for nodes that have no data connections
@@ -797,21 +792,13 @@ class SubgraphFusion(transformation.SubgraphTransformation):
                         # map
                         graph.add_edge(global_map_exit, out_conn, dst, None,
                                        dcpy(out_edge.data))
-                        '''
-                        graph.remove_edge(out_edge)
-                        '''
+                
 
-                # remove the edge if it has not been used by any pure out node
-                '''
-                if not port_created:
-                    graph.remove_edge(edge)
-                '''
             # maps are now ready to be discarded
             # all connected edges will be finally removed as well
             graph.remove_node(map_entry)
             graph.remove_node(map_exit)
 
-            # end main loop.
 
         # create a mapping from data arrays to offsets
         # for later memlet adjustments later
@@ -960,11 +947,6 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         # propagate edges adjacent to global map entry and exit
         # if desired
         if self.propagate:
-            '''
-            scope_tree = ScopeTree(global_map_entry, global_map_exit)
-            scope_tree.parent = ScopeTree(None, None)
-            propagate_memlets_scope(sdfg, graph, scope_tree)
-            '''
             _propagate_node(graph, global_map_entry)
             _propagate_node(graph, global_map_exit)
 
