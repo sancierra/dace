@@ -301,7 +301,7 @@ class StencilTiling(transformation.SubgraphTransformation):
             if param_parent_coverage != param_children_coverage:
                 return False
                 
-        # 1.6: we want all sink maps to have the same range size
+        # 1.7: we want all sink maps to have the same range size
         assert len(sink_maps) > 0
         first_sink_map = next(iter(sink_maps))
         if not all([
