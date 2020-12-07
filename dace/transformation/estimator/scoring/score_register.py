@@ -116,7 +116,7 @@ class RegisterScore(MemletScore):
         for node in subgraph.nodes():
             if isinstance(node, nodes.AccessNode) and sdfg.data(node).storage == dtypes.StorageType.Register:
                 reg_count_required += sdfg.data(node).total_size  
-            if isinstance(node, no des.Tasklet):
+            if isinstance(node, nodes.Tasklet):
                 symbols = node.get_free_symbols(defined_symbols = self._symbols)
                 tasklet_symbols |= symbols 
         # add length of tasklet symbols to register count 
