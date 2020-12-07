@@ -79,9 +79,17 @@ class DeduplicateAccess(xf.Transformation):
             for memlet in memlets[1:]:
                 union_subset = subsets.bounding_box_union(
                     union_subset, memlet.subset)
-            if union_subset.num_elements() < sum(m.subset.num_elements()
-                                                 for m in memlets):
-                return True
+
+            # TODO: Enhance me!
+            # NOTE: This does not always result in correct behaviour for certain 
+            # ranges whose volume is not comparable by "<", 
+            # e.g "2*K" >? "K+1" > "K-1" >? "1"
+            try:
+                if union_subset.num_elements() < sum(m.subset.num_elements()
+                                                    for m in memlets):
+                    return True
+            except TypeError:
+                pass 
 
         return False
 

@@ -59,6 +59,7 @@ class ReduceExpansion(transformation.Transformation):
         ],
         allow_none=True)
 
+
     reduction_type_update = {
         dtypes.ReductionType.Max: 'out = max(reduction_in, array_in)',
         dtypes.ReductionType.Min: 'out = min(reduction_in, array_in)',
