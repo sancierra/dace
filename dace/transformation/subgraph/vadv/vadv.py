@@ -107,13 +107,13 @@ def test_fuse_all_numerically(gpu = False, view = False):
             # bad:
             #dimtuple = (0,1,2) 
             # works best:
-            #dimtuple = (0,2,1)
+            dimtuple = (0,2,1)
             # works ok:
             #dimtuple = (1,2,0)
             # works well:
             #dimtuple = (2,0,1)
             # ???
-            dimtuple = (2,1,0)
+            #dimtuple = (2,1,0)
 
             s = 1
             for i in reversed(dimtuple):

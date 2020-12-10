@@ -32,30 +32,30 @@ class MemletScore(ScoringFunction):
     Evaluates Subgraphs by just running their
     SDFG and returning the runtime
     '''
-    debug = Property(desc = "Debug Mode",
-                     dtype = bool,
-                     default = True)
+    debug = Property(desc="Debug Mode", dtype=bool, default=True)
 
-    propagate_all = Property(desc = "Do a final propagation step "
-                                    "before evaluation "
-                                    "using propagate_memlets_state()",
-                             dtype = bool,
-                             default = True)
+    propagate_all = Property(desc="Do a final propagation step "
+                             "before evaluation "
+                             "using propagate_memlets_state()",
+                             dtype=bool,
+                             default=True)
 
-    deduplicate = Property(desc = "Do a Deduplication step"
-                                  "after Subgraph Fusion ",
-                           dtype = bool,
-                           default = False)
+    deduplicate = Property(desc="Do a Deduplication step"
+                           "after Subgraph Fusion ",
+                           dtype=bool,
+                           default=False)
 
-    exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
-                             dtype = bool,
-                             default = True)
-    view_on_error = Property(desc = "View program if faulty",
-                             dtype = bool,
-                             default = False)
-    save_on_error = Property(desc = "Save SDFG if faulty",
-                             dtype = bool,
-                             default = False)
+    exit_on_error = Property(
+        desc="Exit program if error occurs, else return -1",
+        dtype=bool,
+        default=True)
+    view_on_error = Property(desc="View program if faulty",
+                             dtype=bool,
+                             default=False)
+    save_on_error = Property(desc="Save SDFG if faulty",
+                             dtype=bool,
+                             default=False)
+
     def __init__(self,
                  sdfg: SDFG,
                  graph: SDFGState,
@@ -67,7 +67,7 @@ class MemletScore(ScoringFunction):
         super().__init__(sdfg=sdfg,
                          graph=graph,
                          subgraph=subgraph,
-                         io = io,
+                         io=io,
                          gpu=gpu,
                          transformation_function=transformation_function,
                          **kwargs)
@@ -75,35 +75,44 @@ class MemletScore(ScoringFunction):
         # inputs and outputs not needed
         self._outputs, self._inputs = None, None
 
-        # estimate traffic on base sdfg 
+        # estimate traffic on base sdfg
         # also apply deduplication on baseline graph in order to get a more realistic estimate
         if self.deduplicate:
             sdfg_copy = SDFG.from_json(self._sdfg.to_json())
             graph_copy = sdfg_copy.nodes()[self._state_id]
-            sdfg_copy.apply_transformations_repeated(DeduplicateAccess, states = [graph_copy])
+            sdfg_copy.apply_transformations_repeated(DeduplicateAccess,
+                                                     states=[graph_copy])
             self._base_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
         else:
             # can just use the graph directly
             self._base_traffic = self.estimate_traffic(sdfg, graph)
-        
+
         self._i = 0
 
     def symbolic_evaluation(self, term):
 
+        if isinstance(term, (int, float)):
+            return term 
         # take care of special functions appearing in term and resolve those
         x, y = sympy.symbols('x y')
-        sym_locals = {sympy.Function('int_floor') : sympy.Lambda((x,y), sympy.functions.elementary.integers.floor  (x/y)),
-                      sympy.Function('int_ceil')  : sympy.Lambda((x,y), sympy.functions.elementary.integers.ceiling(x/y)),
-                      sympy.Function('floor')     : sympy.Lambda((x),   sympy.functions.elementary.integers.floor(x)),
-                      sympy.Function('ceiling')   : sympy.Lambda((x),   sympy.functions.elementary.integers.ceiling(x)),
-                      }
+        sym_locals = {
+            sympy.Function('int_floor'):
+            sympy.Lambda((x, y),
+                         sympy.functions.elementary.integers.floor(x / y)),
+            sympy.Function('int_ceil'):
+            sympy.Lambda((x, y),
+                         sympy.functions.elementary.integers.ceiling(x / y)),
+            sympy.Function('floor'):
+            sympy.Lambda((x), sympy.functions.elementary.integers.floor(x)),
+            sympy.Function('ceiling'):
+            sympy.Lambda((x), sympy.functions.elementary.integers.ceiling(x)),
+        }
         for fun, lam in sym_locals.items():
             term.replace(fun, lam)
 
         result = symbolic.evaluate(term, self._symbols)
-        result = float(result)
+        result = int(result)
         return result
-
 
     def estimate_traffic(self, sdfg, graph):
         try:
@@ -121,7 +130,7 @@ class MemletScore(ScoringFunction):
                 sdfg.view()
             if self.save_on_error:
                 i = 0
-                while(os.path.exists(f"error{i}.sdfg")):
+                while (os.path.exists(f"error{i}.sdfg")):
                     i += 1
                 sdfg.save('error.sdfg')
             if self.exit_on_error:
@@ -142,7 +151,7 @@ class MemletScore(ScoringFunction):
 
         if self.debug:
             print("ScoreMemlet::Debug::Subgraph to Score:",
-                   subgraph_copy.nodes())
+                  subgraph_copy.nodes())
 
         transformation_function = self._transformation(subgraph_copy)
         # assign properties to transformation
@@ -156,15 +165,17 @@ class MemletScore(ScoringFunction):
 
         transformation_function.apply(sdfg_copy)
         if self.deduplicate:
-            sdfg_copy.apply_transformations_repeated(DeduplicateAccess, states = [graph_copy])
+            sdfg_copy.apply_transformations_repeated(DeduplicateAccess,
+                                                     states=[graph_copy])
         if self.propagate_all or self.deduplicate:
-            propagation.propagate_memlets_scope(sdfg_copy, graph_copy, graph_copy.scope_leaves())
-        
+            propagation.propagate_memlets_scope(sdfg_copy, graph_copy,
+                                                graph_copy.scope_leaves())
 
         self._i += 1
+        sdfg_copy.save(f"inspect_{self._i}.sdfg")
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
         return current_traffic / self._base_traffic
 
-    @ staticmethod
+    @staticmethod
     def name():
         return "Estimated Memlet Traffic"
