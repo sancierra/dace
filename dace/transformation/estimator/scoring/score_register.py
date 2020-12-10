@@ -15,6 +15,7 @@ import dace.dtypes as dtypes
 import dace.subsets as subsets
 import sympy
 import ast 
+import math 
 import networkx as nx
 
 from typing import Set, Union, List, Callable, Dict, Type
@@ -48,6 +49,7 @@ class RegisterScore(MemletScore):
                  gpu: bool = None,
                  transformation_function: Type = CompositeFusion,
                  **kwargs):
+
         super().__init__(sdfg=sdfg,
                          graph=graph,
                          subgraph=subgraph,
@@ -56,9 +58,34 @@ class RegisterScore(MemletScore):
                          transformation_function=transformation_function,
                          **kwargs)
 
+        # for debugging purposes
         self._i = 0
+        self._base_traffic = TODO
+
+
+    def evaluate_register_traffic(self,
+                                  graph: SDFGState, 
+                                  subgraph: SubgraphView):
+        register_read_write = 0
+        for node in subgraph.nodes():
+            if isinstance(node, nodes.AccessNode) and sdfg.data(node.data).storage == dtypes.StorageType.Register:
+                # container requirements
+                if node.data not in visited_containers:
+                    reg_count_required += sdfg.data(node.data).total_size
+                    visited_containers.add(node.data)
+                # traffic requirements
+                memlets = [e.data for e in itertools.chain(graph.out_edges(node), graph.in_edges(node))]
+                result_mm = propagation.propagate_subset(memlets = memlets, arr = sdfg.data(node.data), params = outer_map.params, rng = outer_map.range)
+
+                register_read_write += result_mm.volume
+                print("REGRW", register_read_write)
+        
+        register_read_write = self.symbolic_evaluation(register_read_write)
+        
+        return register_read_write
 
     def evaluate_tasklet(self, 
+                         graph: SDFGState,
                          node: Union[nodes.Tasklet, nodes.NestedSDFG], 
                          context: List[nodes.MapEntry],
                          nested = False):
@@ -85,9 +112,15 @@ class RegisterScore(MemletScore):
 
         if isinstance(node, nodes.Tasklet):
             # get an estimate from code symbols not in conn tasklets 
-            names = set(n.id for n in ast.walk(ast.parse(node.code.as_string)) if isinstance(n, ast.Name))
-            # add them up and return
-            estimate_internal = len(names - set(itertools.chain(node.in_connectors.keys(), node.out_connectors.keys())))
+             
+            if node.code.langague == dtypes.Language.Python:
+                names = set(n.id for n in ast.walk(ast.parse(node.code.as_string)) if isinstance(n, ast.Name))
+                # add them up and return
+                estimate_internal = len(names - set(itertools.chain(node.in_connectors.keys(), node.out_connectors.keys())))
+            else:
+                warnings.warn('WARNING: Register Score cannot evaluate non Python block')
+                # just use some shady estimate 
+                estimate_internal = max(8, math.ceil(node.code.as_string.count('\n')/2))
         else:
             # get an estimate for each nested sdfg state and max over these values 
             estimate_internal = max([self.evaluate_state(node.sdfg, s, None, nested = True) for s in node.sdfg.nodes()])
@@ -95,24 +128,29 @@ class RegisterScore(MemletScore):
             # do something different here 
         estimate_connector = self.symbolic_evaluation(estimate_connector)
         estimate_internal = self.symbolic_evaluation(estimate_internal)
-        print("ESTIMATE CONNECTOR", )
-        print("ESTIMATE INTERNAL")
+        if self.debug:
+            print(f"Node {node}")
+            print(f"Estimator: Connector = {estimate_connector}")
+            print(f"Estimate: Internal =", estimate_internal)
+
+        return estimate_connector + estimate_internal
+
+
 
     def evaluate_state(self,
                        sdfg: SDFG, 
                        graph: SDFGState, 
-                       subgraph: SubgraphView, 
+                       scope_node: graph.Node, 
                        nested: bool  = False,
-                       scope_dict: dict = None,
-                       outer_map_entry: nodes.MapEntry = None):
+                       scope_dict: dict = None):
+        '''
+        Evaluates Register spill for a whole state where scope_node indicates the outermost scope in which spills should be analyzed (within its inner scopes as well)
+        '''
 
         # get some variables if they haven not already been inputted 
-        if subgraph is None:
-            subgraph = SubgraphView(graph, graph.nodes())
         if scope_dict is None:
-            scope_dict = graph.scope_dict 
-        if outer_map_entry is None:
-            outer_map_entry = next(n for n in subgraph.nodes() if isinstance(n, nodes.MapEntry) and scope_dict[n] is None)
+            scope_dict = graph.scope_dict()
+        subgraph = SubgraphView(graph, scope_dict[scope_node])
         
         # loop over all tasklets 
         context = dict()
@@ -121,10 +159,10 @@ class RegisterScore(MemletScore):
                 # see whether scope is contained in outer_entry 
                 scope = scope_dict[node]
                 current_context = []
-                while scope and scope != outer_map_entry:
+                while scope and scope != scope_node:
                     current_context.append(scope)
                     scope = scope_dict[scope]
-                if scope:
+                if scope == scope_node:
                     context[node] = current_context 
         
         # similarly as in transient_reuse, create a proxy graph only 
@@ -154,9 +192,8 @@ class RegisterScore(MemletScore):
             successors[n] = set(proxy.successors(n))
             ancestors[n] = set(nx.ancestors(proxy, n))
 
-        connected_components = utils.concurrent_subgraphs(proxy)
         active_sets = list()
-        for cc in connected_components:
+        for cc in nx.weakly_connected_components(proxy):
             queue = [node for node in cc if len(ancestors[node]) == 0]
             while len(queue) > 0:
                 active_sets.append(queue.copy())
@@ -177,82 +214,65 @@ class RegisterScore(MemletScore):
                     if ready_to_remove:
                         queue.remove(tasklet)
         
-        # for each tasklet, get current scope 
+        # evaluate each tasklet
+        tasklet_scores = {tasklet : self.evaluate_tasklet(graph, tasklet, ctx) for (tasklet, ctx) in context.items()}
+
+        # add up scores in respective active sets and return the max
+        active_sets_scores = [sum(tasklet_scores[t] for t in tasklet_list) for tasklet_list in active_sets]
+        return max(active_sets_scores)
 
 
 
-        
+    def evaluate_available(self, outer_map):
+        ''' FORNOW: get register available count '''
 
-
-
-
-    def estimate_spill(self, sdfg, graph, subgraph):
-        # get register used count
-        reg_count_required = 0
-        tasklet_symbols = set()
-        visited_containers = set()
         register_read_write = 0
-
-        sc = graph.scope_children()
-        outer_map_entry = next(n for n in sc[None] if isinstance(n, nodes.MapEntry))
-        outer_map = outer_map_entry.map
-
-        for node in subgraph.nodes():
-            if isinstance(node, nodes.AccessNode) and sdfg.data(node.data).storage == dtypes.StorageType.Register:
-                # container requirements
-                if node.data not in visited_containers:
-                    reg_count_required += sdfg.data(node.data).total_size
-                    visited_containers.add(node.data)
-                # traffic requirements
-                memlets = [e.data for e in itertools.chain(graph.out_edges(node), graph.in_edges(node))]
-                result_mm = propagation.propagate_subset(memlets = memlets, arr = sdfg.data(node.data), params = outer_map.params, rng = outer_map.range)
-
-                register_read_write += result_mm.volume
-                print("REGRW", register_read_write)
-
-            if node in sc[outer_map_entry] and isinstance(node, nodes.Tasklet):
-
-                if node.code.language == dtypes.Language.Python:
-                    node.code.code
-                    names = set(node.id for node in ast.walk(ast.parse(node.code.as_string)) if isinstance(node, ast.Name))
-                    tasklet_symbols = tasklet_symbols if len(tasklet_symbols) > len(names) else names 
-                else:
-                    warnings.warn('WARNING: Register Score cannot evaluate non Python block')
-            
-  
-
-        # add length of max tasklet symbols to register count
-        if not isinstance(reg_count_required, int):
-            reg_count_required = self.symbolic_evaluation(reg_count_required)
-            print("TO ADD", len(tasklet_symbols))
-            reg_count_required += len(tasklet_symbols)
-        print("TOTAL REQUIRED", reg_count_required)
-
-        # get register available count
         threads = Config.get('compiler', 'cuda', 'default_block_size')
         threads = functools.reduce(lambda a, b: a * b,
                                    [int(e) for e in threads.split(',')])
         reg_count_available = self.register_per_block / (min(
             1028, 16 * threads))
-        print("TOTAL AVAILABLE", reg_count_available)
 
         # get number of total read/writes to registers
-        type
         param_substitute = {
             p: r
             for (p, r) in zip(outer_map.params, outer_map.range.size())
         }
-        print("PARAM SUBSTITUTE", param_substitute)
         if not isinstance(register_read_write, int):
             register_read_write.subs(param_substitute)
             register_read_write = self.symbolic_evaluation(register_read_write)
 
+        return register_read_write 
+
+
+
+    def estimate_spill(self, sdfg, graph, subgraph):
+        ''' 
+        estimates spill for a fused subgraph that contains one outer map entry 
+        '''
+        # get some variables 
+        scope_dict = graph.scope_dict()
+        outer_map_entry = next(n for n in sc[None] if isinstance(n, nodes.MapEntry))
+        outer_map = outer_map_entry.map
+
+        # get register used count
+        reg_count_required = self.evaluate_state(sdfg = sdfg, graph = graph, scope_node = outer_map_entry, scope_dict = scope_dict)
+        # get register provided count (FORNOW)
+        reg_count_available = self.evaluate_available(sdfg = sdfg, graph = graph)
+        # get register traffic count 
+        if reg_count_required > reg_count_available:
+            register_read_write = self.evaluate_register_traffic(outer_map = outer_map)
+        else:
+            register_read_write = 0
+       
         spill_fraction = max(0, (reg_count_required - reg_count_available) /
                              reg_count_available)
         print("SPILL FRACTION", spill_fraction)
 
         # next up, add spill fraction to movement
         return spill_fraction * register_read_write
+
+
 
     def score(self, subgraph: SubgraphView):
         '''
