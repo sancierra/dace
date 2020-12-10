@@ -60,29 +60,55 @@ class RegisterScore(MemletScore):
 
         # for debugging purposes
         self._i = 0
-        self._base_traffic = TODO
+        
 
-
+    def propagate_outward(self,
+                          memlets: List[dace.Memlet],
+                          context: List[Union[nodes.MapEntry, nodes.NestedSDFG]]):
+        '''
+        Propagates Memlets outwards given map entry nodes in context vector. 
+        Assumes that first entry is innermost entry closest to memlet 
+        '''
+        for ctx in (context):
+            if isinstance(context, nodes.MapEntry):
+                for i, memlet in enumerate(memlets):
+                    memlets[i] = propagation.propagate_memlet(graph, memlet, ctx, False)
+            else:
+                raise NotImplementedError("TODO")
+                
+        return memlets 
+            
     def evaluate_register_traffic(self,
                                   graph: SDFGState, 
-                                  subgraph: SubgraphView):
-        register_read_write = 0
+                                  subgraph: SubgraphView,
+                                  scope_node: nodes.Node,
+                                  scope_dict: dict = None):
+        
+        ''' 
+        Evaluates traffic in a scope subgraph with given scope node that flows out of and into registers 
+        '''
+
+        if not scope_dict:
+            scope_dict = graph.scope_dict()
+
+        register_traffic = 0
+
         for node in subgraph.nodes():
             if isinstance(node, nodes.AccessNode) and sdfg.data(node.data).storage == dtypes.StorageType.Register:
-                # container requirements
-                if node.data not in visited_containers:
-                    reg_count_required += sdfg.data(node.data).total_size
-                    visited_containers.add(node.data)
-                # traffic requirements
-                memlets = [e.data for e in itertools.chain(graph.out_edges(node), graph.in_edges(node))]
-                result_mm = propagation.propagate_subset(memlets = memlets, arr = sdfg.data(node.data), params = outer_map.params, rng = outer_map.range)
-
-                register_read_write += result_mm.volume
-                print("REGRW", register_read_write)
+                # see whether scope is contained in outer_entry 
+                scope = scope_dict[node]
+                current_context = []
+                while scope and scope != scope_node:
+                    current_context.append(scope)
+                    scope = scope_dict[scope]
+                if scope == scope_node:
+                    # add to traffic 
+                    self.propagate_outward(memlets, current_context)
+                    for memlet in memlets:
+                        register_traffic += memlet.volume
         
-        register_read_write = self.symbolic_evaluation(register_read_write)
+        return self.symbolic_evaluation(register_traffic)
         
-        return register_read_write
 
     def evaluate_tasklet(self, 
                          graph: SDFGState,
@@ -103,11 +129,9 @@ class RegisterScore(MemletScore):
         if not nested:
             # if we aren't in a nested sdfg, add subset size estimates from connectors
             memlets = [e.data for e in itertools.chain(graph.in_edges(node), graph.out_edges(node))]
-            for ctx in (context):
-                for i, memlet in enumerate(memlets):
-                    memlets[i] = propagate_memlet(graph, memlet, ctx, False)
+            self.propagate_outward(memlets, context)
             
-            # NOTE: subsets.num_elements() yields a better estimate than volume()
+            # NOTE: subsets.num_elements() yields a better estimate than volume() here 
             estimate_connector = sum([m.subset.num_elements() for m in memlets])
 
         if isinstance(node, nodes.Tasklet):
