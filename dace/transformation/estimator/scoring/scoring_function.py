@@ -43,6 +43,7 @@ class ScoringFunction:
         # set gpu attribute
         if gpu is None:
             # detect whether the state is assigned to GPU
+            map_entries = [n for n in subgraph.nodes() if isinstance(n, nodes.MapEntry)]
             schedule = next(iter(map_entries)).schedule
             if any([m.schedule != schedule for m in map_entries]):
                 raise RuntimeError(
