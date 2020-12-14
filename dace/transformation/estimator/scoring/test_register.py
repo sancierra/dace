@@ -46,53 +46,120 @@ def reg(A: dace.float32[N], B: dace.float32[N], C: dace.float32[N], D: dace.floa
             in1 << tmp2
             in2 << tmp3
             out >> D[i]
+        
+            out = in1 * in2 + 42 
 
-            out = tmp1 * tmp2 + 42 
 
-def tester1():
-    print("--- Test ---")
-    sdfg = reg.to_sdfg()
-    nsdfg = None 
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node  
-    
-    
-    graphs = [g for g in nsdfg.sdfg.nodes()]
-    
-    fusion = StateFusion(nsdfg.sdfg.sdfg_id, -1, {StateFusion.first_state: 0, StateFusion.second_state: 1}, 0)
-    fusion.apply(nsdfg.sdfg)
-    sdfg.apply_strict_transformations()
+@dace.program 
+def reg_map(A: dace.float32[N, N], B: dace.float32[N, N], C: dace.float32[N, N], D: dace.float32[N, N]):
+    for i in dace.map[0:N]:
+        tmp = np.ndarray([N], dtype = dace.float32)
+        tmp2 = np.ndarray([N], dtype = dace.float32)
+        tmp3 = np.ndarray([N], dtype = dace.float32)
 
-    entry = None 
+        for j in dace.map[0:N]:
+            with dace.tasklet:
+                in1 << A[i,j] 
+                in2 << B[i,j] 
+                out >> tmp[j] 
+
+                asdf = in1 * in1 + in2
+                out = asdf * in2 + in1 + asdf 
+        
+        for j in dace.map[0:N]:
+            with dace.tasklet:
+                in1 << C[i,j]
+                in2 << tmp[j]
+                out >> tmp2[j]
+
+                asdf1 = in1 + in2 * 5.3 
+                asdf2 = asdf1 * in2 + in1 
+                out = asdf2 + 3 
+        
+        for j in dace.map[0:N]:
+            with dace.tasklet:
+
+                in1 << C[i,j]
+                in2 << tmp[j]
+                out >> tmp3[j]
+
+                asdf1 = in1 + in2 * 3.3 
+                asdf2 = asdf1 * in2 + in1 
+                out = asdf2 + 3.9
+
+        for j in dace.map[0:N]:
+            with dace.tasklet:
+                in1 << tmp2[j]
+                in2 << tmp3[j]
+                out >> D[i,j]
+            
+                out = in1 * in2 + 42 
+
+@dace.program 
+def reg_nested(A: dace.float32[N], B: dace.float32[N], C: dace.float32[N], D: dace.float32[N]):
+    for i in dace.map[0:N]:
+        tmp = np.ndarray([1], dtype = dace.float32)
+        tmp2 = np.ndarray([1], dtype = dace.float32)
+        tmp3 = np.ndarray([1], dtype = dace.float32)
+
+        with dace.tasklet:
+            out >> tmp2[0]
+            out = 42.0
+
+
+        with dace.tasklet:
+            in1 << A[i] 
+            in2 << B[i] 
+            out >> tmp
+
+            asdf = in1 * in1 + in2
+            out = asdf * in2 + in1 + asdf 
+        
+        with dace.tasklet:
+            in1 << C[i]
+            in2 << tmp 
+            out >> tmp2
+
+            asdf1 = in1 + in2 * 5.3 
+            asdf2 = asdf1 * in2 + in1 
+            out = asdf2 + 3 
+
+        with dace.tasklet:
+
+            in1 << C[i]
+            in2 << tmp 
+            out >> tmp3
+
+            asdf1 = in1 + in2 * 3.3 
+            asdf2 = asdf1 * in2 + in1 
+            out = asdf2 + 3.9
+
+        with dace.tasklet:
+            in1 << tmp2
+            in2 << tmp3
+            out >> D[i]
+        
+            out = in1 * in2 + 42 
+
+
+def parse():
+    sdfg = reg_nested.to_sdfg()
+    
+    entries = []
     for node in sdfg.nodes()[0].nodes():
         if isinstance(node, dace.sdfg.nodes.MapEntry):
-            entry = node 
+            entries.append(node)
             break  
     
-
-    for node in sdfg.nodes()[0].scope_children()[entry]:
-        if isinstance(node, dace.sdfg.nodes.AccessNode):
-            sdfg.data(node.data).storage = dace.dtypes.StorageType.Register
-            print(sdfg.data(node.data).storage)
-
-    sdfg.save('register_test.sdfg')            
-    
-def tester2():
-    print("--- Test ---")
-    sdfg = reg.to_sdfg()
-    nsdfg = None 
-    for node in sdfg.nodes()[0].nodes():
-        if isinstance(node, dace.sdfg.nodes.NestedSDFG):
-            nsdfg = node  
-    
-    for graph in nsdfg.sdfg.nodes():
-        for node in graph.nodes():
+    for entry in entries:
+        for node in sdfg.nodes()[0].scope_children()[entry]:
             if isinstance(node, dace.sdfg.nodes.AccessNode):
-                if nsdfg.sdfg.data(node.data).transient:
-                    nsdfg.sdfg.data(node.data).storage = dace.dtypes.StorageType.Register
-    sdfg.save('register_test2.sdfg')
+                sdfg.data(node.data).storage = dace.dtypes.StorageType.Register
+                print(sdfg.data(node.data).storage)
 
+    sdfg.save('test.sdfg')
+    return sdfg       
+   
 
 
 
@@ -104,12 +171,12 @@ def test_register(sdfg, graph, subgraph = None):
                                      graph = graph,
                                      io = io,
                                      subgraph = subgraph)
-    
-    outer_entry = next(n for n in subgraph.nodes() if isinstance(n, dace.sdfg.nodes.MapEntry))
+    scope_children = graph.scope_children()
+    outer_entry = next(n for n in subgraph.nodes() if isinstance(n, dace.sdfg.nodes.MapEntry) and n in scope_children[None])
     return_value = scoring_function.estimate_spill(sdfg, graph, outer_entry)
     print(return_value)
 
 if __name__ == '__main__':
-    sdfg = dace.sdfg.SDFG.from_file('register_test.sdfg')
+    sdfg = parse()
     graph = sdfg.nodes()[0]
     test_register(sdfg, graph)
