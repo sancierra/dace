@@ -142,8 +142,8 @@ def reg_nested(A: dace.float32[N], B: dace.float32[N], C: dace.float32[N], D: da
             out = in1 * in2 + 42 
 
 
-def parse():
-    sdfg = reg_nested.to_sdfg()
+def parse(program_name):
+    sdfg = program_name.to_sdfg()
     
     entries = []
     for node in sdfg.nodes()[0].nodes():
@@ -157,13 +157,12 @@ def parse():
                 sdfg.data(node.data).storage = dace.dtypes.StorageType.Register
                 print(sdfg.data(node.data).storage)
 
-    sdfg.save('test.sdfg')
     return sdfg       
    
 
 
 
-def test_register(sdfg, graph, subgraph = None):
+def caller(sdfg, graph, subgraph = None):
     subgraph = subgraph if subgraph else SubgraphView(graph, graph.nodes())
     N = 10
     io = ({}, {}, {'N':N})
@@ -176,7 +175,28 @@ def test_register(sdfg, graph, subgraph = None):
     return_value = scoring_function.estimate_spill(sdfg, graph, outer_entry)
     print(return_value)
 
+
+def test_easy():
+    print("***********************************************")
+    sdfg = parse(reg)
+    caller(sdfg, sdfg.nodes()[0])
+    print("***********************************************")
+
+
+def test_medium():
+    print("***********************************************")
+    sdfg = parse(reg_map)
+    caller(sdfg, sdfg.nodes()[0])
+    print("***********************************************")
+
+def test_nested():
+    print("***********************************************")
+    sdfg = parse(reg_nested)
+    caller(sdfg, sdfg.nodes()[0])
+    print("***********************************************")
+
+
 if __name__ == '__main__':
-    sdfg = parse()
-    graph = sdfg.nodes()[0]
-    test_register(sdfg, graph)
+    test_easy()
+    test_medium()
+    test_nested()
