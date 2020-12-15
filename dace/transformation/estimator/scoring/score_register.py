@@ -78,7 +78,7 @@ class RegisterScore(MemletScore):
         '''
         for ctx in context:
             if isinstance(ctx, nodes.MapEntry):
-                if ctx.schedule = dtypes.ScheduleType.GPU_ThreadBlock:
+                if ctx.schedule == dtypes.ScheduleType.GPU_ThreadBlock:
                     # we are at thread block level - do not propagate
                     break
                 for i, memlet in enumerate(memlets):
@@ -144,31 +144,48 @@ class RegisterScore(MemletScore):
 
         return self.symbolic_evaluation(register_traffic)
 
-    def evaluate_passive_tasklet(self,
-                                 graph: SDFGState,
-                                 node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                                 context: List[nodes.MapEntry]):
+    def evaluate_tasklet_output(self,
+                                graph: SDFGState,
+                                node: Union[nodes.Tasklet, nodes.NestedSDFG],
+                                context: List[nodes.MapEntry]):
         
         '''
         NOTE: We don't need to be concerned about write to the same 
         array by multiple tasklets in one active set 
-        -> this would invalidate the sdfg
+        -> this would invalidate the sdfg 
         '''
 
         result = 0
         for e in graph.out_edges(node):
-            # see whether path leads to register node 
+            # see whether path comes from global map entry 
             for path_e in graph.memlet_path(e):
                 if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.storage == dtypes.StorageType.Register:
                     result += path_e.data.subset.num_elements()
         
         return self.symbolic_evaluation(result)
        
+    def evaluate_tasklet_input(self,
+                               graph: SDFGState,
+                               node: Union[nodes.Tasklet, nodes.NestedSDFG],
+                               context: List[nodes.MapEntry]):
+        
+        result = 0
+        for e in graph.in_edges(node):
+            # see whether path comes from register node 
+            # if so it already got covered in output 
+            for e in graph.memlet_path(e):
+                if isinstance(e.src, nodes.AccessNode) and e.src.storage == dtypes.StorageType.Register:
+                    break 
+            else:
+                result += e.data.subset.num_elements()
+           
+        return self.symbolic_evaluation(result)
 
-    def evaluate_active_tasklet(self,
-                         graph: SDFGState,
-                         node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                         context: List[nodes.MapEntry]):
+
+    def evaluate_tasklet_inner(self,
+                               graph: SDFGState,
+                               node: Union[nodes.Tasklet, nodes.NestedSDFG],
+                               context: List[nodes.MapEntry]):
 
         '''
         Evaluates a tasklet or nested sdfg node for a register size usage estimate 
@@ -187,8 +204,8 @@ class RegisterScore(MemletScore):
                 e.data for e in itertools.chain(graph.in_edges(node) if active else [],
                                                 graph.out_edges(node))
             ]
-            # NOTE: No outward propagation needed 
-            ######self.propagate_outward(graph, memlets, context)
+            # NOTE: outward propagation step here 
+            self.propagate_outward(graph, memlets, context)
             # NOTE: subsets.num_elements() yields a better estimate than volume() here
             estimate_connector = sum([m.subset.num_elements() for m in memlets])
 
@@ -340,7 +357,7 @@ class RegisterScore(MemletScore):
         for tasklet_set in active_sets:
             set_score = 0
             for tasklet in tasklet_set:
-                sc = self.evaluate_active_tasklet(graph = graph,
+                sc = self.evaluate_tasklet_inner(graph = graph,
                                            node = tasklet,
                                            context = context[tasklet],
                                            active = True)
