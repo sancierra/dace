@@ -3,7 +3,7 @@
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling, helpers
 from dace.transformation.subgraph.composite import CompositeFusion
 from dace.transformation.dataflow import DeduplicateAccess
-from dace.properties import make_properties, Property
+from dace.properties import make_properties, Property, TypeProperty
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
 from dace.sdfg.nodes import Node, Tasklet
@@ -42,9 +42,12 @@ class RegisterScore(MemletScore):
 
     register_per_block = Property(desc="No of Registers per Block available",
                                   dtype=int,
-                                  default=65536)
+                                  #default=65536,
+                                  default=32768)
 
-    #default = 81920)
+    datatype = TypeProperty(desc="Datatype of Input",
+                            default = np.float32)
+
 
     def __init__(self,
                  sdfg: SDFG,
@@ -75,29 +78,32 @@ class RegisterScore(MemletScore):
         '''
         for ctx in context:
             if isinstance(ctx, nodes.MapEntry):
+                if ctx.schedule = dtypes.ScheduleType.GPU_ThreadBlock:
+                    # we are at thread block level - do not propagate
+                    break
                 for i, memlet in enumerate(memlets):
                     memlets[i] = propagation.propagate_memlet(
                         graph, memlet, ctx, False)
             else:
-                print(ctx)
-                print(type(ctx))
                 raise NotImplementedError("TODO")
 
         return memlets
 
-    def tasklet_symbols(self, astobj, datatype = np.float32):
+    def tasklet_symbols(self, astobj, max_size = 12):
         '''
-        traverses a tasklet ast 
+        traverses a tasklet ast and primitively assigns 
+        registers to symbols and constants 
         '''
+
         assignments = {}
-        base_multiplier = dtypes._BYTES[datatype] / 4
+        base_multiplier = dtypes._BYTES[self.datatype] / 4
         for n in ast.walk(astobj):
             if isinstance(n, ast.Name):
                 assignments[n.id] = 1 * base_multiplier
             if isinstance(n, ast.Constant):
                 assignments[n] = 1 * base_multiplier
 
-        return assignments
+        return min(max_size, assignments)
 
                 
     def evaluate_register_traffic(self,
@@ -116,12 +122,10 @@ class RegisterScore(MemletScore):
         register_traffic = 0
 
         for node in (graph.scope_subgraph(scope_node) if scope_node else graph.nodes()):
-            if isinstance(node, nodes.AccessNode) and sdfg.data(
-                    node.data).storage == dtypes.StorageType.Register or (
-                    isinstance(node, nodes.NestedSDFG)):
+            if isinstance(node, nodes.AccessNode) and sdfg.data(node.data).storage == dtypes.StorageType.Register:
                 # see whether scope is contained in outer_entry
                 scope = scope_dict[node]
-                current_context = []
+                current_context = [scope_node]
                 while scope and scope != scope_node:
                     current_context.append(scope)
                     scope = scope_dict[scope]
@@ -133,21 +137,45 @@ class RegisterScore(MemletScore):
                 self.propagate_outward(graph, memlets, current_context)
                 for memlet in memlets:
                     register_traffic += memlet.volume
+            
+            if isinstance(node, nodes.NestedSDFG):
+                for state in node.sdfg.nodes():
+                    register_traffic += self.evaluate_register_traffic(node.sdfg, state, None)
 
         return self.symbolic_evaluation(register_traffic)
 
-    def evaluate_tasklet(self,
+    def evaluate_passive_tasklet(self,
+                                 graph: SDFGState,
+                                 node: Union[nodes.Tasklet, nodes.NestedSDFG],
+                                 context: List[nodes.MapEntry]):
+        
+        '''
+        NOTE: We don't need to be concerned about write to the same 
+        array by multiple tasklets in one active set 
+        -> this would invalidate the sdfg
+        '''
+
+        result = 0
+        for e in graph.out_edges(node):
+            # see whether path leads to register node 
+            for path_e in graph.memlet_path(e):
+                if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.storage == dtypes.StorageType.Register:
+                    result += path_e.data.subset.num_elements()
+        
+        return self.symbolic_evaluation(result)
+       
+
+    def evaluate_active_tasklet(self,
                          graph: SDFGState,
                          node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                         context: List[nodes.MapEntry],
-                         active: bool):
+                         context: List[nodes.MapEntry]):
+
         '''
         Evaluates a tasklet or nested sdfg node for a register size usage estimate 
 
         :param node:    tasklet or nsdfg node 
         :param context: list of map entries to propagate thru ending with toplevel 
         :param nested:  specify whether we are in a nested sdfg
-        :param active:  EXPERIMENTAL: specify whether access node is active or already done at this point 
         '''
 
         estimate_connector = 0
@@ -159,42 +187,37 @@ class RegisterScore(MemletScore):
                 e.data for e in itertools.chain(graph.in_edges(node) if active else [],
                                                 graph.out_edges(node))
             ]
-            self.propagate_outward(graph, memlets, context)
+            # NOTE: No outward propagation needed 
+            ######self.propagate_outward(graph, memlets, context)
             # NOTE: subsets.num_elements() yields a better estimate than volume() here
             estimate_connector = sum([m.subset.num_elements() for m in memlets])
 
             # 2. get an estimate from code symbols not in conn tasklets
-            if active:
-                if node.code.language == dtypes.Language.Python:
-                    names = set(n.id
-                                for n in ast.walk(ast.parse(node.code.as_string))
-                                if isinstance(n, ast.Name))
-                    names = self.tasklet_symbols(ast.parse(node.code.as_string))
-                    # add them up and return
-                    connector_symbols = set(itertools.chain(node.in_connectors.keys(), node.out_connectors.keys()))
-                    estimate_internal = sum([v for (k,v) in names.items() if k not in connector_symbols])
-                
-                else:
-                    warnings.warn(
-                        'WARNING: Register Score cannot evaluate non Python block')
-                    # just use some shady estimate
-                    estimate_internal = max(
-                        8, math.ceil(node.code.as_string.count('\n') / 2))
+            if node.code.language == dtypes.Language.Python:
+                names = set(n.id
+                            for n in ast.walk(ast.parse(node.code.as_string))
+                            if isinstance(n, ast.Name))
+                names = self.tasklet_symbols(ast.parse(node.code.as_string))
+                # add them up and return
+                connector_symbols = set(itertools.chain(node.in_connectors.keys(), node.out_connectors.keys()))
+                estimate_internal = sum([v for (k,v) in names.items() if k not in connector_symbols])
+            
+            else:
+                warnings.warn(
+                    'WARNING: Register Score cannot evaluate non Python block')
+                # just use some shady estimate
+                estimate_internal = max(
+                    8, math.ceil(node.code.as_string.count('\n') / 2))
         else:
             # nested sdfg
             # get an estimate for each nested sdfg state and max over these values
-            if active:
-                estimate_internal = max([
-                    self.evaluate_state(node.sdfg, s, None)
-                    for s in node.sdfg.nodes()
-                ])
-            else:
-                memlets = [
-                e.data for e in itertools.chain(graph.out_edges(node))
-                ]
-                self.propagate_outward(graph, memlets, context)
-                # NOTE: subsets.num_elements() yields a better estimate than volume() here
-                estimate_connector = sum([m.subset.num_elements() for m in memlets])
+            estimate_internal = max([
+                self.evaluate_state(node.sdfg, s, None)
+                for s in node.sdfg.nodes()
+            ])
+            if estimate_internal == 0:
+                warnings.warn('Detected a Nested SDFG where Tasklets were found inside for analysis')
+
 
 
         # do something different here
@@ -205,8 +228,8 @@ class RegisterScore(MemletScore):
             print(f"--- Node {node} ---")
             print(f"Estimator: Connector = {estimate_connector}")
             print(f"Estimate: Internal =", estimate_internal)
+            print(f"SCORE === {estimate_internal + estimate_connector}")
         
-
         return estimate_connector + estimate_internal
 
 
@@ -228,12 +251,14 @@ class RegisterScore(MemletScore):
         if scope_children is None:
             scope_children = graph.scope_children()
 
-        subgraph = graph.scope_subgraph(scope_node)
+        print("SCOPE_NODE", scope_node)
+
+        subgraph = graph.scope_subgraph(scope_node) if scope_node is not None else SubgraphView(graph, graph.nodes())
 
         # loop over all tasklets
         context = dict()
         for node in subgraph.nodes():
-            if isinstance(node, nodes.Tasklet):
+            if isinstance(node, (nodes.Tasklet, nodes.NestedSDFG)):
                 # see whether scope is contained in outer_entry
                 scope = scope_dict[node]
                 current_context = []
@@ -244,41 +269,36 @@ class RegisterScore(MemletScore):
                 context[node] = current_context
 
         # similarly as in transient_reuse, create a proxy graph only
-        # containing tasklets that are *INSIDE* our fused map
-        print("CONTEXTS", context)
+        # containing tasklets that are inside our fused map
         print("Building proxy graph")
         proxy = nx.MultiDiGraph()
         for n in subgraph.nodes():
             proxy.add_node(n)
         for n in subgraph.nodes():
             for e in graph.all_edges(n):
-                proxy.add_edge(e.src, e.dst)
+                if e.src in subgraph and e.dst in subgraph:
+                    proxy.add_edge(e.src, e.dst)
     
-        print("Remove all nodes not Tasklets")
         # remove all nodes that are not Tasklets
-        for n in graph.nodes():
-            if n in proxy.nodes():
-                if not isinstance(n, nodes.Tasklet):
-                    for p in proxy.predecessors(n):
-                        for c in proxy.successors(n):
-                            proxy.add_edge(p, c)
-                    proxy.remove_node(n)
-        print(f"Success!, Proxy Nodes = {proxy.number_of_nodes()}")
+        for n in subgraph.nodes():
+            if n not in context:
+                for p in proxy.predecessors(n):
+                    for c in proxy.successors(n):
+                        proxy.add_edge(p, c)
+                proxy.remove_node(n)
+
         # set up predecessor and successor array
         predecessors, successors = {}, {}
         for n in proxy.nodes():
             successors[n] = set(proxy.successors(n))
             predecessors[n] = set(proxy.predecessors(n))
        
-        print(f"predecessors and successors {predecessors}, {successors}")
 
         active_sets = list()
-        print("Building active sets")
         for cc in nx.weakly_connected_components(proxy):
-            print("NEXT CC")
             queue = set([node for node in cc if len(predecessors[node]) == 0])
             while len(queue) > 0:
-                print("CURRENT QUEUE", queue)
+                print("CURRENT", queue)
                 active_sets.append(set(queue))
                 for tasklet in queue:
                     # remove predecessor link (for newly added elements to queue)
@@ -291,16 +311,19 @@ class RegisterScore(MemletScore):
                 next_tasklets = set()
                 tasklets_to_remove = set()
                 for tasklet in queue:
+                    remove_tasklet = True
                     for tasklet_successor in successors[tasklet]:
+                        print(tasklet, "->", tasklet_successor)
+                        print(predecessors[tasklet_successor])
                         if len(predecessors[tasklet_successor]) > 0:
-                            print(predecessors[tasklet_successor])
-                            break
-                    else:
+                            remove_tasklet = False 
+                        elif tasklet_successor not in queue:
+                            next_tasklets.add(tasklet_successor)
+                    if remove_tasklet:
                         tasklets_to_remove.add(tasklet)
-                        # append all successors to queue 
-                        next_tasklets |= set(successors[tasklet])
 
                 if len(next_tasklets) == 0 and len(tasklets_to_remove) == 0:
+                    sdfg.save('error_here.sdfg')
                     print("ERROR")
                     sys.exit(0)
                 queue |= next_tasklets
@@ -317,7 +340,7 @@ class RegisterScore(MemletScore):
         for tasklet_set in active_sets:
             set_score = 0
             for tasklet in tasklet_set:
-                sc = self.evaluate_tasklet(graph = graph,
+                sc = self.evaluate_active_tasklet(graph = graph,
                                            node = tasklet,
                                            context = context[tasklet],
                                            active = True)
@@ -329,7 +352,7 @@ class RegisterScore(MemletScore):
             active_set_scores.append(set_score)
             last_set = tasklet_set 
         
-        return max(active_set_scores)
+        return max(active_set_scores) if len(active_set_scores) > 0 else 0
 
 
 
@@ -363,7 +386,7 @@ class RegisterScore(MemletScore):
         # get register provided count (FORNOW)
         reg_count_available = self.evaluate_available(outer_map = outer_map)
         # get register traffic count
-        if reg_count_required > reg_count_available:
+        if reg_count_available < reg_count_required:
             register_read_write = self.evaluate_register_traffic(
                 sdfg = sdfg,
                 graph = graph,
@@ -374,6 +397,7 @@ class RegisterScore(MemletScore):
 
         spill_fraction = max(0, (reg_count_required - reg_count_available) /
                              reg_count_available)
+        print("REGISTER TRAFFIC", register_read_write)
         print("SPILL FRACTION", spill_fraction)
 
         # next up, add spill fraction to movement
@@ -416,8 +440,12 @@ class RegisterScore(MemletScore):
         self._i += 1
 
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
-        print("ESTIMATE SPILL")
-        outer_entry = next(n for n in subgraph_copy.nodes() if isinstance(n, nodes.MapEntry))
+
+
+        # NOTE: assume transformation function has 
+        # .global_map_entry field, this makes it much easier 
+
+        outer_entry = transformation_function._global_map_entry
         spill_traffic = self.estimate_spill(sdfg_copy, graph_copy,
                                             outer_entry)
 
