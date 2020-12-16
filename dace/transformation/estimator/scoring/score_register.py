@@ -103,7 +103,7 @@ class RegisterScore(MemletScore):
             if isinstance(n, ast.Constant):
                 assignments[n] = 1 * base_multiplier
 
-        return min(max_size, assignments)
+        return assignments
 
                 
     def evaluate_register_traffic(self,
@@ -145,6 +145,7 @@ class RegisterScore(MemletScore):
         return self.symbolic_evaluation(register_traffic)
 
     def evaluate_tasklet_output(self,
+                                sdfg: SDFG,
                                 graph: SDFGState,
                                 node: Union[nodes.Tasklet, nodes.NestedSDFG],
                                 context: List[nodes.MapEntry]):
@@ -159,33 +160,38 @@ class RegisterScore(MemletScore):
         for e in graph.out_edges(node):
             # see whether path comes from global map entry 
             for path_e in graph.memlet_path(e):
-                if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.storage == dtypes.StorageType.Register:
+                if isinstance(path_e.dst, nodes.AccessNode) and sdfg.data(path_e.dst.data).storage == dtypes.StorageType.Register:
                     result += path_e.data.subset.num_elements()
         
         return self.symbolic_evaluation(result)
        
     def evaluate_tasklet_input(self,
+                               sdfg: SDFG,
                                graph: SDFGState,
                                node: Union[nodes.Tasklet, nodes.NestedSDFG],
                                context: List[nodes.MapEntry]):
         
+        
         result = 0
-        for e in graph.in_edges(node):
-            # see whether path comes from register node 
-            # if so it already got covered in output 
-            for e in graph.memlet_path(e):
-                if isinstance(e.src, nodes.AccessNode) and e.src.storage == dtypes.StorageType.Register:
-                    break 
-            else:
-                result += e.data.subset.num_elements()
+        if isinstance(node, nodes.Tasklet):
+            for e in graph.in_edges(node):
+                # see whether path comes from register node 
+                # if so it already got covered in output 
+                for e in graph.memlet_path(e):
+                    if isinstance(e.src, nodes.AccessNode) and sdfg.data(e.src.data).storage == dtypes.StorageType.Register:
+                        break 
+                else:
+                    result += e.data.subset.num_elements()
            
         return self.symbolic_evaluation(result)
 
 
     def evaluate_tasklet_inner(self,
+                               sdfg: SDFG,
                                graph: SDFGState,
                                node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                               context: List[nodes.MapEntry]):
+                               context: List[nodes.MapEntry],
+                               max_size = 10):
 
         '''
         Evaluates a tasklet or nested sdfg node for a register size usage estimate 
@@ -195,27 +201,13 @@ class RegisterScore(MemletScore):
         :param nested:  specify whether we are in a nested sdfg
         '''
 
-        estimate_connector = 0
         estimate_internal = 0
         if isinstance(node, nodes.Tasklet):
-            # 1. get an estimate from incoming / outgoing memlets 
-            # if we aren't in a nested sdfg, add subset size estimates from connectors
-            memlets = [
-                e.data for e in itertools.chain(graph.in_edges(node) if active else [],
-                                                graph.out_edges(node))
-            ]
-            # NOTE: outward propagation step here 
-            self.propagate_outward(graph, memlets, context)
-            # NOTE: subsets.num_elements() yields a better estimate than volume() here
-            estimate_connector = sum([m.subset.num_elements() for m in memlets])
-
-            # 2. get an estimate from code symbols not in conn tasklets
             if node.code.language == dtypes.Language.Python:
                 names = set(n.id
                             for n in ast.walk(ast.parse(node.code.as_string))
                             if isinstance(n, ast.Name))
                 names = self.tasklet_symbols(ast.parse(node.code.as_string))
-                # add them up and return
                 connector_symbols = set(itertools.chain(node.in_connectors.keys(), node.out_connectors.keys()))
                 estimate_internal = sum([v for (k,v) in names.items() if k not in connector_symbols])
             
@@ -223,7 +215,7 @@ class RegisterScore(MemletScore):
                 warnings.warn(
                     'WARNING: Register Score cannot evaluate non Python block')
                 # just use some shady estimate
-                estimate_internal = max(
+                estimate_internal = min(
                     8, math.ceil(node.code.as_string.count('\n') / 2))
         else:
             # nested sdfg
@@ -236,18 +228,12 @@ class RegisterScore(MemletScore):
                 warnings.warn('Detected a Nested SDFG where Tasklets were found inside for analysis')
 
 
-
-        # do something different here
-        estimate_connector = self.symbolic_evaluation(estimate_connector)
         estimate_internal = self.symbolic_evaluation(estimate_internal)
 
         if self.debug:
-            print(f"--- Node {node} ---")
-            print(f"Estimator: Connector = {estimate_connector}")
-            print(f"Estimate: Internal =", estimate_internal)
-            print(f"SCORE === {estimate_internal + estimate_connector}")
+            print(f"Node estimate {node} =", estimate_internal)
         
-        return estimate_connector + estimate_internal
+        return min(estimate_internal, max_size)
 
 
         
@@ -261,14 +247,13 @@ class RegisterScore(MemletScore):
         '''
         Evaluates Register spill for a whole state where scope_node indicates the outermost scope in which spills should be analyzed (within its inner scopes as well)
         '''
-        print(f"Evaluating {graph} with scope node {scope_node}")
+        print(f"Evaluating state {graph} with scope node {scope_node}")
         # get some variables if they haven not already been inputted
         if scope_dict is None:
             scope_dict = graph.scope_dict()
         if scope_children is None:
             scope_children = graph.scope_children()
 
-        print("SCOPE_NODE", scope_node)
 
         subgraph = graph.scope_subgraph(scope_node) if scope_node is not None else SubgraphView(graph, graph.nodes())
 
@@ -287,7 +272,6 @@ class RegisterScore(MemletScore):
 
         # similarly as in transient_reuse, create a proxy graph only
         # containing tasklets that are inside our fused map
-        print("Building proxy graph")
         proxy = nx.MultiDiGraph()
         for n in subgraph.nodes():
             proxy.add_node(n)
@@ -315,7 +299,6 @@ class RegisterScore(MemletScore):
         for cc in nx.weakly_connected_components(proxy):
             queue = set([node for node in cc if len(predecessors[node]) == 0])
             while len(queue) > 0:
-                print("CURRENT", queue)
                 active_sets.append(set(queue))
                 for tasklet in queue:
                     # remove predecessor link (for newly added elements to queue)
@@ -353,22 +336,29 @@ class RegisterScore(MemletScore):
         last_set = set()
         active_set_scores = list()
 
-        print(f"--- Subgraph Analysis: {graph} ---")
+        input_scores, inner_scores, output_scores = {},{},{}
+        for (node, ctx) in context.items():
+            inner_scores[node] = self.evaluate_tasklet_inner(sdfg, graph, node, ctx)
+            input_scores[node] = self.evaluate_tasklet_input(sdfg, graph, node, ctx)
+            output_scores[node] = self.evaluate_tasklet_output(sdfg, graph, node, ctx)
+
+
+        print(f"--- State Subgraph Analysis: {graph} ---")
         for tasklet_set in active_sets:
+            # evaluate score for current tasklet set 
             set_score = 0
             for tasklet in tasklet_set:
-                sc = self.evaluate_tasklet_inner(graph = graph,
-                                           node = tasklet,
-                                           context = context[tasklet],
-                                           active = True)
-                # TODO: change active to false under certain conditions? 
-                # or do a O(N) maximum evaluation among those that weren't in last 
-                set_score += sc 
+                max_active = max(input_scores[n] + inner_scores[n] for n in tasklet_set)
+                all_completed = sum(output_scores[n] for n in tasklet_set)
+                set_score += max_active + all_completed
+
+
             print("Active Set:", tasklet_set)
             print("Score:", set_score)
             active_set_scores.append(set_score)
             last_set = tasklet_set 
         
+        print("-----------------------------")
         return max(active_set_scores) if len(active_set_scores) > 0 else 0
 
 
@@ -414,6 +404,7 @@ class RegisterScore(MemletScore):
 
         spill_fraction = max(0, (reg_count_required - reg_count_available) /
                              reg_count_available)
+        print("REGISTERS", reg_count_required)
         print("REGISTER TRAFFIC", register_read_write)
         print("SPILL FRACTION", spill_fraction)
 
