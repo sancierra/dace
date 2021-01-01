@@ -107,7 +107,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
                 warnings.warn("Ambiguous innermap scheduling "
                               "in a GPU State for Fusion")
 
-
+        
         if SubgraphFusion.can_be_applied(sdfg, self.subgraph_view(sdfg)):
             sf = SubgraphFusion(subgraph, self.sdfg_id, self.state_id)
             # set SubgraphFusion properties
@@ -136,3 +136,5 @@ class CompositeFusion(transformation.SubgraphTransformation):
 
         else:
             raise NotImplementedError("Error")
+        
+        self._global_map_entry = sf._global_map_entry
