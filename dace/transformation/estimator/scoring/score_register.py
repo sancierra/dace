@@ -42,8 +42,8 @@ class RegisterScore(MemletScore):
 
     register_per_block = Property(desc="No of Registers per Block available",
                                   dtype=int,
-                                  #default=65536,
-                                  default=32768)
+                                  default=65536)
+                                  #default=32768)
 
     datatype = TypeProperty(desc="Datatype of Input",
                             default = np.float32)
@@ -71,14 +71,15 @@ class RegisterScore(MemletScore):
 
     def propagate_outward(self, graph: SDFGState, memlets: List[Memlet],
                           context: List[Union[nodes.MapEntry,
-                                              nodes.NestedSDFG]]):
+                                              nodes.NestedSDFG]], penetrate_everything = False
+                            ):
         '''
         Propagates Memlets outwards given map entry nodes in context vector. 
         Assumes that first entry is innermost entry closest to memlet 
         '''
         for ctx in context:
             if isinstance(ctx, nodes.MapEntry):
-                if ctx.schedule == dtypes.ScheduleType.GPU_ThreadBlock:
+                if not penetrate_everything and ctx.schedule == dtypes.ScheduleType.GPU_ThreadBlock:
                     # we are at thread block level - do not propagate
                     break
                 for i, memlet in enumerate(memlets):
@@ -134,9 +135,10 @@ class RegisterScore(MemletScore):
                 memlets = list(e.data for e in 
                     itertools.chain(graph.out_edges(node),
                                     graph.in_edges(node)))
-                self.propagate_outward(graph, memlets, current_context)
+                self.propagate_outward(graph, memlets, current_context, penetrate_everything= True)
                 for memlet in memlets:
-                    register_traffic += memlet.volume
+                    print("CM", memlet)
+                    register_traffic += memlet.subset.num_elements()
             
             if isinstance(node, nodes.NestedSDFG):
                 for state in node.sdfg.nodes():
@@ -347,10 +349,12 @@ class RegisterScore(MemletScore):
         for tasklet_set in active_sets:
             # evaluate score for current tasklet set 
             set_score = 0
-            for tasklet in tasklet_set:
-                max_active = max(input_scores[n] + inner_scores[n] for n in tasklet_set)
-                all_completed = sum(output_scores[n] for n in tasklet_set)
-                set_score += max_active + all_completed
+
+            active_score = min(input_scores[n] + inner_scores[n] for n in tasklet_set if n not in last_set)
+            print("active=", active_score)
+            all_completed = sum(output_scores[n] for n in tasklet_set)
+            print("passive=", all_completed)
+            set_score += active_score + all_completed
 
 
             print("Active Set:", tasklet_set)
@@ -404,7 +408,8 @@ class RegisterScore(MemletScore):
 
         spill_fraction = max(0, (reg_count_required - reg_count_available) /
                              reg_count_available)
-        print("REGISTERS", reg_count_required)
+        print("REGISTERS USED", reg_count_required)
+        print("REGISTERS AVAILABLE", reg_count_available)
         print("REGISTER TRAFFIC", register_read_write)
         print("SPILL FRACTION", spill_fraction)
 
@@ -446,6 +451,7 @@ class RegisterScore(MemletScore):
                                                 graph_copy.scope_leaves())
 
         self._i += 1
+        sdfg_copy.save(f'inspect_{self._i}.sdfg')
 
         current_traffic = self.estimate_traffic(sdfg_copy, graph_copy)
 
