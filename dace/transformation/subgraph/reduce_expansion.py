@@ -128,7 +128,6 @@ class ReduceExpansion(transformation.Transformation):
         in_storage_node = graph.in_edges(reduce_node)[0].src
         wcr = reduce_node.wcr
         identity = reduce_node.identity
-        schedule = reduce_node.schedule
         implementation = reduce_node.implementation
         if implementation and 'warp' in implementation:
             raise NotImplementedError(
@@ -393,8 +392,8 @@ class ReduceExpansion(transformation.Transformation):
         # taken from legacy expand_reduce.py
 
         node.validate(sdfg, state)
-        inedge: graph.MultiConnectorEdge = state.in_edges(node)[0]
-        outedge: graph.MultiConnectorEdge = state.out_edges(node)[0]
+        inedge = state.in_edges(node)[0]
+        outedge = state.out_edges(node)[0]
         input_dims = len(inedge.data.subset)
         output_dims = len(outedge.data.subset)
         input_data = sdfg.arrays[inedge.data.data]
@@ -422,7 +421,7 @@ class ReduceExpansion(transformation.Transformation):
             raise ValueError("Node identity has to be None at this point.")
         else:
             nstate = nsdfg.add_state()
-        # END OF INIT
+
 
         # (If axes != all) Add outer map, which corresponds to the output range
         if len(axes) != input_dims:
@@ -440,7 +439,7 @@ class ReduceExpansion(transformation.Transformation):
             output_size = outedge.data.subset.size()
 
             ome, omx = nstate.add_map(
-                'reduce_output', {
+                'outer_'+node.label, {
                     '_o%d' % i: '0:%s' % symstr(sz)
                     for i, sz in enumerate(outedge.data.subset.size())
                 })

@@ -11,7 +11,7 @@ from dace.properties import make_properties, Property
 from dace.transformation.estimator.run.tester import test_scorer, get_sdfg, list_top
 
 from typing import List, Type, Callable
-
+import sys
 
   
 def score_enum_index(sdfg: dace.SDFG,
@@ -48,15 +48,29 @@ def score_enum_index(sdfg: dace.SDFG,
     return score 
 
 
-def run_enum_index(program_name, iteration_index, gpu = False):
+def run_enum_index(program_name, iteration_index, gpu = False, **kwargs):
 
     (sdfg, graph) = get_sdfg(program_name, gpu)
 
     io = factory.get_args(program_name)
-    scoring_function = ExecutionScore(sdfg, graph, io, gpu = gpu)
+    scoring_function = ExecutionScore(sdfg, graph, io, gpu = gpu, **kwargs)
     return score_enum_index(sdfg, graph, iteration_index, scoring_function)
 
 
 if __name__ == '__main__':
-    run_enum_index('softmax', 0, False)
+    program_name = 'vadv'
+    transient_allocation = dace.dtypes.StorageType.Register
+    schedule_innermaps = dace.dtypes.ScheduleType.Sequential
+    gpu = True 
+
+    if len(sys.argv) > 1:
+        print(f"Running with index input {sys.argv[1]}")
+        run_enum_index(program_name = program_name, 
+                       iteration_index = int(sys.argv[1]), 
+                       gpu = gpu,
+                       transient_allocation = transient_allocation,
+                       schedule_innermaps = schedule_innermaps)
+
+    else:
+        raise RuntimeError("Input missing.")
 

@@ -31,6 +31,9 @@ class ExecutionScore(ScoringFunction):
     debug = Property(desc = "Debug Mode",
                      dtype = bool,
                      default = True)
+    run_baseline = Property(desc = "Run baseline as a comparision. If not just return score and not a fraction",
+                             dtype = bool,
+                             default = False)
 
     exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
                              dtype = bool,
@@ -62,14 +65,16 @@ class ExecutionScore(ScoringFunction):
         if nruns is not None:
             dace.config.Config.set('treps', value=nruns)
 
+
         # run the graph to create a baseline
         # Use sdfg_init for this it if is not None, else just our sdfg
-        self._median_rt_base = self.run_with_instrumentation(
-            sdfg=self._sdfg,
-            graph=self._graph,
-            map_entries=self._map_entries,
-            check=False,
-            set=True)
+        if self.run_baseline:
+            self._median_rt_base = self.run_with_instrumentation(
+                sdfg=self._sdfg,
+                graph=self._graph,
+                map_entries=self._map_entries,
+                check=False,
+                set=True)
 
     def run_with_instrumentation(self,
                                  sdfg: SDFG,
@@ -86,6 +91,7 @@ class ExecutionScore(ScoringFunction):
                             If None, those get calculated
         :param check:       Check whether the outputs are the
                             same as the output class variable
+
         :param set:         Set the output class variable to
                             the output produced by this call
 
@@ -130,9 +136,7 @@ class ExecutionScore(ScoringFunction):
                 for (k, v) in self._inputs.items() if k not in outputs_local
             }
             # specialize sdfg
-            print("***", sdfg.constants)
             sdfg.specialize(self._symbols)
-            print("***", sdfg.constants)
 
             r = sdfg(**sdfg_inputs, **outputs_local)
             outputs_local['__return'] = r
@@ -144,7 +148,7 @@ class ExecutionScore(ScoringFunction):
             # in debug mode, exit and fail
             success = False
         # this block asserts whether outputs are correct
-        if success and check:
+        if success and check and self.run_baseline:
             faulty = False
             for (ok, ov) in self._outputs.items():
                 if ov is not None and not np.allclose(outputs_local[ok], ov):
@@ -210,7 +214,7 @@ class ExecutionScore(ScoringFunction):
         # normalize runtime
         runtime /= len(files)
         if runtime == 0.0:
-            warnings.warning("Runtime is equal to Zero")
+            warnings.warn("Runtime is equal to Zero")
             if self.view_on_error:
                 sdfg.view()
             if self.exit_on_error:
@@ -255,7 +259,10 @@ class ExecutionScore(ScoringFunction):
         # run and measure
         median_rt_fuse = self.run_with_instrumentation(sdfg_copy, graph_copy)
 
-        return median_rt_fuse / self._median_rt_base if median_rt_fuse != -1 else -1
+        if self.run_baseline:
+            return median_rt_fuse / self._median_rt_base if median_rt_fuse != -1 else -1
+        else:
+            return median_rt_fuse
         #return median_rt_fuse
     
     @staticmethod
