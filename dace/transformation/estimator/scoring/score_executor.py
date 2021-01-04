@@ -31,7 +31,7 @@ class ExecutionScore(ScoringFunction):
     debug = Property(desc = "Debug Mode",
                      dtype = bool,
                      default = True)
-    run_baseline = Property(desc = "Run baseline as a comparision. If not just return score and not a fraction",
+    run_baseline = Property(desc = "Run baseline as a comparison. If not just return score and not a fraction",
                              dtype = bool,
                              default = False)
 
@@ -53,6 +53,7 @@ class ExecutionScore(ScoringFunction):
                  nruns=None,
                  transformation_function: Type = CompositeFusion,
                  **kwargs):
+
         super().__init__(sdfg=sdfg,
                          graph=graph,
                          subgraph=subgraph,
