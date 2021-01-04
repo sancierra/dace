@@ -28,12 +28,13 @@ def score_enum_index(sdfg: dace.SDFG,
     Enumerator is put in debug mode for reproducibility 
     ''' 
     enumerator = enumerator_type(sdfg = sdfg,
-                                graph = graph,
-                                condition_function=CompositeFusion.can_be_applied,
-                                scoring_function=None)
+                                 graph = graph,
+                                 condition_function=CompositeFusion.can_be_applied,
+                                 scoring_function=None)
     enumerator.debug = True 
     enumerator.mode = 'subgraph'
-    print(enumerator.list())
+
+    print("LEN ********* ", len(enumerator.list()))
     for (i, (current_subgraph, _)) in enumerate(enumerator):
         print(iteration_index, i, current_subgraph)
         if i == iteration_index:
@@ -54,6 +55,7 @@ def run_enum_index(program_name, iteration_index, gpu = False, **kwargs):
 
     io = factory.get_args(program_name)
     scoring_function = ExecutionScore(sdfg, graph, io, gpu = gpu, **kwargs)
+    print("Calculating Enum Index....")
     return score_enum_index(sdfg, graph, iteration_index, scoring_function)
 
 
@@ -61,6 +63,8 @@ if __name__ == '__main__':
     program_name = 'vadv'
     transient_allocation = dace.dtypes.StorageType.Register
     schedule_innermaps = dace.dtypes.ScheduleType.Sequential
+    stencil_unroll_loops = True
+    deduplicate = True
     gpu = True 
 
     if len(sys.argv) > 1:
@@ -69,7 +73,8 @@ if __name__ == '__main__':
                        iteration_index = int(sys.argv[1]), 
                        gpu = gpu,
                        transient_allocation = transient_allocation,
-                       schedule_innermaps = schedule_innermaps)
+                       schedule_innermaps = schedule_innermaps,
+                       stencil_unroll_loops = stencil_unroll_loops)
 
     else:
         raise RuntimeError("Input missing.")
