@@ -3,8 +3,13 @@ from operator import add
 
 
 FILENAME = 'test.csv'
-AGGREGATE = True 
-MAX_I = 10
+AGGREGATE = False 
+INCLUDE_OCCUPANCY = True 
+INCLUDE_EFFICIENCY = False 
+MAX_I = 87
+
+
+
 size_dict = {'Mbyte': 1, 
              'Kbyte': 0.001,
              'byte' : 0.000001,
@@ -13,13 +18,14 @@ size_dict = {'Mbyte': 1,
              }
 
 def is_separating_line(line):
-    return len(line) > 1 and all([len(e) == 0 or all(ee == '-' for ee in e) for e in line.split(' ')]):
+    return len(line) > 1 and all([len(e) == 0 or all(ee == '-' for ee in e) for e in line.split(' ')])
 
 
 
 with open(FILENAME, 'w') as f:
     f.write('id, read, write, sum, runtime, registers, occupancy, read_eff, write_eff\n')
     for i in range(1,MAX_I):
+        print(f"--- Current file: {i} ---")
         file_len = 0
         with open(f'output{i}.txt','r') as current:
             for line in current:
@@ -31,15 +37,17 @@ with open(FILENAME, 'w') as f:
             while counter < file_len:
                 if is_separating_line(line):
                     read = current.readline()[:-1].split(' ')
+                    print(read)
                     write = current.readline()[:-1].split(' ')
                     duration = current.readline()[:-1].split(' ')
                     registers = current.readline()[:-1].split(' ')
                     occupancy = current.readline()[:-1].split(' ')
                     read_efficiency = current.readline()[:-1].split(' ')
                     write_efficiency = current.readline()[:-1].split(' ')
+                    print(read_efficiency)
 
                     for _ in range(4):
-                        __ = current.readline() 
+                        _ = current.readline() 
                     counter += 4 
 
                     x = f'{i}'
@@ -54,6 +62,7 @@ with open(FILENAME, 'w') as f:
                                 quantity = size_dict[s]
                             if quantity is not None:
                                 try:
+                                    print("***", quantity)
                                     quantity *= float(s)
                                     break 
                                 except ValueError:
@@ -69,6 +78,7 @@ with open(FILENAME, 'w') as f:
                     for ln in [registers, occupancy, read_efficiency, write_efficiency]:
                         for s in ln:
                             try:
+                                print("***** ", quantity)
                                 quantity = float(s)
                                 break 
                             except ValueError:
@@ -77,7 +87,7 @@ with open(FILENAME, 'w') as f:
                             raise RuntimeError("Cannot convert row!")
                         rwd.append(quantity)
                         
-                    x += f',{rwd[0], rwd[1], rwd[2], rwd[3]}'
+                    x += f',{rwd[0]}, {rwd[1]}, {rwd[2]}, {rwd[3]}\n'
                     print("Line =", x )
                     f.write(x)
                 line = current.readline()[:-1]
@@ -92,7 +102,7 @@ with open(FILENAME, 'r') as f:
                 continue
             print(line)
             id = int(line.split(',')[0])
-            (read,write,sumrw,duration, _, _, _, _) = [float(e) for e in line.split(',')[1:]]
+            (read,write,sumrw,duration, _, occupancy, _, _) = [float(e) for e in line.split(',')[1:]]
             if id in aggregates:
                 aggregates[id] = list(map(add, aggregates[id], [read, write, sumrw, duration]))
             else:
@@ -103,7 +113,7 @@ with open(FILENAME, 'r') as f:
             y.append(d)
         plt.scatter(x,y)
         plt.title('Aggregate Runtime Correlation per Graph')
-        plt.xlabel('DRAM Memory Movement [MB/s]')
+        plt.xlabel('DRAM Memory Movement [MB]')
         plt.ylabel('Runtime [us]')
         plt.title('Runtime Correlation')
         plt.savefig('plot.pdf')
@@ -113,13 +123,29 @@ with open(FILENAME, 'r') as f:
             if i == 0:
                 continue
             print([float(e) for e in line.split(',')[1:]])
-            (read,write,sumrw,duration,_,_,_,_) = [float(e) for e in line.split(',')[1:]]
-            x.append(sumrw)
+            (read,write,sumrw,duration,_,occupancy,read_eff,write_eff) = [float(e) for e in line.split(',')[1:]]
+            x.append([read, write])
+            if INCLUDE_OCCUPANCY:
+                x[-1][0] *= occupancy 
+                x[-1][1] *= occupancy 
+            if INCLUDE_EFFICIENCY:
+                x[-1][0] *= read_eff 
+                x[-1][1] *= write_eff 
+            
+            x[-1] = x[-1][0] + x[-1][1]
             y.append(duration)
         print(x,y)
         plt.scatter(x,y)
         print("XLABEL")
-        plt.xlabel('DRAM Memory Movement [MB/s]')
+        if INCLUDE_OCCUPANCY and INCLUDE_EFFICIENCY:
+            plt.xlabel('DRAM Memory Movement [MB] * occupancy * efficiency')
+        elif INCLUDE_OCCUPANCY:
+            plt.xlabel('DRAM Memory Movement [MB] * occupancy')
+        elif INCLUDE_EFFICIENCY:
+            plt.xlabel('DRAM Memory Movement [MB] * efficiency')
+        else:
+            plt.xlabel('DRAM Memory Movement [MB]')
+
         plt.ylabel('Runtime [us]')
         plt.title('Runtime Correlation per Kernel')
         plt.savefig('plot.pdf')
