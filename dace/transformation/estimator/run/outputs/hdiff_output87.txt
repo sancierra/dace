@@ -1,0 +1,389 @@
+Running with index input 87
+Applied 2 StateFusion.
+Applied 1 GPUTransformSDFG.
+Calculating Enum Index....
+87 0 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e7130>
+87 1 <dace.sdfg.graph.SubgraphView object at 0x7f65c08ed1c0>
+87 2 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af69a0>
+87 3 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c6e1c0>
+87 4 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a15fa0>
+87 5 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0ffd0>
+87 6 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c64160>
+87 7 <dace.sdfg.graph.SubgraphView object at 0x7f65c09fd550>
+87 8 <dace.sdfg.graph.SubgraphView object at 0x7f65c09f6c70>
+87 9 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0ffd0>
+87 10 <dace.sdfg.graph.SubgraphView object at 0x7f65c09f6c70>
+87 11 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbf7f0>
+87 12 <dace.sdfg.graph.SubgraphView object at 0x7f65c08aff10>
+87 13 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a096a0>
+87 14 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbf880>
+87 15 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a366d0>
+87 16 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbbb20>
+87 17 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0a310>
+87 18 <dace.sdfg.graph.SubgraphView object at 0x7f65c0e03820>
+87 19 <dace.sdfg.graph.SubgraphView object at 0x7f65c0e03340>
+87 20 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a36700>
+87 21 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a7c0a0>
+87 22 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0f9a0>
+87 23 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c50430>
+87 24 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e7910>
+87 25 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c55190>
+87 26 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0f9a0>
+87 27 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a32430>
+87 28 <dace.sdfg.graph.SubgraphView object at 0x7f65c08b2220>
+87 29 <dace.sdfg.graph.SubgraphView object at 0x7f65c0856460>
+87 30 <dace.sdfg.graph.SubgraphView object at 0x7f65c0bdb490>
+87 31 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a79e50>
+87 32 <dace.sdfg.graph.SubgraphView object at 0x7f65c0bd8970>
+87 33 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a1d6d0>
+87 34 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbfee0>
+87 35 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a79e50>
+87 36 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a23eb0>
+87 37 <dace.sdfg.graph.SubgraphView object at 0x7f65c09fff40>
+87 38 <dace.sdfg.graph.SubgraphView object at 0x7f65c0932d90>
+87 39 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c55dc0>
+87 40 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e7a60>
+87 41 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a73e80>
+87 42 <dace.sdfg.graph.SubgraphView object at 0x7f65c0764ca0>
+87 43 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c4a370>
+87 44 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a73e80>
+87 45 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e75e0>
+87 46 <dace.sdfg.graph.SubgraphView object at 0x7f65c09170a0>
+87 47 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af9c10>
+87 48 <dace.sdfg.graph.SubgraphView object at 0x7f65c0ec94f0>
+87 49 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af9c10>
+87 50 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a232e0>
+87 51 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a23eb0>
+87 52 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a36be0>
+87 53 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af9c10>
+87 54 <dace.sdfg.graph.SubgraphView object at 0x7f65c09fb490>
+87 55 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a26b20>
+87 56 <dace.sdfg.graph.SubgraphView object at 0x7f65c09f1e50>
+87 57 <dace.sdfg.graph.SubgraphView object at 0x7f65c0afd7c0>
+87 58 <dace.sdfg.graph.SubgraphView object at 0x7f65c08af9a0>
+87 59 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a26850>
+87 60 <dace.sdfg.graph.SubgraphView object at 0x7f65c09176a0>
+87 61 <dace.sdfg.graph.SubgraphView object at 0x7f65c0afd7c0>
+87 62 <dace.sdfg.graph.SubgraphView object at 0x7f65c09fde20>
+87 63 <dace.sdfg.graph.SubgraphView object at 0x7f65c08b2ee0>
+87 64 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbfca0>
+87 65 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af1e80>
+87 66 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e75e0>
+87 67 <dace.sdfg.graph.SubgraphView object at 0x7f65c0739370>
+87 68 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbf8b0>
+87 69 <dace.sdfg.graph.SubgraphView object at 0x7f65c09e78b0>
+87 70 <dace.sdfg.graph.SubgraphView object at 0x7f65c0cbf9d0>
+87 71 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a79e50>
+87 72 <dace.sdfg.graph.SubgraphView object at 0x7f65c0965a90>
+87 73 <dace.sdfg.graph.SubgraphView object at 0x7f65c09fdaf0>
+87 74 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a26850>
+87 75 <dace.sdfg.graph.SubgraphView object at 0x7f65c0e0a0d0>
+87 76 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a29e20>
+87 77 <dace.sdfg.graph.SubgraphView object at 0x7f65c0af1e80>
+87 78 <dace.sdfg.graph.SubgraphView object at 0x7f65c08ed940>
+87 79 <dace.sdfg.graph.SubgraphView object at 0x7f65c0e0a0d0>
+87 80 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c0a310>
+87 81 <dace.sdfg.graph.SubgraphView object at 0x7f65c08afe80>
+87 82 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c64400>
+87 83 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a075e0>
+87 84 <dace.sdfg.graph.SubgraphView object at 0x7f65c0979fa0>
+87 85 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a36490>
+87 86 <dace.sdfg.graph.SubgraphView object at 0x7f65c0c55bb0>
+87 87 <dace.sdfg.graph.SubgraphView object at 0x7f65c0a075e0>
+Iteration index 87: Subgraph = [AccessNode (gpu_u_in), AccessNode (u_tmp), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_v_out), AccessNode (gpu_u_out), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), Tasklet (DoMethod_131), Tasklet (DoMethod_107), AccessNode (v_tmp), Tasklet (DoMethod_118), AccessNode (__tmp_T_sqr_s_1351), AccessNode (gpu_crlavu), AccessNode (gpu_hdmask), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (gpu_acrlat0), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_crlato), AccessNode (__tmp_lap_363), AccessNode (gpu_crlavo), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_crlatu), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1])]
+SUBGRAPH: [AccessNode (gpu_u_in), AccessNode (u_tmp), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_v_out), AccessNode (gpu_u_out), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), Tasklet (DoMethod_131), Tasklet (DoMethod_107), AccessNode (v_tmp), Tasklet (DoMethod_118), AccessNode (__tmp_T_sqr_s_1351), AccessNode (gpu_crlavu), AccessNode (gpu_hdmask), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (gpu_acrlat0), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_crlato), AccessNode (__tmp_lap_363), AccessNode (gpu_crlavo), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_crlatu), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1])]
+StencilTiling::Reference Range {'k': Range (0:K), 'x': None, 'y': Range (halo:J - halo), 'z': Range (halo:I - halo)}
+SubgraphFusion::In_nodes {AccessNode (gpu_crlavu), AccessNode (v_tmp), AccessNode (gpu_hdmask), AccessNode (gpu_u_in), AccessNode (__tmp_lap_363), AccessNode (gpu_crlavo), AccessNode (gpu_crlatu), AccessNode (gpu_crlato), AccessNode (gpu_acrlat0)}
+SubgraphFusion::Out_nodes {AccessNode (gpu_u_out), AccessNode (gpu_v_out)}
+SubgraphFusion::Intermediate_nodes {AccessNode (__tmp_T_sqr_s_1351), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (u_tmp)}
+SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
+{'u_tmp': True, '__tmp_S_sqr_uv_1352': True, '__tmp_T_sqr_s_1351': True}
+pp_out
+0.0
+0.0
+w_out
+0.0
+0.0
+v_out
+0.0
+0.0
+u_out
+0.0
+0.0
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/build
+
+[ 40%] Built target dacestub_baseline
+[ 60%] Building NVCC (Device) object CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/cuda_compile_1_generated_baseline_cuda.cu.o
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(36): warning: variable "eddlat" was declared but never referenced
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(37): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(38): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(39): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(189): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(190): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(191): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(192): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(218): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(219): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(220): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(221): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(235): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(236): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(237): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(238): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(325): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(326): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(327): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(328): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(349): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(350): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(351): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(352): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(418): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(419): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(420): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(421): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(473): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(474): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(475): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(476): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(544): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(545): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(546): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(547): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(599): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(600): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(601): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(602): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(670): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(671): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(672): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(673): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(725): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(726): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(727): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(728): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(796): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(797): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(798): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(799): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(851): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(852): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(853): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(854): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(857): warning: variable "K" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(5): warning: variable "eddlat" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(6): warning: variable "eddlon" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(7): warning: variable "tau_smag" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cuda/baseline_cuda.cu(8): warning: variable "weight_smag" was declared but never referenced
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3599): warning: integer conversion resulted in a change of sign
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3607): warning: integer conversion resulted in a change of sign
+
+Scanning dependencies of target baseline
+[ 80%] Building CXX object CMakeFiles/baseline.dir/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/baseline/src/cpu/baseline.cpp.o
+[100%] Linking CXX shared library libbaseline.so
+[100%] Built target baseline
+
+==PROF== Connected to process 16932 (/home/lucalav/anaconda3/bin/python3.8)
+==PROF== Profiling "merged_kmap_fission1_0_0_40" - 1: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission2_0_0_42" - 2: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission3_0_0_44" - 3: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission5_0_0_46" - 4: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission6_0_0_48" - 5: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission7_0_0_50" - 6: 0%....50%....100% - 4 passes
+==PROF== Profiling "merged_kmap_fission8_0_0_52" - 7: 0%....50%....100% - 4 passes
+==PROF== Profiling "outer_fused_0_0_62" - 8: 0%....50%....100%WARNING: Casting scalar argument "I" from int to <class 'numpy.int32'>
+WARNING: Casting scalar argument "J" from int to <class 'numpy.int32'>
+WARNING: Casting scalar argument "K" from int to <class 'numpy.int32'>
+WARNING: Casting scalar argument "halo" from int to <class 'numpy.int32'>
+
+Profiling...
+DaCe 442.51061184331775 ms
+{'gpuev_Map merged_kmap_fission1': [138.737], 'gpuev_Map merged_kmap_fission2': [39.3335], 'gpuev_Map merged_kmap_fission3': [38.8283], 'gpuev_Map merged_kmap_fission5': [39.5678], 'gpuev_Map merged_kmap_fission6': [38.9428], 'gpuev_Map merged_kmap_fission7': [39.6412], 'gpuev_Map merged_kmap_fission8': [38.9172], 'gpuev_Map outer_fused': [48.5458]}
+DONE.
+RUNTIME 422.5135999999999
+ - 4 passes
+==PROF== Disconnected from process 16932
+[16932] python3.8@127.0.0.1
+  merged_kmap_fission1_0_0_40(float*, float const*, float const*, float const*), 2021-Jan-05 18:41:44, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           5.08
+    dram__bytes_write.sum                                                            Mbyte                           2.32
+    gpu__time_duration.sum                                                         usecond                          20.51
+    launch__registers_per_thread                                           register/thread                             16
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.59
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                             75
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.45
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'249'280
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      9'525'760
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission2_0_0_42(float const*, float const*, float const*, float const*, float*), 2021-Jan-05 18:41:44, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          14.91
+    dram__bytes_write.sum                                                            Mbyte                           3.37
+    gpu__time_duration.sum                                                         usecond                          37.06
+    launch__registers_per_thread                                           register/thread                             30
+    sm__warps_active.avg.per_cycle_active                                             warp                          28.29
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.50
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'128'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission3_0_0_44(float*, float const*, float const*, float const*), 2021-Jan-05 18:41:44, Context 1, Stream 14
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           5.08
+    dram__bytes_write.sum                                                            Mbyte                           2.33
+    gpu__time_duration.sum                                                         usecond                          20.38
+    launch__registers_per_thread                                           register/thread                             16
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.61
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                             75
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.55
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'249'280
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      9'525'760
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission5_0_0_46(float const*, float const*, float const*, float const*, float*), 2021-Jan-05 18:41:44, Context 1, Stream 14
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          14.91
+    dram__bytes_write.sum                                                            Mbyte                           3.35
+    gpu__time_duration.sum                                                         usecond                          36.54
+    launch__registers_per_thread                                           register/thread                             30
+    sm__warps_active.avg.per_cycle_active                                             warp                          28.24
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.50
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'128'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission6_0_0_48(float*, float const*, float const*, float const*), 2021-Jan-05 18:41:44, Context 1, Stream 15
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           5.20
+    dram__bytes_write.sum                                                            Mbyte                           2.41
+    gpu__time_duration.sum                                                         usecond                          20.67
+    launch__registers_per_thread                                           register/thread                             16
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.60
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.82
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.41
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'280'000
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     10'000'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission7_0_0_50(float const*, float const*, float const*, float const*, float*), 2021-Jan-05 18:41:44, Context 1, Stream 15
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          15.28
+    dram__bytes_write.sum                                                            Mbyte                           3.48
+    gpu__time_duration.sum                                                         usecond                          36.99
+    launch__registers_per_thread                                           register/thread                             30
+    sm__warps_active.avg.per_cycle_active                                             warp                          28.18
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          78.40
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          80.92
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'259'520
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'944'480
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission8_0_0_52(float*, float const*, float const*, float const*), 2021-Jan-05 18:41:44, Context 1, Stream 16
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           5.20
+    dram__bytes_write.sum                                                            Mbyte                           2.41
+    gpu__time_duration.sum                                                         usecond                          21.18
+    launch__registers_per_thread                                           register/thread                             16
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.45
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          79.12
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.50
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'280'000
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     10'000'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  outer_fused_0_0_62(float const*, float const*, float const*, float const*, float const*, float const*, float const*, float const*, float*, float*, float const*), 2021-Jan-05 18:41:44, Context 1, Stream 15
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          20.37
+    dram__bytes_write.sum                                                            Mbyte                          75.70
+    gpu__time_duration.sum                                                         usecond                         299.81
+    launch__registers_per_thread                                           register/thread                             64
+    sm__warps_active.avg.per_cycle_active                                             warp                          29.83
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          77.21
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                    123'264'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
