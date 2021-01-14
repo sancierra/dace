@@ -1,0 +1,122 @@
+Running with index input 4
+Applied 2 StateFusion, 1 MergeSourceSinkArrays.
+Applied 1 GPUTransformSDFG.
+**** Pipeline::Reduction timer = 6.593763828277588e-07 s
+***** Pipeline::Expansion timer = 0.00043851975351572037 s
+Calculating Enum Index....
+4 0 <dace.sdfg.graph.SubgraphView object at 0x7ff30c248f70>
+4 1 <dace.sdfg.graph.SubgraphView object at 0x7ff30c2b63d0>
+4 2 <dace.sdfg.graph.SubgraphView object at 0x7ff30c24ee50>
+4 3 <dace.sdfg.graph.SubgraphView object at 0x7ff30c28a430>
+4 4 <dace.sdfg.graph.SubgraphView object at 0x7ff30c248670>
+Iteration index 4: Subgraph = [AccessNode (ccol), AccessNode (gpu_utens), AccessNode (dcol), NestedSDFG (apply_method_1_tmp_K_sdfg), AccessNode (gpu_utens_stage), AccessNode (dcol), MapEntry (merged_apply_method_1_I_map[i=0:I, j=0:J]), AccessNode (gpu_wcon), AccessNode (dcol), MapEntry (merged_apply_method_2_I_map[i=0:I, j=0:J]), AccessNode (gpu_u_stage), AccessNode (gpu_u_pos), MapExit (merged_apply_method_1_I_map[i=0:I, j=0:J]), AccessNode (ccol), Tasklet (apply_method_2_tasklet), MapExit (merged_apply_method_2_I_map[i=0:I, j=0:J])]
+SUBGRAPH: [AccessNode (ccol), AccessNode (gpu_utens), AccessNode (dcol), NestedSDFG (apply_method_1_tmp_K_sdfg), AccessNode (gpu_utens_stage), AccessNode (dcol), MapEntry (merged_apply_method_1_I_map[i=0:I, j=0:J]), AccessNode (gpu_wcon), AccessNode (dcol), MapEntry (merged_apply_method_2_I_map[i=0:I, j=0:J]), AccessNode (gpu_u_stage), AccessNode (gpu_u_pos), MapExit (merged_apply_method_1_I_map[i=0:I, j=0:J]), AccessNode (ccol), Tasklet (apply_method_2_tasklet), MapExit (merged_apply_method_2_I_map[i=0:I, j=0:J])]
+SubgraphFusion::In_nodes {AccessNode (dcol), AccessNode (gpu_utens), AccessNode (gpu_u_stage), AccessNode (gpu_utens_stage), AccessNode (gpu_wcon), AccessNode (ccol), AccessNode (gpu_u_pos)}
+SubgraphFusion::Out_nodes {AccessNode (dcol), AccessNode (ccol)}
+SubgraphFusion::Intermediate_nodes {AccessNode (dcol), AccessNode (ccol)}
+SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
+{'ccol': False, 'dcol': False}
+utens_stage
+661.00977
+661.00977
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/build
+
+[ 40%] Built target dacestub_vertical_advection_dycore
+[ 60%] Building NVCC (Device) object CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(171): warning: variable "I" was declared but never referenced
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(175): warning: variable "_utens_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(184): warning: variable "_u_pos_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(187): warning: variable "_utens_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(263): error: namespace "dace" has no member "GlobalToGlobal1D"
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(263): error: type name is not allowed
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(263): warning: expression has no effect
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(263): warning: expression has no effect
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(238): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(306): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(312): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(313): warning: variable "_u_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(314): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(315): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(316): warning: variable "_wcon_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(317): warning: variable "_wcon_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(321): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(322): warning: variable "_utens_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(323): warning: variable "_utens_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(361): warning: variable "_gt_loc__dtr_stage" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(362): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(366): warning: variable "_utens_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(368): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(369): warning: variable "_u_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(370): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(371): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(372): warning: variable "_wcon_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(373): warning: variable "_wcon_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(375): warning: variable "_u_pos_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(377): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(378): warning: variable "_utens_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(379): warning: variable "_utens_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(9): warning: variable "_utens_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(11): warning: variable "_utens_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(12): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(14): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(15): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(18): warning: variable "_u_pos_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(20): warning: variable "_u_pos_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(21): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(23): warning: variable "_utens_I_stride" was declared but never referenced
+
+2 errors detected in the compilation of "/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu".
+CMake Error at cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o.cmake:276 (message):
+  Error generating file
+  /home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/build/CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/./cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o
+
+
+make[2]: *** [CMakeFiles/vertical_advection_dycore.dir/build.make:556: CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:123: CMakeFiles/vertical_advection_dycore.dir/all] Error 2
+make: *** [Makefile:103: all] Error 2
+
+Runtime Error in current Configuration:
+Compiler failure
+==WARNING== No kernels were profiled.
+==WARNING== Profiling kernels launched by child processes requires the --target-processes all option.

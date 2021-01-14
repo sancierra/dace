@@ -1,0 +1,171 @@
+Running with index input 9
+Applied 2 StateFusion, 1 MergeSourceSinkArrays.
+Applied 1 GPUTransformSDFG.
+**** Pipeline::Reduction timer = 6.202608346939087e-07 s
+***** Pipeline::Expansion timer = 0.00043045077472925186 s
+Calculating Enum Index....
+9 0 <dace.sdfg.graph.SubgraphView object at 0x7f6168981190>
+9 1 <dace.sdfg.graph.SubgraphView object at 0x7f61689e5670>
+9 2 <dace.sdfg.graph.SubgraphView object at 0x7f616899f8e0>
+9 3 <dace.sdfg.graph.SubgraphView object at 0x7f61689ea610>
+9 4 <dace.sdfg.graph.SubgraphView object at 0x7f6168981580>
+9 5 <dace.sdfg.graph.SubgraphView object at 0x7f61689ab6a0>
+9 6 <dace.sdfg.graph.SubgraphView object at 0x7f61689313a0>
+9 7 <dace.sdfg.graph.SubgraphView object at 0x7f6168981790>
+9 8 <dace.sdfg.graph.SubgraphView object at 0x7f6168b75fd0>
+9 9 <dace.sdfg.graph.SubgraphView object at 0x7f61689cad00>
+Iteration index 9: Subgraph = [AccessNode (dcol), Tasklet (apply_method_3_tasklet), MapExit (merged_apply_method_3_I_map[i=0:I, j=0:J]), AccessNode (data_col), AccessNode (data_col), MapExit (merged_apply_method_4_I_map[i=0:I, j=0:J]), NestedSDFG (apply_method_4_tmp_K_sdfg), AccessNode (ccol), MapEntry (merged_apply_method_3_I_map[i=0:I, j=0:J]), MapEntry (merged_apply_method_4_I_map[i=0:I, j=0:J]), AccessNode (gpu_utens_stage), AccessNode (gpu_u_pos)]
+SUBGRAPH: [AccessNode (dcol), Tasklet (apply_method_3_tasklet), MapExit (merged_apply_method_3_I_map[i=0:I, j=0:J]), AccessNode (data_col), AccessNode (data_col), MapExit (merged_apply_method_4_I_map[i=0:I, j=0:J]), NestedSDFG (apply_method_4_tmp_K_sdfg), AccessNode (ccol), MapEntry (merged_apply_method_3_I_map[i=0:I, j=0:J]), MapEntry (merged_apply_method_4_I_map[i=0:I, j=0:J]), AccessNode (gpu_utens_stage), AccessNode (gpu_u_pos)]
+SubgraphFusion::In_nodes {AccessNode (dcol), AccessNode (ccol), AccessNode (gpu_u_pos)}
+SubgraphFusion::Out_nodes {AccessNode (data_col), AccessNode (gpu_utens_stage)}
+SubgraphFusion::Intermediate_nodes {AccessNode (data_col)}
+SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
+{'data_col': False}
+utens_stage
+660.83124
+660.83124
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/build
+
+[ 40%] Built target dacestub_vertical_advection_dycore
+[ 60%] Building NVCC (Device) object CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(171): warning: variable "I" was declared but never referenced
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(175): warning: variable "_utens_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(184): warning: variable "_u_pos_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(187): warning: variable "_utens_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(237): warning: variable "_gt_loc__dtr_stage" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(238): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(245): warning: variable "_u_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(279): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(345): warning: variable "I" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(351): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(352): warning: variable "_u_stage_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(353): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(354): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(355): warning: variable "_wcon_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(356): warning: variable "_wcon_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(360): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(361): warning: variable "_utens_K_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(362): warning: variable "_utens_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(9): warning: variable "_utens_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(11): warning: variable "_utens_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(12): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(14): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(15): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(18): warning: variable "_u_pos_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(20): warning: variable "_u_pos_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(21): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(23): warning: variable "_utens_I_stride" was declared but never referenced
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3599): warning: integer conversion resulted in a change of sign
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3607): warning: integer conversion resulted in a change of sign
+
+Scanning dependencies of target vertical_advection_dycore
+[ 80%] Building CXX object CMakeFiles/vertical_advection_dycore.dir/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cpu/vertical_advection_dycore.cpp.o
+[100%] Linking CXX shared library libvertical_advection_dycore.so
+[100%] Built target vertical_advection_dycore
+
+==PROF== Connected to process 10766 (/home/lucalav/anaconda3/bin/python3.8)
+==PROF== Profiling "merged_apply_method_0_I_map_0..." - 1: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_apply_method_1_I_map_0..." - 2: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_apply_method_2_I_map_0..." - 3: 0%....50%....100% - 5 passes
+==PROF== Profiling "outer_fused_0_0_30" - 4: 0%....50%....100%
+Profiling...
+DaCe 281.4665259793401 ms
+{'gpuev_Map merged_apply_method_0_I_map': [144.109], 'gpuev_Map merged_apply_method_1_I_map': [44.1689], 'gpuev_Map merged_apply_method_2_I_map': [39.77], 'gpuev_Map outer_fused': [42.1186]}
+DONE.
+RUNTIME 270.16650000000004
+ - 5 passes
+==PROF== Disconnected from process 10766
+[10766] python3.8@127.0.0.1
+  merged_apply_method_0_I_map_0_0_18(float*, float*, float const*, float const*, float const*, float const*, float const*), 2021-Jan-12 17:39:18, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Kbyte                         395.23
+    dram__bytes_write.sum                                                            Kbyte                         337.50
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          21.30
+    gpu__time_duration.sum                                                         usecond                           6.18
+    launch__registers_per_thread                                           register/thread                             22
+    sm__warps_active.avg.per_cycle_active                                             warp                           6.28
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                         100.02
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          12.50
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                         16'384
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                        147'456
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_apply_method_1_I_map_0_0_22(float*, float*, float const*, float const*, float const*, float const*, float const*), 2021-Jan-12 17:39:18, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          38.41
+    dram__bytes_write.sum                                                            Mbyte                          39.02
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          21.52
+    gpu__time_duration.sum                                                         usecond                         555.97
+    launch__registers_per_thread                                           register/thread                             26
+    sm__warps_active.avg.per_cycle_active                                             warp                           7.56
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          47.55
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          12.52
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                        638'976
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     14'696'448
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_apply_method_2_I_map_0_0_24(float const*, float*, float const*, float const*, float const*, float const*, float const*), 2021-Jan-12 17:39:18, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           2.49
+    dram__bytes_write.sum                                                            Kbyte                          48.54
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          53.00
+    gpu__time_duration.sum                                                         usecond                           8.16
+    launch__registers_per_thread                                           register/thread                             20
+    sm__warps_active.avg.per_cycle_active                                             warp                           6.99
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          39.13
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          12.50
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                         16'384
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                        163'840
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  outer_fused_0_0_30(float const*, float*, float const*, float const*, float*), 2021-Jan-12 17:39:18, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          58.78
+    dram__bytes_write.sum                                                            Mbyte                          15.07
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          45.49
+    gpu__time_duration.sum                                                         usecond                         252.90
+    launch__registers_per_thread                                           register/thread                             28
+    sm__warps_active.avg.per_cycle_active                                             warp                           7.68
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          16.09
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          22.22
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                         81'920
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      7'831'552
+    ---------------------------------------------------------------------- --------------- ------------------------------
+

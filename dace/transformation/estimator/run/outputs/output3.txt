@@ -1,0 +1,80 @@
+Running with index input 3
+Applied 2 StateFusion, 1 MergeSourceSinkArrays.
+Applied 1 GPUTransformSDFG.
+**** Pipeline::Reduction timer = 5.699694156646729e-07 s
+***** Pipeline::Expansion timer = 0.00044349953532218933 s
+Calculating Enum Index....
+3 0 <dace.sdfg.graph.SubgraphView object at 0x7f53d0ae0f10>
+3 1 <dace.sdfg.graph.SubgraphView object at 0x7f53d0a98730>
+3 2 <dace.sdfg.graph.SubgraphView object at 0x7f53d0ce1040>
+3 3 <dace.sdfg.graph.SubgraphView object at 0x7f53d0b4d6a0>
+Iteration index 3: Subgraph = [MapExit (merged_apply_method_4_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_0_I_map[i=0:I, j=0:J]), AccessNode (data_col), MapEntry (merged_apply_method_4_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_1_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_3_I_map[i=0:I, j=0:J]), NestedSDFG (apply_method_1_tmp_K_sdfg), AccessNode (dcol), NestedSDFG (apply_method_4_tmp_K_sdfg), MapExit (merged_apply_method_2_I_map[i=0:I, j=0:J]), AccessNode (dcol), MapEntry (merged_apply_method_3_I_map[i=0:I, j=0:J]), AccessNode (dcol), Tasklet (apply_method_0_tasklet), AccessNode (gpu_u_stage), AccessNode (ccol), MapEntry (merged_apply_method_1_I_map[i=0:I, j=0:J]), MapEntry (merged_apply_method_2_I_map[i=0:I, j=0:J]), Tasklet (apply_method_3_tasklet), Tasklet (apply_method_2_tasklet), MapEntry (merged_apply_method_0_I_map[i=0:I, j=0:J]), AccessNode (gpu_utens_stage), AccessNode (gpu_wcon), AccessNode (gpu_u_pos), AccessNode (gpu_utens), AccessNode (gpu_utens_stage), AccessNode (data_col), AccessNode (ccol)]
+SUBGRAPH: [MapExit (merged_apply_method_4_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_0_I_map[i=0:I, j=0:J]), AccessNode (data_col), MapEntry (merged_apply_method_4_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_1_I_map[i=0:I, j=0:J]), MapExit (merged_apply_method_3_I_map[i=0:I, j=0:J]), NestedSDFG (apply_method_1_tmp_K_sdfg), AccessNode (dcol), NestedSDFG (apply_method_4_tmp_K_sdfg), MapExit (merged_apply_method_2_I_map[i=0:I, j=0:J]), AccessNode (dcol), MapEntry (merged_apply_method_3_I_map[i=0:I, j=0:J]), AccessNode (dcol), Tasklet (apply_method_0_tasklet), AccessNode (gpu_u_stage), AccessNode (ccol), MapEntry (merged_apply_method_1_I_map[i=0:I, j=0:J]), MapEntry (merged_apply_method_2_I_map[i=0:I, j=0:J]), Tasklet (apply_method_3_tasklet), Tasklet (apply_method_2_tasklet), MapEntry (merged_apply_method_0_I_map[i=0:I, j=0:J]), AccessNode (gpu_utens_stage), AccessNode (gpu_wcon), AccessNode (gpu_u_pos), AccessNode (gpu_utens), AccessNode (gpu_utens_stage), AccessNode (data_col), AccessNode (ccol)]
+SubgraphFusion::In_nodes {AccessNode (gpu_u_pos), AccessNode (gpu_utens), AccessNode (gpu_u_stage), AccessNode (gpu_wcon), AccessNode (gpu_utens_stage)}
+SubgraphFusion::Out_nodes {AccessNode (gpu_utens_stage), AccessNode (data_col)}
+SubgraphFusion::Intermediate_nodes {AccessNode (dcol), AccessNode (data_col), AccessNode (dcol), AccessNode (ccol), AccessNode (ccol), AccessNode (dcol)}
+SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
+{'data_col': False, 'dcol': True, 'ccol': True}
+utens_stage
+661.23315
+661.23315
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/build
+
+[ 40%] Built target dacestub_vertical_advection_dycore
+[ 60%] Building NVCC (Device) object CMakeFiles/cuda_compile_1.dir/__/__/__/__/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/cuda_compile_1_generated_vertical_advection_dycore_cuda.cu.o
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(171): warning: variable "I" was declared but never referenced
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(9): warning: variable "_utens_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(11): warning: variable "_utens_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(12): warning: variable "_u_stage_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(14): warning: variable "_u_stage_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(15): warning: variable "_wcon_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(18): warning: variable "_u_pos_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(20): warning: variable "_u_pos_I_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(21): warning: variable "_utens_J_stride" was declared but never referenced
+
+/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cuda/vertical_advection_dycore_cuda.cu(23): warning: variable "_utens_I_stride" was declared but never referenced
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3599): warning: integer conversion resulted in a change of sign
+
+/home/lucalav/dace/build/lib/dace/codegen/../runtime/include/dace/../../../external/moodycamel/concurrentqueue.h(3607): warning: integer conversion resulted in a change of sign
+
+Scanning dependencies of target vertical_advection_dycore
+[ 80%] Building CXX object CMakeFiles/vertical_advection_dycore.dir/home/lucalav/dace/dace/transformation/estimator/run/.dacecache/vertical_advection_dycore/src/cpu/vertical_advection_dycore.cpp.o
+[100%] Linking CXX shared library libvertical_advection_dycore.so
+[100%] Built target vertical_advection_dycore
+
+==PROF== Connected to process 10024 (/home/lucalav/anaconda3/bin/python3.8)
+==PROF== Profiling "outer_fused_0_0_24" - 1: 0%....50%....100%
+Profiling...
+DaCe 153.05155981332064 ms
+{'gpuev_Map outer_fused': [142.83]}
+DONE.
+RUNTIME 142.83
+ - 5 passes
+==PROF== Disconnected from process 10024
+[10024] python3.8@127.0.0.1
+  outer_fused_0_0_24(float*, float const*, float const*, float const*, float*, float const*), 2021-Jan-12 17:38:00, Context 1, Stream 13
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          40.75
+    dram__bytes_write.sum                                                            Mbyte                          20.41
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          58.98
+    gpu__time_duration.sum                                                         usecond                         160.64
+    launch__registers_per_thread                                           register/thread                             46
+    sm__warps_active.avg.per_cycle_active                                             warp                           7.48
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          59.03
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          22.31
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                        704'512
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     20'824'064
+    ---------------------------------------------------------------------- --------------- ------------------------------
+

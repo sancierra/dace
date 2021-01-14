@@ -2,21 +2,21 @@ Running with index input 6
 Applied 2 StateFusion.
 Applied 1 GPUTransformSDFG.
 Calculating Enum Index....
-6 0 <dace.sdfg.graph.SubgraphView object at 0x7ff099f258e0>
-6 1 <dace.sdfg.graph.SubgraphView object at 0x7ff099f0ba60>
-6 2 <dace.sdfg.graph.SubgraphView object at 0x7ff099eac910>
-6 3 <dace.sdfg.graph.SubgraphView object at 0x7ff09a256700>
-6 4 <dace.sdfg.graph.SubgraphView object at 0x7ff09a2566d0>
-6 5 <dace.sdfg.graph.SubgraphView object at 0x7ff09a00ba30>
-6 6 <dace.sdfg.graph.SubgraphView object at 0x7ff099f3c790>
-Iteration index 6: Subgraph = [MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapEntry (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_131), AccessNode (gpu_v_in), AccessNode (v_tmp), AccessNode (gpu_acrlat0), AccessNode (gpu_pp_out), AccessNode (__tmp_lap_857), Tasklet (DoMethod_80), AccessNode (gpu_u_out), AccessNode (gpu_crlatu), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (gpu_crlavo), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapEntry (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (gpu_w_in), Tasklet (DoMethod_86), AccessNode (__tmp_lap_1104), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_in), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_32), AccessNode (u_tmp), MapEntry (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_107), AccessNode (gpu_crlato), MapExit (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_w_out), MapEntry (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_118), AccessNode (gpu_pp_in), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_53), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (__tmp_lap_610), AccessNode (gpu_crlavu), AccessNode (gpu_hdmask), Tasklet (DoMethod_26), AccessNode (gpu_v_out), Tasklet (DoMethod_5), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1])]
-SUBGRAPH: [MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapEntry (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_131), AccessNode (gpu_v_in), AccessNode (v_tmp), AccessNode (gpu_acrlat0), AccessNode (gpu_pp_out), AccessNode (__tmp_lap_857), Tasklet (DoMethod_80), AccessNode (gpu_u_out), AccessNode (gpu_crlatu), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (gpu_crlavo), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapEntry (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (gpu_w_in), Tasklet (DoMethod_86), AccessNode (__tmp_lap_1104), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_in), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_32), AccessNode (u_tmp), MapEntry (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_107), AccessNode (gpu_crlato), MapExit (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_w_out), MapEntry (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_118), AccessNode (gpu_pp_in), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_53), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (__tmp_lap_610), AccessNode (gpu_crlavu), AccessNode (gpu_hdmask), Tasklet (DoMethod_26), AccessNode (gpu_v_out), Tasklet (DoMethod_5), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1])]
+6 0 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d48c280>
+6 1 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d46c910>
+6 2 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d468400>
+6 3 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d8842b0>
+6 4 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d884130>
+6 5 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d874490>
+6 6 <dace.sdfg.graph.SubgraphView object at 0x7f5f3d6c52e0>
+Iteration index 6: Subgraph = [AccessNode (gpu_crlavu), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_v_out), AccessNode (gpu_w_in), AccessNode (gpu_u_in), AccessNode (gpu_crlavo), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (__tmp_lap_610), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_w_out), AccessNode (gpu_pp_out), AccessNode (gpu_pp_in), AccessNode (__tmp_lap_1104), MapEntry (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_crlato), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (gpu_hdmask), AccessNode (gpu_acrlat0), Tasklet (DoMethod_131), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_5), AccessNode (v_tmp), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_out), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapEntry (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapExit (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_32), Tasklet (DoMethod_86), AccessNode (gpu_crlatu), MapExit (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (__tmp_lap_857), MapEntry (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (u_tmp), MapEntry (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapExit (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_118), AccessNode (gpu_v_in), Tasklet (DoMethod_107), MapExit (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_26), MapEntry (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_53)]
+SUBGRAPH: [AccessNode (gpu_crlavu), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_v_out), AccessNode (gpu_w_in), AccessNode (gpu_u_in), AccessNode (gpu_crlavo), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (__tmp_lap_610), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_w_out), AccessNode (gpu_pp_out), AccessNode (gpu_pp_in), AccessNode (__tmp_lap_1104), MapEntry (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (gpu_crlato), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (gpu_hdmask), AccessNode (gpu_acrlat0), Tasklet (DoMethod_131), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_5), AccessNode (v_tmp), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_out), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapEntry (merged_kmap_fission5[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), MapExit (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_32), Tasklet (DoMethod_86), AccessNode (gpu_crlatu), MapExit (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (__tmp_lap_857), MapEntry (merged_kmap_fission8[k=0:K, x=0, y=halo - 2:J - halo + 3, z=halo - 3:I - halo + 2]), AccessNode (u_tmp), MapEntry (merged_kmap_fission1[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), MapExit (merged_kmap_fission3[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), Tasklet (DoMethod_118), AccessNode (gpu_v_in), Tasklet (DoMethod_107), MapExit (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), Tasklet (DoMethod_26), MapEntry (merged_kmap_fission2[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_53)]
 StencilTiling::Reference Range {'k': Range (0:K), 'x': None, 'y': Range (halo:J - halo), 'z': Range (halo:I - halo)}
-SubgraphFusion::In_nodes {AccessNode (gpu_crlato), AccessNode (gpu_hdmask), AccessNode (gpu_crlatu), AccessNode (gpu_crlavo), AccessNode (gpu_pp_in), AccessNode (gpu_acrlat0), AccessNode (gpu_u_in), AccessNode (gpu_w_in), AccessNode (gpu_v_in), AccessNode (gpu_crlavu), AccessNode (__tmp_lap_610)}
-SubgraphFusion::Out_nodes {AccessNode (gpu_u_out), AccessNode (gpu_v_out), AccessNode (gpu_pp_out), AccessNode (gpu_w_out)}
-SubgraphFusion::Intermediate_nodes {AccessNode (v_tmp), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (u_tmp), AccessNode (__tmp_lap_1104), AccessNode (__tmp_T_sqr_s_1351), AccessNode (__tmp_lap_857), AccessNode (__tmp_lap_363)}
+SubgraphFusion::In_nodes {AccessNode (gpu_hdmask), AccessNode (gpu_u_in), AccessNode (gpu_acrlat0), AccessNode (gpu_crlatu), AccessNode (__tmp_lap_610), AccessNode (gpu_crlavo), AccessNode (gpu_v_in), AccessNode (gpu_pp_in), AccessNode (gpu_crlavu), AccessNode (gpu_w_in), AccessNode (gpu_crlato)}
+SubgraphFusion::Out_nodes {AccessNode (gpu_v_out), AccessNode (gpu_u_out), AccessNode (gpu_pp_out), AccessNode (gpu_w_out)}
+SubgraphFusion::Intermediate_nodes {AccessNode (v_tmp), AccessNode (__tmp_lap_857), AccessNode (__tmp_T_sqr_s_1351), AccessNode (u_tmp), AccessNode (__tmp_lap_363), AccessNode (__tmp_lap_1104), AccessNode (__tmp_S_sqr_uv_1352)}
 SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
-{'__tmp_lap_857': True, '__tmp_T_sqr_s_1351': True, '__tmp_lap_1104': True, 'u_tmp': True, '__tmp_S_sqr_uv_1352': True, 'v_tmp': True, '__tmp_lap_363': True}
+{'__tmp_lap_1104': True, '__tmp_lap_363': True, '__tmp_T_sqr_s_1351': True, 'u_tmp': True, '__tmp_lap_857': True, '__tmp_S_sqr_uv_1352': True, 'v_tmp': True}
 pp_out
 0.0
 0.0
@@ -213,44 +213,46 @@ Scanning dependencies of target baseline
 [100%] Linking CXX shared library libbaseline.so
 [100%] Built target baseline
 
-==PROF== Connected to process 27515 (/home/lucalav/anaconda3/bin/python3.8)
-==PROF== Profiling "merged_kmap_fission6_0_0_40" - 1: 0%....50%....100% - 4 passes
+==PROF== Connected to process 22272 (/home/lucalav/anaconda3/bin/python3.8)
+==PROF== Profiling "merged_kmap_fission6_0_0_40" - 1: 0%....50%....100% - 5 passes
 ==PROF== Profiling "outer_fused_0_0_54" - 2: 0%....50%....100%WARNING: Casting scalar argument "I" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "J" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "K" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "halo" from int to <class 'numpy.int32'>
 
 Profiling...
-DaCe 210.87114326655865 ms
-{'gpuev_Map merged_kmap_fission6': [139.114], 'gpuev_Map outer_fused': [56.493]}
+DaCe 214.73443415015936 ms
+{'gpuev_Map merged_kmap_fission6': [141.469], 'gpuev_Map outer_fused': [58.2233]}
 DONE.
-RUNTIME 195.607
- - 4 passes
-==PROF== Disconnected from process 27515
-[27515] python3.8@127.0.0.1
-  merged_kmap_fission6_0_0_40(float*, float const*, float const*, float const*), 2021-Jan-05 17:03:38, Context 1, Stream 14
+RUNTIME 199.6923
+ - 5 passes
+==PROF== Disconnected from process 22272
+[22272] python3.8@127.0.0.1
+  merged_kmap_fission6_0_0_40(float*, float const*, float const*, float const*), 2021-Jan-13 13:36:30, Context 1, Stream 14
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
     dram__bytes_read.sum                                                             Mbyte                           5.20
-    dram__bytes_write.sum                                                            Mbyte                           2.40
-    gpu__time_duration.sum                                                         usecond                          20.86
+    dram__bytes_write.sum                                                            Mbyte                           2.41
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          57.97
+    gpu__time_duration.sum                                                         usecond                          21.02
     launch__registers_per_thread                                           register/thread                             16
-    sm__warps_active.avg.per_cycle_active                                             warp                          25.61
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.60
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.82
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.51
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.56
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'280'000
     smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
     smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     10'000'000
     ---------------------------------------------------------------------- --------------- ------------------------------
 
-  outer_fused_0_0_54(float const*, float const*, float const*, float const*, float const*, float const*, float const*, float const*, float*, float const*, float*, float const*, float*, float const*, float*), 2021-Jan-05 17:03:38, Context 1, Stream 13
+  outer_fused_0_0_54(float const*, float const*, float const*, float const*, float const*, float const*, float const*, float const*, float*, float const*, float*, float const*, float*, float const*, float*), 2021-Jan-13 13:36:30, Context 1, Stream 13
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
-    dram__bytes_read.sum                                                             Mbyte                          32.34
-    dram__bytes_write.sum                                                            Mbyte                         163.94
-    gpu__time_duration.sum                                                         usecond                         548.22
+    dram__bytes_read.sum                                                             Mbyte                          32.27
+    dram__bytes_write.sum                                                            Mbyte                         164.07
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          53.66
+    gpu__time_duration.sum                                                         usecond                         559.20
     launch__registers_per_thread                                           register/thread                             80
-    sm__warps_active.avg.per_cycle_active                                             warp                          22.92
+    sm__warps_active.avg.per_cycle_active                                             warp                          22.89
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          77.84
     smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800

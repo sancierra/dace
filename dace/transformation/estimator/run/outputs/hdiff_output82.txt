@@ -2,97 +2,97 @@ Running with index input 82
 Applied 2 StateFusion.
 Applied 1 GPUTransformSDFG.
 Calculating Enum Index....
-82 0 <dace.sdfg.graph.SubgraphView object at 0x7faec172f1f0>
-82 1 <dace.sdfg.graph.SubgraphView object at 0x7faec1765d90>
-82 2 <dace.sdfg.graph.SubgraphView object at 0x7faec18259d0>
-82 3 <dace.sdfg.graph.SubgraphView object at 0x7faec199f550>
-82 4 <dace.sdfg.graph.SubgraphView object at 0x7faec1b3d250>
-82 5 <dace.sdfg.graph.SubgraphView object at 0x7faec19dbeb0>
-82 6 <dace.sdfg.graph.SubgraphView object at 0x7faec16b5430>
-82 7 <dace.sdfg.graph.SubgraphView object at 0x7faec1910040>
-82 8 <dace.sdfg.graph.SubgraphView object at 0x7faec197c910>
-82 9 <dace.sdfg.graph.SubgraphView object at 0x7faec19dbeb0>
-82 10 <dace.sdfg.graph.SubgraphView object at 0x7faec1765d90>
-82 11 <dace.sdfg.graph.SubgraphView object at 0x7faec1561b20>
-82 12 <dace.sdfg.graph.SubgraphView object at 0x7faec15863a0>
-82 13 <dace.sdfg.graph.SubgraphView object at 0x7faec175de50>
-82 14 <dace.sdfg.graph.SubgraphView object at 0x7faec199fa30>
-82 15 <dace.sdfg.graph.SubgraphView object at 0x7faec1586fa0>
-82 16 <dace.sdfg.graph.SubgraphView object at 0x7faec172fa60>
-82 17 <dace.sdfg.graph.SubgraphView object at 0x7faec1980d90>
-82 18 <dace.sdfg.graph.SubgraphView object at 0x7faec19a5610>
-82 19 <dace.sdfg.graph.SubgraphView object at 0x7faec17656d0>
-82 20 <dace.sdfg.graph.SubgraphView object at 0x7faec175bd00>
-82 21 <dace.sdfg.graph.SubgraphView object at 0x7faec190b490>
-82 22 <dace.sdfg.graph.SubgraphView object at 0x7faec174b0d0>
-82 23 <dace.sdfg.graph.SubgraphView object at 0x7faec14f61f0>
-82 24 <dace.sdfg.graph.SubgraphView object at 0x7faec1910040>
-82 25 <dace.sdfg.graph.SubgraphView object at 0x7faec1942a60>
-82 26 <dace.sdfg.graph.SubgraphView object at 0x7faec197cd90>
-82 27 <dace.sdfg.graph.SubgraphView object at 0x7faec193eee0>
-82 28 <dace.sdfg.graph.SubgraphView object at 0x7faec197cd90>
-82 29 <dace.sdfg.graph.SubgraphView object at 0x7faec1b36d30>
-82 30 <dace.sdfg.graph.SubgraphView object at 0x7faec1907dc0>
-82 31 <dace.sdfg.graph.SubgraphView object at 0x7faec173fdf0>
-82 32 <dace.sdfg.graph.SubgraphView object at 0x7faec172a6d0>
-82 33 <dace.sdfg.graph.SubgraphView object at 0x7faec1907790>
-82 34 <dace.sdfg.graph.SubgraphView object at 0x7faec17a96a0>
-82 35 <dace.sdfg.graph.SubgraphView object at 0x7faec1756e50>
-82 36 <dace.sdfg.graph.SubgraphView object at 0x7faec1480220>
-82 37 <dace.sdfg.graph.SubgraphView object at 0x7faec171e910>
-82 38 <dace.sdfg.graph.SubgraphView object at 0x7faec1662ca0>
-82 39 <dace.sdfg.graph.SubgraphView object at 0x7faec1731b20>
-82 40 <dace.sdfg.graph.SubgraphView object at 0x7faec175b640>
-82 41 <dace.sdfg.graph.SubgraphView object at 0x7faec16578b0>
-82 42 <dace.sdfg.graph.SubgraphView object at 0x7faec1942820>
-82 43 <dace.sdfg.graph.SubgraphView object at 0x7faec166c610>
-82 44 <dace.sdfg.graph.SubgraphView object at 0x7faec175b640>
-82 45 <dace.sdfg.graph.SubgraphView object at 0x7faec193e430>
-82 46 <dace.sdfg.graph.SubgraphView object at 0x7faec169d6a0>
-82 47 <dace.sdfg.graph.SubgraphView object at 0x7faec169d700>
-82 48 <dace.sdfg.graph.SubgraphView object at 0x7faec1c1cee0>
-82 49 <dace.sdfg.graph.SubgraphView object at 0x7faec15aab80>
-82 50 <dace.sdfg.graph.SubgraphView object at 0x7faec15863d0>
-82 51 <dace.sdfg.graph.SubgraphView object at 0x7faec147f640>
-82 52 <dace.sdfg.graph.SubgraphView object at 0x7faec15f2490>
-82 53 <dace.sdfg.graph.SubgraphView object at 0x7faec1480f10>
-82 54 <dace.sdfg.graph.SubgraphView object at 0x7faec175d160>
-82 55 <dace.sdfg.graph.SubgraphView object at 0x7faec14f6f40>
-82 56 <dace.sdfg.graph.SubgraphView object at 0x7faec182c430>
-82 57 <dace.sdfg.graph.SubgraphView object at 0x7faec1830580>
-82 58 <dace.sdfg.graph.SubgraphView object at 0x7faec15cb3a0>
-82 59 <dace.sdfg.graph.SubgraphView object at 0x7faec1b364f0>
-82 60 <dace.sdfg.graph.SubgraphView object at 0x7faec1998bb0>
-82 61 <dace.sdfg.graph.SubgraphView object at 0x7faec190b490>
-82 62 <dace.sdfg.graph.SubgraphView object at 0x7faec19f0610>
-82 63 <dace.sdfg.graph.SubgraphView object at 0x7faec1749940>
-82 64 <dace.sdfg.graph.SubgraphView object at 0x7faec15f2c70>
-82 65 <dace.sdfg.graph.SubgraphView object at 0x7faec1b36cd0>
-82 66 <dace.sdfg.graph.SubgraphView object at 0x7faec169d700>
-82 67 <dace.sdfg.graph.SubgraphView object at 0x7faec1bfc610>
-82 68 <dace.sdfg.graph.SubgraphView object at 0x7faec1610190>
-82 69 <dace.sdfg.graph.SubgraphView object at 0x7faec1989760>
-82 70 <dace.sdfg.graph.SubgraphView object at 0x7faec1788a90>
-82 71 <dace.sdfg.graph.SubgraphView object at 0x7faec178b370>
-82 72 <dace.sdfg.graph.SubgraphView object at 0x7faec190b850>
-82 73 <dace.sdfg.graph.SubgraphView object at 0x7faec182c8b0>
-82 74 <dace.sdfg.graph.SubgraphView object at 0x7faec17d55b0>
-82 75 <dace.sdfg.graph.SubgraphView object at 0x7faec198f460>
-82 76 <dace.sdfg.graph.SubgraphView object at 0x7faec147f340>
-82 77 <dace.sdfg.graph.SubgraphView object at 0x7faec199f430>
-82 78 <dace.sdfg.graph.SubgraphView object at 0x7faec1825760>
-82 79 <dace.sdfg.graph.SubgraphView object at 0x7faec198f460>
-82 80 <dace.sdfg.graph.SubgraphView object at 0x7faec17658e0>
-82 81 <dace.sdfg.graph.SubgraphView object at 0x7faec1561430>
-82 82 <dace.sdfg.graph.SubgraphView object at 0x7faec1742730>
-Iteration index 82: Subgraph = [MapExit (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), AccessNode (gpu_v_out), AccessNode (gpu_hdmask), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), Tasklet (DoMethod_107), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (v_tmp), AccessNode (gpu_crlavu), Tasklet (DoMethod_118), AccessNode (__tmp_T_sqr_s_1351), AccessNode (gpu_u_in), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_S_sqr_uv_1352), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_lap_610), AccessNode (gpu_v_in), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (u_tmp), AccessNode (gpu_crlatu), AccessNode (gpu_acrlat0), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_out), Tasklet (DoMethod_59), MapEntry (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_131), AccessNode (gpu_crlato), AccessNode (gpu_crlavo)]
-SUBGRAPH: [MapExit (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), AccessNode (gpu_v_out), AccessNode (gpu_hdmask), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), Tasklet (DoMethod_107), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (v_tmp), AccessNode (gpu_crlavu), Tasklet (DoMethod_118), AccessNode (__tmp_T_sqr_s_1351), AccessNode (gpu_u_in), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_S_sqr_uv_1352), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_lap_610), AccessNode (gpu_v_in), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (u_tmp), AccessNode (gpu_crlatu), AccessNode (gpu_acrlat0), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), AccessNode (__tmp_lap_363), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_u_out), Tasklet (DoMethod_59), MapEntry (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_131), AccessNode (gpu_crlato), AccessNode (gpu_crlavo)]
+82 0 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a94610>
+82 1 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79d5f40>
+82 2 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b60df0>
+82 3 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d99430>
+82 4 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f301c0>
+82 5 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b5f760>
+82 6 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7dcf100>
+82 7 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7dad190>
+82 8 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7de7700>
+82 9 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7da6160>
+82 10 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d077f0>
+82 11 <dace.sdfg.graph.SubgraphView object at 0x7fb7f789deb0>
+82 12 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a48250>
+82 13 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7ba3a00>
+82 14 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b366d0>
+82 15 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d9ebb0>
+82 16 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b5f760>
+82 17 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b2d190>
+82 18 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b36790>
+82 19 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d3a790>
+82 20 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d76be0>
+82 21 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7ba8910>
+82 22 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d077f0>
+82 23 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7ba3a00>
+82 24 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79e3430>
+82 25 <dace.sdfg.graph.SubgraphView object at 0x7fb7f795aac0>
+82 26 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d077f0>
+82 27 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f301c0>
+82 28 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b22e20>
+82 29 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b18190>
+82 30 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d056a0>
+82 31 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a25d00>
+82 32 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d3a790>
+82 33 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f301c0>
+82 34 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d05ee0>
+82 35 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7872e80>
+82 36 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79d56d0>
+82 37 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b1bf10>
+82 38 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79d0880>
+82 39 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7903250>
+82 40 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b3b1f0>
+82 41 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a04280>
+82 42 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7de0b50>
+82 43 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d05f40>
+82 44 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7de0b50>
+82 45 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b3b1f0>
+82 46 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a55190>
+82 47 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7de0e80>
+82 48 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d72820>
+82 49 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b2d340>
+82 50 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79031f0>
+82 51 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a488b0>
+82 52 <dace.sdfg.graph.SubgraphView object at 0x7fb7f79e8070>
+82 53 <dace.sdfg.graph.SubgraphView object at 0x7fb7f8016520>
+82 54 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7de76a0>
+82 55 <dace.sdfg.graph.SubgraphView object at 0x7fb7f798b760>
+82 56 <dace.sdfg.graph.SubgraphView object at 0x7fb7f798b070>
+82 57 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b458b0>
+82 58 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7cfe520>
+82 59 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7c22be0>
+82 60 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b49100>
+82 61 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b458b0>
+82 62 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7a4e910>
+82 63 <dace.sdfg.graph.SubgraphView object at 0x7fb7f795aac0>
+82 64 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7903820>
+82 65 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7ebb910>
+82 66 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f748b0>
+82 67 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b18d30>
+82 68 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7c22a00>
+82 69 <dace.sdfg.graph.SubgraphView object at 0x7fb7f8016700>
+82 70 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f748b0>
+82 71 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b48370>
+82 72 <dace.sdfg.graph.SubgraphView object at 0x7fb7f797c880>
+82 73 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f9c190>
+82 74 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b214c0>
+82 75 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b9ff40>
+82 76 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b458b0>
+82 77 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7dcf160>
+82 78 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7d8eb20>
+82 79 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b9ff40>
+82 80 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7b2e280>
+82 81 <dace.sdfg.graph.SubgraphView object at 0x7fb7f78e99a0>
+82 82 <dace.sdfg.graph.SubgraphView object at 0x7fb7f7f94250>
+Iteration index 82: Subgraph = [AccessNode (gpu_crlavo), AccessNode (u_tmp), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapEntry (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_131), AccessNode (gpu_u_out), AccessNode (gpu_acrlat0), Tasklet (DoMethod_107), AccessNode (v_tmp), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapExit (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_118), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_hdmask), AccessNode (gpu_crlatu), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (gpu_crlato), AccessNode (gpu_crlavu), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_lap_610), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_lap_363), AccessNode (gpu_u_in), AccessNode (gpu_v_in), AccessNode (gpu_v_out), Tasklet (DoMethod_59)]
+SUBGRAPH: [AccessNode (gpu_crlavo), AccessNode (u_tmp), MapExit (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapEntry (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_131), AccessNode (gpu_u_out), AccessNode (gpu_acrlat0), Tasklet (DoMethod_107), AccessNode (v_tmp), MapEntry (merged_kmap_fission7[k=0:K, x=0, y=halo - 2:J - halo + 1, z=halo - 1:I - halo + 2]), MapExit (merged_kmap_fission6[k=0:K, x=0, y=halo - 3:J - halo + 2, z=halo - 2:I - halo + 3]), Tasklet (DoMethod_118), MapEntry (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_T_sqr_s_1351), Tasklet (DoMethod_80), MapEntry (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (gpu_hdmask), AccessNode (gpu_crlatu), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (gpu_crlato), AccessNode (gpu_crlavu), MapEntry (merged_kmap_fission11[k=0:K, x=0, y=halo - 1:J - halo + 1, z=halo - 1:I - halo + 1]), MapExit (merged_kmap_fission9[k=0:K, x=0, y=halo - 1:J - halo + 2, z=halo - 2:I - halo + 1]), AccessNode (__tmp_lap_610), MapExit (merged_kmap_fission10[k=0:K, x=0, y=halo:J - halo, z=halo:I - halo]), AccessNode (__tmp_lap_363), AccessNode (gpu_u_in), AccessNode (gpu_v_in), AccessNode (gpu_v_out), Tasklet (DoMethod_59)]
 StencilTiling::Reference Range {'k': Range (0:K), 'x': None, 'y': Range (halo:J - halo), 'z': Range (halo:I - halo)}
-SubgraphFusion::In_nodes {AccessNode (gpu_crlavu), AccessNode (gpu_crlavo), AccessNode (gpu_crlatu), AccessNode (gpu_acrlat0), AccessNode (gpu_u_in), AccessNode (gpu_crlato), AccessNode (__tmp_lap_363), AccessNode (gpu_v_in), AccessNode (gpu_hdmask)}
+SubgraphFusion::In_nodes {AccessNode (gpu_crlato), AccessNode (__tmp_lap_363), AccessNode (gpu_u_in), AccessNode (gpu_crlavo), AccessNode (gpu_v_in), AccessNode (gpu_crlavu), AccessNode (gpu_hdmask), AccessNode (gpu_acrlat0), AccessNode (gpu_crlatu)}
 SubgraphFusion::Out_nodes {AccessNode (gpu_v_out), AccessNode (gpu_u_out)}
-SubgraphFusion::Intermediate_nodes {AccessNode (__tmp_T_sqr_s_1351), AccessNode (v_tmp), AccessNode (u_tmp), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (__tmp_lap_610)}
+SubgraphFusion::Intermediate_nodes {AccessNode (__tmp_T_sqr_s_1351), AccessNode (__tmp_S_sqr_uv_1352), AccessNode (v_tmp), AccessNode (__tmp_lap_610), AccessNode (u_tmp)}
 SubgraphFusion:: {Intermediate_node: subgraph_contains_data} dict
-{'__tmp_lap_610': True, 'u_tmp': True, 'v_tmp': True, '__tmp_S_sqr_uv_1352': True, '__tmp_T_sqr_s_1351': True}
+{'__tmp_lap_610': True, '__tmp_T_sqr_s_1351': True, 'v_tmp': True, '__tmp_S_sqr_uv_1352': True, 'u_tmp': True}
 pp_out
 0.0
 0.0
@@ -273,78 +273,50 @@ Scanning dependencies of target baseline
 [100%] Linking CXX shared library libbaseline.so
 [100%] Built target baseline
 
-==PROF== Connected to process 15674 (/home/lucalav/anaconda3/bin/python3.8)
-==PROF== Profiling "merged_kmap_fission1_0_0_38" - 1: 0%....50%....100% - 4 passes
-==PROF== Profiling "merged_kmap_fission2_0_0_40" - 2: 0%....50%....100% - 4 passes
-==PROF== Profiling "merged_kmap_fission3_0_0_42" - 3: 0%....50%....100% - 4 passes
-==PROF== Profiling "merged_kmap_fission5_0_0_44" - 4: 0%....50%....100% - 4 passes
-==PROF== Profiling "merged_kmap_fission8_0_0_46" - 5: 0%....50%....100% - 4 passes
+==PROF== Connected to process 9458 (/home/lucalav/anaconda3/bin/python3.8)
+==PROF== Profiling "merged_kmap_fission1_0_0_38" - 1: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_kmap_fission2_0_0_40" - 2: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_kmap_fission3_0_0_42" - 3: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_kmap_fission5_0_0_44" - 4: 0%....50%....100% - 5 passes
+==PROF== Profiling "merged_kmap_fission8_0_0_46" - 5: 0%....50%....100% - 5 passes
 ==PROF== Profiling "outer_fused_0_0_58" - 6: 0%....50%....100%WARNING: Casting scalar argument "I" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "J" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "K" from int to <class 'numpy.int32'>
 WARNING: Casting scalar argument "halo" from int to <class 'numpy.int32'>
 
 Profiling...
-DaCe 365.90010905638337 ms
-{'gpuev_Map merged_kmap_fission1': [139.349], 'gpuev_Map merged_kmap_fission2': [39.4406], 'gpuev_Map merged_kmap_fission3': [39.0146], 'gpuev_Map merged_kmap_fission5': [39.427], 'gpuev_Map merged_kmap_fission8': [39.045], 'gpuev_Map outer_fused': [52.1743]}
+DaCe 376.1247340589762 ms
+{'gpuev_Map merged_kmap_fission1': [141.19], 'gpuev_Map merged_kmap_fission2': [41.5346], 'gpuev_Map merged_kmap_fission3': [40.3054], 'gpuev_Map merged_kmap_fission5': [40.944], 'gpuev_Map merged_kmap_fission8': [40.4117], 'gpuev_Map outer_fused': [54.7071]}
 DONE.
-RUNTIME 348.45050000000003
- - 4 passes
-==PROF== Disconnected from process 15674
-[15674] python3.8@127.0.0.1
-  merged_kmap_fission1_0_0_38(float*, float const*, float const*, float const*), 2021-Jan-05 18:34:38, Context 1, Stream 13
-    Section: Command line profiler metrics
-    ---------------------------------------------------------------------- --------------- ------------------------------
-    dram__bytes_read.sum                                                             Mbyte                           5.08
-    dram__bytes_write.sum                                                            Mbyte                           2.24
-    gpu__time_duration.sum                                                         usecond                          20.29
-    launch__registers_per_thread                                           register/thread                             16
-    sm__warps_active.avg.per_cycle_active                                             warp                          25.61
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                             75
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.55
-    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'249'280
-    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
-    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      9'525'760
-    ---------------------------------------------------------------------- --------------- ------------------------------
-
-  merged_kmap_fission2_0_0_40(float const*, float const*, float const*, float const*, float*), 2021-Jan-05 18:34:39, Context 1, Stream 13
-    Section: Command line profiler metrics
-    ---------------------------------------------------------------------- --------------- ------------------------------
-    dram__bytes_read.sum                                                             Mbyte                          14.91
-    dram__bytes_write.sum                                                            Mbyte                           3.25
-    gpu__time_duration.sum                                                         usecond                          36.74
-    launch__registers_per_thread                                           register/thread                             30
-    sm__warps_active.avg.per_cycle_active                                             warp                          28.01
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.50
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
-    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
-    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
-    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'128'000
-    ---------------------------------------------------------------------- --------------- ------------------------------
-
-  merged_kmap_fission3_0_0_42(float*, float const*, float const*, float const*), 2021-Jan-05 18:34:39, Context 1, Stream 14
+RUNTIME 359.0928
+ - 5 passes
+==PROF== Disconnected from process 9458
+[9458] python3.8@127.0.0.1
+  merged_kmap_fission1_0_0_38(float*, float const*, float const*, float const*), 2021-Jan-13 12:12:03, Context 1, Stream 13
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
     dram__bytes_read.sum                                                             Mbyte                           5.08
     dram__bytes_write.sum                                                            Mbyte                           2.28
-    gpu__time_duration.sum                                                         usecond                          20.58
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          57.74
+    gpu__time_duration.sum                                                         usecond                          20.32
     launch__registers_per_thread                                           register/thread                             16
-    sm__warps_active.avg.per_cycle_active                                             warp                          25.41
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.54
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                             75
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.41
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.34
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'249'280
     smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
     smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      9'525'760
     ---------------------------------------------------------------------- --------------- ------------------------------
 
-  merged_kmap_fission5_0_0_44(float const*, float const*, float const*, float const*, float*), 2021-Jan-05 18:34:39, Context 1, Stream 14
+  merged_kmap_fission2_0_0_40(float const*, float const*, float const*, float const*, float*), 2021-Jan-13 12:12:03, Context 1, Stream 13
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
     dram__bytes_read.sum                                                             Mbyte                          14.91
-    dram__bytes_write.sum                                                            Mbyte                           3.32
-    gpu__time_duration.sum                                                         usecond                          36.74
+    dram__bytes_write.sum                                                            Mbyte                           3.34
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          77.47
+    gpu__time_duration.sum                                                         usecond                          36.77
     launch__registers_per_thread                                           register/thread                             30
-    sm__warps_active.avg.per_cycle_active                                             warp                          28.29
+    sm__warps_active.avg.per_cycle_active                                             warp                          28.24
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.50
     smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
@@ -352,31 +324,65 @@ RUNTIME 348.45050000000003
     smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'128'000
     ---------------------------------------------------------------------- --------------- ------------------------------
 
-  merged_kmap_fission8_0_0_46(float*, float const*, float const*, float const*), 2021-Jan-05 18:34:39, Context 1, Stream 15
+  merged_kmap_fission3_0_0_42(float*, float const*, float const*, float const*), 2021-Jan-13 12:12:03, Context 1, Stream 14
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                           5.08
+    dram__bytes_write.sum                                                            Mbyte                           2.24
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          56.31
+    gpu__time_duration.sum                                                         usecond                          20.83
+    launch__registers_per_thread                                           register/thread                             16
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.50
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                             75
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          81.38
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'249'280
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                      9'525'760
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission5_0_0_44(float const*, float const*, float const*, float const*, float*), 2021-Jan-13 12:12:03, Context 1, Stream 14
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    dram__bytes_read.sum                                                             Mbyte                          14.91
+    dram__bytes_write.sum                                                            Mbyte                           3.29
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          78.47
+    gpu__time_duration.sum                                                         usecond                          36.77
+    launch__registers_per_thread                                           register/thread                             30
+    sm__warps_active.avg.per_cycle_active                                             warp                          28.11
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          76.50
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          78.95
+    smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
+    smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
+    smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     16'128'000
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  merged_kmap_fission8_0_0_46(float*, float const*, float const*, float const*), 2021-Jan-13 12:12:03, Context 1, Stream 15
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
     dram__bytes_read.sum                                                             Mbyte                           5.20
-    dram__bytes_write.sum                                                            Mbyte                           2.38
-    gpu__time_duration.sum                                                         usecond                          20.70
+    dram__bytes_write.sum                                                            Mbyte                           2.44
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          57.74
+    gpu__time_duration.sum                                                         usecond                          20.61
     launch__registers_per_thread                                           register/thread                             16
-    sm__warps_active.avg.per_cycle_active                                             warp                          25.62
+    sm__warps_active.avg.per_cycle_active                                             warp                          25.63
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          79.12
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.50
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          83.34
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'280'000
     smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
     smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                     10'000'000
     ---------------------------------------------------------------------- --------------- ------------------------------
 
-  outer_fused_0_0_58(float const*, float const*, float const*, float const*, float const*, float const*, float const*, float const*, float*, float const*, float*), 2021-Jan-05 18:34:39, Context 1, Stream 15
+  outer_fused_0_0_58(float const*, float const*, float const*, float const*, float const*, float const*, float const*, float const*, float*, float const*, float*), 2021-Jan-13 12:12:03, Context 1, Stream 15
     Section: Command line profiler metrics
     ---------------------------------------------------------------------- --------------- ------------------------------
-    dram__bytes_read.sum                                                             Mbyte                          22.39
-    dram__bytes_write.sum                                                            Mbyte                         154.34
-    gpu__time_duration.sum                                                         usecond                         513.60
+    dram__bytes_read.sum                                                             Mbyte                          22.42
+    dram__bytes_write.sum                                                            Mbyte                         154.23
+    dram__throughput.avg.pct_of_peak_sustained_elapsed                                   %                          49.65
+    gpu__time_duration.sum                                                         usecond                         537.63
     launch__registers_per_thread                                           register/thread                             72
-    sm__warps_active.avg.per_cycle_active                                             warp                          26.05
+    sm__warps_active.avg.per_cycle_active                                             warp                          26.07
     smsp__sass_average_data_bytes_per_sector_mem_global_op_ld.pct                        %                          77.74
-    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          79.68
+    smsp__sass_average_data_bytes_per_sector_mem_global_op_st.pct                        %                          79.64
     smsp__sass_thread_inst_executed_op_control_pred_on.sum                            inst                      1'228'800
     smsp__sass_thread_inst_executed_op_conversion_pred_on.sum                         inst                              0
     smsp__sass_thread_inst_executed_op_memory_pred_on.sum                             inst                    200'448'000
