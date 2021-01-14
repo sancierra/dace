@@ -21,7 +21,7 @@ import ast
 import math
 import networkx as nx
 
-from typing import Set, Union, List, Callable, Dict, Type
+from typing import Set, Union, List, Callable, Dict, Type, Iterable
 
 from dace.transformation.estimator.scoring import ScoringFunction, MemletScore
 
@@ -30,6 +30,7 @@ import warnings
 import os
 import functools
 import itertools
+import collections
 import sys
 
 
@@ -137,7 +138,6 @@ class RegisterScore(MemletScore):
                                     graph.in_edges(node)))
                 self.propagate_outward(graph, memlets, current_context, penetrate_everything= True)
                 for memlet in memlets:
-                    print("CM", memlet)
                     register_traffic += memlet.subset.num_elements()
             
             if isinstance(node, nodes.NestedSDFG):
@@ -150,33 +150,42 @@ class RegisterScore(MemletScore):
                                 sdfg: SDFG,
                                 graph: SDFGState,
                                 node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                                registers: Iterable,
+                                known_registers: Iterable,
                                 context: List[nodes.MapEntry],
                                 ):
         
 
         result = 0
-        for e in graph.out_edges(node):
-            # see whether path comes from global map entry 
-            '''
-            for path_e in graph.memlet_path(e):
-                if isinstance(path_e.dst, nodes.AccessNode) and sdfg.data(path_e.dst.data).storage == dtypes.StorageType.Register:
-                    result += path_e.data.subset.num_elements()
-            '''
+        if isinstance(node, nodes.Tasklet):
+            for e in graph.out_edges(node):
+                # see whether path comes from global map entry 
+                '''
+                for path_e in graph.memlet_path(e):
+                    if isinstance(path_e.dst, nodes.AccessNode) and sdfg.data(path_e.dst.data).storage == dtypes.StorageType.Register:
+                        result += path_e.data.subset.num_elements()
+                '''
 
-            for path_e in graph.memlet_path(e):
-                if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.data not in registers:
-                    result += e.data.subset.num_elements()
-
-
+                for path_e in graph.memlet_path(e):
+                    if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.data in known_registers:
+                        break 
         
+                else:
+                    # FORNOW: Propagation is still not working correctly
+                    # use this as a fix 
+                    result_subset = self.symbolic_evaluation(e.data.subset.num_elements())
+                    result_volume = self.symbolic_evaluation(e.data.volume)
+                    result += min(result_subset, result_volume)
+                    print(f"*******NE {node}", e.data.subset.num_elements())
+
+
+            
         return self.symbolic_evaluation(result)
        
     def evaluate_tasklet_input(self,
                                sdfg: SDFG,
                                graph: SDFGState,
                                node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                               registers: Iterable,
+                               known_registers: Iterable,
                                context: List[nodes.MapEntry]):
         
         
@@ -193,8 +202,10 @@ class RegisterScore(MemletScore):
                     result += e.data.subset.num_elements()
                 '''
                 for e in graph.memlet_path(e):
-                    if isinstance(e.src, nodes.AccessNode) and e.src.data not in registers:
-                        result += e.data.subset.num_elements()
+                    if isinstance(e.src, nodes.AccessNode) and e.src.data in known_registers:
+                        break
+                else:
+                    result += e.data.subset.num_elements()
            
         return self.symbolic_evaluation(result)
 
@@ -203,8 +214,9 @@ class RegisterScore(MemletScore):
                                sdfg: SDFG,
                                graph: SDFGState,
                                node: Union[nodes.Tasklet, nodes.NestedSDFG],
-                               registers: Set,
                                context: List[nodes.MapEntry],
+                               known_registers: Set,
+                               known_register_size: int,
                                max_size = 10):
 
         '''
@@ -234,8 +246,26 @@ class RegisterScore(MemletScore):
         else:
             # nested sdfg
             # get an estimate for each nested sdfg state and max over these values
+
+            # first add all connectors that belong to a register location to our register set 
+            in_conn_registers = set(node.in_connectors.keys())
+            out_conn_registers = set(node.out_connectors.keys())
+            for e in graph.in_edges(node):
+                for path_e in graph.memlet_path(e):
+                    if isinstance(path_e.src, nodes.AccessNode) and path_e.src.data in known_registers:
+                        if e.dst_conn in in_conn_registers:
+                            in_conn_registers.remove(e.dst_conn)
+            for e in graph.out_edges(node):
+                for path_e in graph.memlet_tree(e):
+                    if isinstance(path_e.dst, nodes.AccessNode) and path_e.dst.data in known_registers:
+                        if e.src_conn in out_conn_registers:
+                            out_conn_registers.remove(e.src_conn)
+
+            known_registers |= in_conn_registers
+            known_registers |= out_conn_registers
             estimate_internal = max([
-                self.evaluate_state(node.sdfg, s, None, registers)
+                self.evaluate_state(node.sdfg, s, None, 
+                                    known_registers)
                 for s in node.sdfg.nodes()
             ])
             if estimate_internal == 0:
@@ -255,7 +285,7 @@ class RegisterScore(MemletScore):
                        sdfg: SDFG,
                        graph: SDFGState,
                        scope_node: Node,
-                       ignore_reg_arrays = [],
+                       old_register_arrays = set(),
                        current_array_reg_size = 0,
                        scope_dict: dict = None,
                        scope_children: dict = None):
@@ -335,8 +365,6 @@ class RegisterScore(MemletScore):
                 for tasklet in queue:
                     remove_tasklet = True
                     for tasklet_successor in successors[tasklet]:
-                        print(tasklet, "->", tasklet_successor)
-                        print(predecessors[tasklet_successor])
                         if len(predecessors[tasklet_successor]) > 0:
                             remove_tasklet = False 
                         elif tasklet_successor not in queue:
@@ -353,12 +381,11 @@ class RegisterScore(MemletScore):
 
                 assert len(next_tasklets & tasklets_to_remove) == 0
 
-        # 3. Determine all arrays that reside inside the subgraph and that are 
+        # 3. Determine all new arrays that reside inside the subgraph and that are 
         #    allocated to registers.
-
         register_arrays = dict()
-        for node in graph.nodes():
-            if isinstance(node, nodes.AccessNode) and node.storage == dtypes.StorageType.Register:
+        for node in subgraph.nodes():
+            if isinstance(node, nodes.AccessNode) and sdfg.data(node.data).storage == dtypes.StorageType.Register:
                 if node.data not in register_arrays:
                     register_arrays[node.data] = sdfg.data(node.data).total_size
 
@@ -366,17 +393,22 @@ class RegisterScore(MemletScore):
         #    largest one. Store all the remaining arrays
         
         total_max_size = 100 
-        current_size = current_array_reg_size
+        total_size = current_array_reg_size
         register_pure = dict() 
-        for (aname, size) in sorted(register_ararys):
+        print(f"DEBUG: REGISTER_ARRAYS {register_arrays}")
+        for (aname, size) in sorted(register_arrays.items(), key = lambda a: a[1]):
             # nested sdfg: do not recount array
-            if aname not in ignore_reg_arrays:
-                if current_size + size > total_max_size:
+            if aname not in old_register_arrays:
+                current_size = self.symbolic_evaluation(size)
+                if total_size + current_size > total_max_size:
+                    print(f"***DEBUG: BIGGERTHAN {total_size},{current_size}")
                     break 
                 else:
-                    register_pure[aname] = size 
+                    total_size += current_size
+                    register_pure[aname] = current_size 
         
-
+        if self.debug:
+            print("Pure Arrays:", register_pure)
         # 5. For each tasklet, determine inner, output and input register estimates 
         #    and store them. Do not include counts from registers that are in 
         #    pure_registers as they are counted seperately (else they would be 
@@ -384,12 +416,12 @@ class RegisterScore(MemletScore):
 
         input_scores, inner_scores, output_scores = {},{},{}
         for (node, ctx) in context.items():
-            inner_scores[node] = self.evaluate_tasklet_inner(sdfg, graph, node, ctx, register_arrays)
-            input_scores[node] = self.evaluate_tasklet_input(sdfg, graph, node, ctx, register_pure)
-            output_scores[node] = self.evaluate_tasklet_output(sdfg, graph, node, ctx, register_pure)
+            inner_scores[node] = self.evaluate_tasklet_inner(sdfg, graph, node, context = ctx, known_registers = set(itertools.chain(old_register_arrays, register_pure.keys())), known_register_size = total_size)
+            input_scores[node] = self.evaluate_tasklet_input(sdfg, graph, node, context = ctx, known_registers = set(itertools.chain(old_register_arrays, register_pure.keys())))
+            output_scores[node] = self.evaluate_tasklet_output(sdfg, graph, node, context = ctx, known_registers = set(itertools.chain(old_register_arrays, register_pure.keys())))
 
         # 6. TODO: CHANGEDESC: For each active set, determine the number of registers that are used for storage 
-        registers_after_tasklet = defaultdict(dict)
+        registers_after_tasklet = collections.defaultdict(dict)
         for tasklet in context.keys():
             for oe in graph.out_edges(tasklet):
                 for e in graph.memlet_tree(oe):
@@ -404,7 +436,7 @@ class RegisterScore(MemletScore):
         print(f"--- State Subgraph Analysis: {graph} ---")
         previous_tasklet_set = set()
         active_set_scores = list()
-        used_register_arrays = dict
+        used_register_arrays = dict()
         for tasklet_set in active_sets:
             # evaluate score for current tasklet set 
 
@@ -420,7 +452,7 @@ class RegisterScore(MemletScore):
             
             # add used register arrays 
             for tasklet in tasklet_set - previous_tasklet_set:
-                for reg_node in register_after_tasklet[tasklet]:
+                for reg_node in registers_after_tasklet[tasklet]:
                     used_register_arrays[reg_node] = registers_after_tasklet[reg_node]
 
             
@@ -432,6 +464,7 @@ class RegisterScore(MemletScore):
             # calculate total size per register, keep in mind that we only have to 
             # count register whose data is the same only once 
 
+            '''
             used_register_space = dict()
             for (reg_node, volume) in used_register_arrays.items():
                 if reg_node in used_register_space:
@@ -440,26 +473,35 @@ class RegisterScore(MemletScore):
                     used_register_space[reg_node] = volume 
 
             # set current score to sum of current active register arrays
-            array_scores = self.evaluate(sum(used_register_space.values()))
-
+            array_scores = self.symbolic_evaluation(sum(used_register_space.values()))
+            '''
+            array_scores = self.symbolic_evaluation(sum(used_register_arrays.values()))
 
             # now calculate the rest of the contributions from tasklets
             tasklet_scores = sum(input_scores[t] + output_scores[t] + inner_scores[t] for t in tasklet_set)
+            print(f"DEBUG->TASKSET {tasklet_set} INPUT:", sum(input_scores[t] for t in tasklet_set))
+            print(f"DEBUG->TASKSET {tasklet_set} OUTPUT:", sum(output_scores[t] for t in tasklet_set))
+            print(f"DEBUG->TASKSET {tasklet_set} INNER:", sum(inner_scores[t] for t in tasklet_set))
+
             if self.debug:
-            print("****")
-            print("Active Set =", tasklet_set)
-            print("Tasklet Scores =", tasklet_scores)
-            print("Array Scores =", array_scores)
-            print("Score =")
-            set_score += active_score + all_completed
+                print("-----------------------------")
+                print("Active Set =", tasklet_set)
+                print("Tasklet Scores =", tasklet_scores)
+                print("Array Scores =", array_scores)
+                print("Score =", array_scores + tasklet_scores)
+                print("-----------------------------")
+
+            set_score = array_scores + tasklet_scores
 
 
-            print("Active Set:", tasklet_set)
-            print("Score:", set_score)
             active_set_scores.append(set_score)
             previous_tasklet_set = tasklet_set 
         
-        print("-----------------------------")
+        if self.debug:
+            print("---------------------------------------------")
+            print(f"Subgraph {subgraph}: Total Score = {max(active_set_scores) if len(active_set_scores) > 0 else 0}")
+            print("---------------------------------------------")
+
         return max(active_set_scores) if len(active_set_scores) > 0 else 0
 
 
@@ -487,7 +529,6 @@ class RegisterScore(MemletScore):
         outer_map = scope_node.map
 
         # get register used count
-        print("EVALUATE STATE")
         reg_count_required = self.evaluate_state(sdfg=sdfg,
                                                  graph=graph,
                                                  scope_node=outer_map_entry,
