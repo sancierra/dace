@@ -34,7 +34,6 @@ def score_enum_index(sdfg: dace.SDFG,
     enumerator.debug = True 
     enumerator.mode = 'subgraph'
 
-    print("LEN ********* ", len(enumerator.list()))
     for (i, (current_subgraph, _)) in enumerate(enumerator):
         print(iteration_index, i, current_subgraph)
         if i == iteration_index:
@@ -64,7 +63,6 @@ if __name__ == '__main__':
     transient_allocation = dace.dtypes.StorageType.Register
     schedule_innermaps = dace.dtypes.ScheduleType.Sequential
     stencil_unroll_loops = True
-    deduplicate = True
     gpu = True 
 
     if len(sys.argv) > 1:

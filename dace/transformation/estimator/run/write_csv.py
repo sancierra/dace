@@ -1,13 +1,24 @@
 import matplotlib.pyplot as plt 
 from operator import add 
 
-
-FILENAME = 'test.csv'
+'''
+INPUT_DIR = 'outputs'
+INPUT_NAME = 'hdiff_output'
+CSV_FILENAME = 'test.csv'
 AGGREGATE = False 
-INCLUDE_OCCUPANCY = True 
+INCLUDE_OCCUPANCY = False 
 INCLUDE_EFFICIENCY = False 
 MAX_I = 87
+'''
 
+INPUT_DIR = './outputs/'
+INPUT_NAME = 'vadv_output'
+CSV_FILENAME = 'test.csv'
+AGGREGATE = False 
+INCLUDE_OCCUPANCY = False 
+INCLUDE_EFFICIENCY = False 
+INCLUDE_THROUGHPUT = True
+MAX_I = 9
 
 
 size_dict = {'Mbyte': 1, 
@@ -15,6 +26,7 @@ size_dict = {'Mbyte': 1,
              'byte' : 0.000001,
              'usecond' : 1,
              'msecond' : 1000,
+             '%': 1
              }
 
 def is_separating_line(line):
@@ -22,29 +34,30 @@ def is_separating_line(line):
 
 
 
-with open(FILENAME, 'w') as f:
-    f.write('id, read, write, sum, runtime, registers, occupancy, read_eff, write_eff\n')
+with open(CSV_FILENAME, 'w') as f:
+    f.write('id, read, write, sum, throughput, runtime, registers, occupancy, read_eff, write_eff\n')
     for i in range(1,MAX_I):
         print(f"--- Current file: {i} ---")
         file_len = 0
-        with open(f'output{i}.txt','r') as current:
+        file_name = INPUT_DIR + '/' + INPUT_NAME + str(i) + '.txt'
+        with open(file_name,'r') as current:
             for line in current:
                 file_len += 1
 
-        with open(f'output{i}.txt','r') as current:
+        with open(file_name,'r') as current:
             line = current.readline()[:-1]
             counter = 0
             while counter < file_len:
                 if is_separating_line(line):
                     read = current.readline()[:-1].split(' ')
-                    print(read)
                     write = current.readline()[:-1].split(' ')
+                    throughput = current.readline()[:-1].split(' ')
                     duration = current.readline()[:-1].split(' ')
                     registers = current.readline()[:-1].split(' ')
                     occupancy = current.readline()[:-1].split(' ')
                     read_efficiency = current.readline()[:-1].split(' ')
                     write_efficiency = current.readline()[:-1].split(' ')
-                    print(read_efficiency)
+
 
                     for _ in range(4):
                         _ = current.readline() 
@@ -52,7 +65,7 @@ with open(FILENAME, 'w') as f:
 
                     x = f'{i}'
                     rwd = [] 
-                    for ln in [read, write, duration]:
+                    for ln in [read, write, throughput, duration]:
                         quantity = None
                         # pre-multiplier 
                         for s in ln:
@@ -62,7 +75,6 @@ with open(FILENAME, 'w') as f:
                                 quantity = size_dict[s]
                             if quantity is not None:
                                 try:
-                                    print("***", quantity)
                                     quantity *= float(s)
                                     break 
                                 except ValueError:
@@ -72,13 +84,12 @@ with open(FILENAME, 'w') as f:
                         
                         rwd.append(quantity)
                     
-                    x = f'{i},{rwd[0]},{rwd[1]},{rwd[0]+rwd[1]},{rwd[2]}'
+                    x = f'{i},{rwd[0]},{rwd[1]},{rwd[0]+rwd[1]},{rwd[2]},{rwd[3]}'
 
                     rwd = []
                     for ln in [registers, occupancy, read_efficiency, write_efficiency]:
                         for s in ln:
                             try:
-                                print("***** ", quantity)
                                 quantity = float(s)
                                 break 
                             except ValueError:
@@ -94,15 +105,14 @@ with open(FILENAME, 'w') as f:
                 counter += 1
 
 # create graph 
-with open(FILENAME, 'r') as f:
+with open(CSV_FILENAME, 'r') as f:
     if AGGREGATE:
         aggregates = dict() 
         for (i,line) in enumerate(f):
             if i == 0:
                 continue
-            print(line)
             id = int(line.split(',')[0])
-            (read,write,sumrw,duration, _, occupancy, _, _) = [float(e) for e in line.split(',')[1:]]
+            (read,write,sumrw,throughput,duration, _, occupancy, _, _) = [float(e) for e in line.split(',')[1:]]
             if id in aggregates:
                 aggregates[id] = list(map(add, aggregates[id], [read, write, sumrw, duration]))
             else:
@@ -123,26 +133,28 @@ with open(FILENAME, 'r') as f:
             if i == 0:
                 continue
             print([float(e) for e in line.split(',')[1:]])
-            (read,write,sumrw,duration,_,occupancy,read_eff,write_eff) = [float(e) for e in line.split(',')[1:]]
+            (read,write,sumrw,throughput,duration,_,occupancy,read_eff,write_eff) = [float(e) for e in line.split(',')[1:]]
             x.append([read, write])
             if INCLUDE_OCCUPANCY:
-                x[-1][0] *= occupancy 
-                x[-1][1] *= occupancy 
+                x[-1][0] /= occupancy 
+                x[-1][1] /= occupancy 
             if INCLUDE_EFFICIENCY:
-                x[-1][0] *= read_eff 
-                x[-1][1] *= write_eff 
-            
+                x[-1][0] /= read_eff 
+                x[-1][1] /= write_eff 
+            if INCLUDE_THROUGHPUT:
+                x[-1][0] /= throughput
+                x[-1][0] /= throughput
             x[-1] = x[-1][0] + x[-1][1]
             y.append(duration)
-        print(x,y)
         plt.scatter(x,y)
-        print("XLABEL")
         if INCLUDE_OCCUPANCY and INCLUDE_EFFICIENCY:
-            plt.xlabel('DRAM Memory Movement [MB] * occupancy * efficiency')
+            plt.xlabel('DRAM Memory Movement [MB] / (occupancy * efficiency)')
         elif INCLUDE_OCCUPANCY:
-            plt.xlabel('DRAM Memory Movement [MB] * occupancy')
+            plt.xlabel('DRAM Memory Movement [MB] / occupancy')
         elif INCLUDE_EFFICIENCY:
-            plt.xlabel('DRAM Memory Movement [MB] * efficiency')
+            plt.xlabel('DRAM Memory Movement [MB] / efficiency')
+        elif INCLUDE_THROUGHPUT:
+            plt.xlabel('DRAM Memory ')
         else:
             plt.xlabel('DRAM Memory Movement [MB]')
 
