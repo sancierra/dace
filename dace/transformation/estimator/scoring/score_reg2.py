@@ -203,8 +203,8 @@ class RegisterScore(MemletScore):
                 else:
                     result += e.data.subset.num_elements()
                 '''
-                for path_e in graph.memlet_path(e):
-                    if isinstance(path_e.src, nodes.AccessNode) and path_e.src.data in known_registers:
+                for e in graph.memlet_path(e):
+                    if isinstance(e.src, nodes.AccessNode) and e.src.data in known_registers:
                         break
                 else:
                     result += e.data.subset.num_elements()
@@ -438,14 +438,13 @@ class RegisterScore(MemletScore):
         previous_tasklet_set = set()
         active_set_scores = list()
         used_register_arrays = dict()
-        traffic_discarded = set()
         for tasklet_set in active_sets:
             # evaluate score for current tasklet set 
 
-            # 1. calculate score from active registers 
+            # calculate score from active registers 
             '''
             storage_registers = set() 
-            for tasklet in tasklet_set: 
+            for tasklet in tasklet_set:
                 storage_registers |= tasklet_registers[tasklet]
             '''
             
@@ -457,88 +456,28 @@ class RegisterScore(MemletScore):
                 for (reg_node, reg_volume) in registers_after_tasklet[tasklet].items():
                     used_register_arrays[reg_node] = reg_volume
 
+            
             # remove used register arrays
             for tasklet in previous_tasklet_set - tasklet_set:
                 for reg_node in registers_after_tasklet[tasklet]:
                     del used_register_arrays[reg_node]
-        
+            
+            # calculate total size per register, keep in mind that we only have to 
+            # count register whose data is the same only once 
+
             
             used_register_space = dict()
             for (reg_node, volume) in used_register_arrays.items():
-                if reg_node.data in used_register_space:
-                    used_register_space[reg_node.data] = subsets.union(used_register_space[reg_node.data], volume)
+                if reg_node in used_register_space:
+                    used_register_space[reg_node] = subsets.union(used_register_space[reg_node], volume)
                 else:
-                    used_register_space[reg_node.data] = volume 
-
-
-
-
-
-            mapping = defaultdict(list)
-            for (reg_node, volume) in used_register_arrays.items():
-                mapping[reg_node.data].append(reg_node) # create mapping reg_name -> reg_node 
-            
-            total_max_size = 128 
-            total_size = current_array_reg_size 
-            sort_key = lambda reg_nodes: sum(used_register_arrays[r] for r in reg_nodes) 
-            for (reg_name, reg_nodes) in sorted(mapping, key = sort_key):
-                volume = sort_key(reg_nodes)
-                if volume + total_size <= total_max_size:
-                    total_size += volume 
-                else:
-                    for reg_node in reg_nodes:
-                        traffic_discarded.add(reg_node)
-            
-            # evaluate array score
-            array_score = total_size  
-
-            # evaluate tasklet scores 
-
-            input_score = sum(self.evaluate_tasklet_input(sdfg, graph, t, ))
-
-
-            tasklet_score = 0 
-
-                
-
-
-
-
-
-   # calculate total array size and start discarding those that exceed
-            # limit size in order 
-            # TODO: move to args 
-            total_max_size = 128
-            total_size = current_array_reg_size
-
-            for (reg_node, volume) in sorted(used_register_arrays.items(), key = lambda a: a[1]):
-                if reg_node not in 
-   total_max_size = 100 
-        total_size = current_array_reg_size
-        register_pure = dict() 
-        for (aname, size) in sorted(register_arrays.items(), key = lambda a: a[1]):
-            # nested sdfg: do not recount array
-            if aname not in old_register_arrays:
-                current_size = self.symbolic_evaluation(size)
-                if total_size + current_size > total_max_size:
-                    break 
-                else:
-                    total_size += current_size
-                    register_pure[aname] = current_size 
-        
-
-
-
-
-
-
-
+                    used_register_space[reg_node] = volume 
 
             # set current score to sum of current active register arrays
             array_scores = self.symbolic_evaluation(sum(used_register_space.values()))
       
 
-            # 2. now calculate the rest of the contributions from tasklets
+            # now calculate the rest of the contributions from tasklets
             tasklet_scores = sum(input_scores[t] + output_scores[t] + inner_scores[t] for t in tasklet_set)
             print(f"DEBUG->TASKSET {tasklet_set} INPUT:", sum(input_scores[t] for t in tasklet_set))
             print(f"DEBUG->TASKSET {tasklet_set} OUTPUT:", sum(output_scores[t] for t in tasklet_set))
