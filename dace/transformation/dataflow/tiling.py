@@ -33,11 +33,10 @@ class MapTiling(transformation.Transformation):
         default=tuple(),
         desc="Tile stride (enables overlapping tiles). If empty, matches tile")
 
-    tile_offset = ShapeProperty(
-        dtype=tuple,
-        default=(0,0,0),
-        desc="Negative Stride offset")
-
+    tile_offset = ShapeProperty(dtype=tuple,
+                                default=None,
+                                desc="Negative Stride offset per dimension",
+                                allow_none=True)
 
     divides_evenly = Property(dtype=bool,
                               default=False,
@@ -88,10 +87,13 @@ class MapTiling(transformation.Transformation):
                 tile_size = symbolic.pystr_to_symbolic(self.tile_sizes[dim_idx])
                 tile_stride = symbolic.pystr_to_symbolic(tile_strides[dim_idx])
 
-            if dim_idx == len(self.tile_offset):
+            # handle offsets
+            if self.tile_offset and dim_idx >= len(self.tile_offset):
                 offset = self.tile_offset[-1]
-            else:
+            elif self.tile_offset:
                 offset = self.tile_offset[dim_idx]
+            else:
+                offset = 0
 
             dim_idx -= removed_maps
             # If tile size is trivial, skip strip-mining map dimension
