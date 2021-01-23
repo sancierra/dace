@@ -53,7 +53,10 @@ def run_enum_index(program_name, iteration_index, gpu = False, **kwargs):
     (sdfg, graph) = get_sdfg(program_name, gpu)
 
     io = factory.get_args(program_name)
-    scoring_function = ExecutionScore(sdfg, graph, io, gpu = gpu, **kwargs)
+    
+    #scoring_function = ExecutionScore(sdfg, graph, io, gpu = gpu, **kwargs)
+    scoring_function = RegisterScore(sdfg, graph, io, gpu = gpu, **kwargs)
+    
     print("Calculating Enum Index....")
     return score_enum_index(sdfg, graph, iteration_index, scoring_function)
 
