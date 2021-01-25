@@ -208,17 +208,28 @@ class NestOut(transformation.Transformation):
         second_state.remove_node(map_exit2)
 
         sdfg.save('stage2.sdfg')
-
+        # create set of access data names 
+        data_name_set = set()
+        source_nodes = set()
+        sink_nodes = set()
+        for n in second_state.nodes():
+            if isinstance(n, nodes.AccessNode):
+                data_name_set.add(n.data)
+            if n in second_state.source_nodes():
+                source_nodes.add(n.data)
+            else:
+                sink_nodes.add(n.data)
+        
         # create deepcopy of sdfg and nest it in new state
         new_sdfg = dace.sdfg.SDFG.from_json(sdfg.to_json())
         new_state = dace.sdfg.SDFGState("outer", sdfg)
-
+        
         sdfg.remove_node(first_state)
         sdfg.remove_node(second_state)
         new_state = sdfg.add_state("outer")
         nsdfg = new_state.add_nested_sdfg(new_sdfg, parent = sdfg,
-                inputs={'_a','_b'},
-                outputs={'_c'})
+                inputs=source_nodes,
+                outputs=sink_nodes)
         
 
         
@@ -231,12 +242,17 @@ class NestOut(transformation.Transformation):
         new_map_entry = nodes.MapEntry(new_map)
         new_map_exit = nodes.MapExit(new_map)
         new_state.add_nodes_from([new_map_entry, new_map_exit])
-        a = new_state.add_access('_a')
-        b = new_state.add_access('_b')
-        c = new_state.add_access('_c')
-        data_dict = {'_a':a, '_b':b, '_c':c}
-        source_nodes = {'_a','_b'}
-        print("****", e_dict)
+
+        # add new access nodes and append them into data dict 
+        # which maps from data_name -> data_node 
+
+        for data_name in data_name_set:
+            node = new_state.add_access(data_name)
+            data_dict[data_name] = node 
+            
+        print("data_dict", data_dict)
+        print("e_dict", e_dict)
+
         for data, access_node in data_dict.items():
             if data in source_nodes:
                 new_map_entry.add_in_connector('IN_'+data)
@@ -258,6 +274,12 @@ class NestOut(transformation.Transformation):
         print(new_map_exit.in_connectors)
         print(new_map_exit.out_connectors)
 
+        # offset parameters
+        for param in params:
+            nsdfg.sdfg.replace(param, '0')
+        
+        # replace outer ranges by 1
+        for TODO
 
         nsdfg.sdfg.replace('p0','0')
         nsdfg.sdfg.replace('p1','0')

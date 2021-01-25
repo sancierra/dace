@@ -7,7 +7,7 @@ import dace.libraries as lib
 from dace.transformation.subgraph import ReduceExpansion
 from dace.sdfg.graph import SubgraphView
 
-from dace.sdfg.subgraph.gemm import NestOut
+from dace.transformation.subgraph.gemm import NestOut
 
 
 def get_encoder():
@@ -45,27 +45,27 @@ def run_pre_expansions():
                 # TODO BMM
             
             elif isinstance(node, lib.blas.nodes.MatMul):
-                print(f"MM: {node}")
+                print(f"MM: {node.label}")
+                print(type(node))
                 label = node.label
-                handle_prior = next(graph.in_edges(node).dst)
+                handle_prior = next(iter(graph.in_edges(node))).src
+                impl = node.expand(sdfg, graph)
+                node_post = graph.out_edges(handle_prior)[0].dst
+                impl = node_post.expand(sdfg, graph)
+                nsdfg = graph.out_edges(handle_prior)[0].dst
 
-                node.expand(sdfg, graph)
-                nsdfg = graph.out_edges(handle_prior).dst
-                print("NSDFG=",nsdfg)
-                # case 1: 
+                # case 1
                 if label == 'einsum_gemm':
+                    # case 1.1: Two maps
                     # apply vanilla NestOut to nested sdfg 
-                    nsdfg.apply_transformations(Nest)
-                sdfg.apply_transformations(NestOut)
-
-
-
+                    nsdfg.sdfg.apply_transformations(NestOut)                
                 
+                elif label == '_MatMult_':
+                    pass #FORNOW
 
             elif isinstance(node, lib.blas.nodes.Transpose):
                 print("TRP")
-                # ignore for now....
-                pass 
+                pass #FORNOW
 
             
             elif isinstance(node, dace.sdfg.nodes.LibraryNode):
