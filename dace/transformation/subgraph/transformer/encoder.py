@@ -1,10 +1,79 @@
 import dace   
 import numpy as np
 
+import dace.sdfg.nodes as nodes 
+import dace.libraries as lib
+
+from dace.transformation.subgraph import ReduceExpansion
+from dace.sdfg.graph import SubgraphView
+
+from dace.sdfg.subgraph.gemm import NestOut
+
 
 def get_encoder():
     sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
     return sdfg  
+
+def run_pre_expansions():
+    sdfg = get_encoder()
+    graph = sdfg.nodes()[0]
+
+    def process(sdfg, graph):
+        for node in graph.nodes():
+
+            if isinstance(node, nodes.NestedSDFG):
+                # search in nested
+                for g in node.sdfg.nodes():
+                    process(node.sdfg, g)
+
+            elif isinstance(node, lib.standard.nodes.Reduce):
+                # expand reduction 
+                print(f"REDUCE: {node}")
+                t = ReduceExpansion(sdfg.sdfg_id, sdfg.nodes().index(graph),
+                                    {ReduceExpansion._reduce: graph.nodes().index(node)},
+                                    0)
+                t.apply(sdfg)
+
+            elif isinstance(node, lib.blas.nodes.Gemm):
+                print("GEMM")
+                pass
+                # TODO GEMM 
+
+            elif isinstance(node, lib.blas.nodes.BatchedMatMul):
+                print("BMM")
+                pass
+                # TODO BMM
+            
+            elif isinstance(node, lib.blas.nodes.MatMul):
+                print(f"MM: {node}")
+                label = node.label
+                handle_prior = next(graph.in_edges(node).dst)
+
+                node.expand(sdfg, graph)
+                nsdfg = graph.out_edges(handle_prior).dst
+                print("NSDFG=",nsdfg)
+                # case 1: 
+                if label == 'einsum_gemm':
+                    # apply vanilla NestOut to nested sdfg 
+                    nsdfg.apply_transformations(Nest)
+                sdfg.apply_transformations(NestOut)
+
+
+
+                
+
+            elif isinstance(node, lib.blas.nodes.Transpose):
+                print("TRP")
+                # ignore for now....
+                pass 
+
+            
+            elif isinstance(node, dace.sdfg.nodes.LibraryNode):
+                raise RuntimeError(f"Library Node {node} not covered")
+    
+    process(sdfg, graph)
+    sdfg.save('preprocessed.sdfg')
+    
 
 def expand_encoder():
     sdfg = get_encoder()
@@ -39,4 +108,4 @@ def run_encoder():
     print(np.linalg.norm(result))
 
 
-run_encoder()
+run_pre_expansions()

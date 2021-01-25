@@ -6,7 +6,7 @@
 import dace
 
 import dace.transformation.transformation as transformation
-from dace.transformation.subgraph import SubgraphFusion, StencilTiling
+from dace.transformation.subgraph import SubgraphFusion, StencilTiling, MultiExpansion
 import dace.transformation.subgraph.helpers as helpers
 
 from dace import dtypes, registry, symbolic, subsets, data
@@ -28,9 +28,13 @@ class CompositeFusion(transformation.SubgraphTransformation):
 
     debug = Property(desc="Debug mode", dtype=bool, default = True)
 
+    allow_expansion = Property(desc="Allow MultiExpansion before",
+                               dtype = bool,
+                               default = False)
+
     allow_tiling = Property(desc="Allow StencilTiling before",
                             dtype = bool,
-                            default = True)
+                            default = False)
 
     gpu_fusion_mode = Property(desc="Fusion local register memory architecture "
                                     "or shared memory architecture. If set to "
@@ -60,11 +64,33 @@ class CompositeFusion(transformation.SubgraphTransformation):
 
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
-        if SubgraphFusion.can_be_applied(sdfg, subgraph):
-            return True
-        if CompositeFusion.allow_tiling:
-            if StencilTiling.can_be_applied(sdfg, subgraph):
+        graph = subgraph.graph
+        if CompositeFusion.allow_expansion:
+            # deepcopy graph 
+            graph_indices = [i for (i,n) in enumerate(graph.nodes()) if n in subgraph]
+            sdfg_copy = SDFG.from_json(sdfg.to_json())
+            graph_copy = sdfg_copy.nodes()[sdfg.nodes().index(graph)]
+            subgraph_copy = SubgraphView(graph_copy,
+                [graph_copy.nodes()[i] for i in graph_indices])
+            
+            #sdfg_copy.apply_transformations(MultiExpansion, states=[graph])
+            expansion = MultiExpansion(subgraph_copy)
+            expansion.apply(sdfg_copy)
+
+            if SubgraphFusion.can_be_applied(sdfg_copy, subgraph_copy):
+                return True 
+            
+            if CompositeFusion.allow_tiling:
+                if StencilTiling.can_be_applied(sdfg_copy, subgraph_copy):
+                    return True 
+
+
+        else:
+            if SubgraphFusion.can_be_applied(sdfg, subgraph):
                 return True
+            if CompositeFusion.allow_tiling:
+                if StencilTiling.can_be_applied(sdfg, subgraph):
+                    return True
 
         return False
 
@@ -95,7 +121,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
                     elif self.transient_allocation == dtypes.StorageType.GPU_Shared:
                         node.implementation = 'CUDA (block allreduce)'
                     else:
-                        raise RuntimeError("For GPU useage, transient allocation has to be "
+                        raise RuntimeError("For GPU usage, transient allocation has to be "
                                            "either register or shared memory.")
 
         # do a few safety checks
@@ -138,3 +164,4 @@ class CompositeFusion(transformation.SubgraphTransformation):
             raise NotImplementedError("Error")
         
         self._global_map_entry = sf._global_map_entry
+
