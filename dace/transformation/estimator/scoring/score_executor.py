@@ -123,7 +123,7 @@ class ExecutionScore(ScoringFunction):
                 outputs_local[ok] = ov.copy()
                 outputs_local[ok].fill(0)
 
-        # TODO: remove
+        # TODO: remove 
         for ok, kv in outputs_local.items():
             print(ok)
             print(np.linalg.norm(kv))
@@ -207,10 +207,11 @@ class ExecutionScore(ScoringFunction):
         for json_file in files:
             path = os.path.join(sdfg.build_folder, 'perf', json_file)
             with open(path) as f:
-                data = json.load(f)
+                data = json.load(f)['traceEvents']
                 print(data)
-                for _, runtime_vec in data.items():
-                    runtime += sum(runtime_vec)
+                for runtime_dict in data:
+                    runtime += runtime_dict['dur']
+                    
 
         # normalize runtime
         runtime /= len(files)
@@ -251,7 +252,7 @@ class ExecutionScore(ScoringFunction):
             try:
                 setattr(transformation_function, arg, val)
             except AttributeError:
-                warnigns.warn(f"Attribute {arg} not found in transformation")
+                warnings.warn(f"Attribute {arg} not found in transformation")
             except (TypeError, ValueError):
                 warnings.warn(f"Attribute {arg} has invalid value {val}")
 

@@ -65,7 +65,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
         graph = subgraph.graph
-        if CompositeFusion.allow_expansion:
+        if CompositeFusion.allow_expansion == True:
             # deepcopy graph 
             graph_indices = [i for (i,n) in enumerate(graph.nodes()) if n in subgraph]
             sdfg_copy = SDFG.from_json(sdfg.to_json())
@@ -88,9 +88,10 @@ class CompositeFusion(transformation.SubgraphTransformation):
         else:
             if SubgraphFusion.can_be_applied(sdfg, subgraph):
                 return True
-            if CompositeFusion.allow_tiling:
+            if CompositeFusion.allow_tiling == True:
                 if StencilTiling.can_be_applied(sdfg, subgraph):
                     return True
+                
 
         return False
 
@@ -142,7 +143,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
             sf.schedule_innermaps = self.schedule_innermaps
             sf.apply(sdfg)
 
-        elif self.allow_tiling and StencilTiling.can_be_applied(sdfg, self.subgraph_view(sdfg)):
+        elif self.allow_tiling == True and StencilTiling.can_be_applied(sdfg, self.subgraph_view(sdfg)):
             st = StencilTiling(self.subgraph_view(sdfg), self.sdfg_id, self.state_id)
             # set StencilTiling properties
             st.debug = self.debug
@@ -161,7 +162,8 @@ class CompositeFusion(transformation.SubgraphTransformation):
             sf.apply(sdfg)
 
         else:
+            sdfg.save('wtf.sdfg')
+
             raise NotImplementedError("Error")
-        
         self._global_map_entry = sf._global_map_entry
 
