@@ -10,12 +10,10 @@ from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph.gemm import NestOut
 
 
-def get_encoder():
-    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
-    return sdfg  
+def run_pre_expansions(sdfg):
+    # expands a raw encoder sdfg using 
+    # transformations suitable for encoding 
 
-def run_pre_expansions():
-    sdfg = get_encoder()
     graph = sdfg.nodes()[0]
 
     def process(sdfg, graph):
@@ -72,16 +70,17 @@ def run_pre_expansions():
                 raise RuntimeError(f"Library Node {node} not covered")
     
     process(sdfg, graph)
+    sdfg.apply_strict_transformations()
+    sdfg.validate()
     sdfg.save('preprocessed.sdfg')
     
 
-def expand_encoder():
-    sdfg = get_encoder()
-    sdfg.expand_library_nodes()
-    sdfg.save('../../estimator/programs/encoder_expanded.sdfg')
+def get_encoder():
+    # returns a raw encoder sdfg
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
+    return sdfg  
 
-def run_encoder():
-    sdfg = get_encoder()
+def get_args():
     kwargs = {}
     B = 16; SM = 20; P = 8; H = 5; emb = 15; N=P*H
     kwargs.update({'B':np.int32(B), 'SM': np.int32(SM), 'N':np.int32(N), 'P':np.int32(P), 'H':np.int32(H), 'emb':np.int32(emb)})
@@ -103,9 +102,31 @@ def run_encoder():
     kwargs['ff_dropout'] = np.random.rand(B,SM,N).astype(np.float32)
     kwargs['norm2_bias'] = np.random.rand(N).astype(np.float32)
     kwargs['norm2_scale'] = np.random.rand(N).astype(np.float32)
- 
+    
+    return kwargs 
+
+def expand_encoder(sdfg):
+    # expands a raw encoder sdfg (default expansion)
+    sdfg.expand_library_nodes()
+    sdfg.save('../../estimator/programs/encoder_expanded.sdfg')
+
+
+def run_encoder(sdfg, kwargs):
     result = sdfg(**kwargs)
     print(np.linalg.norm(result))
 
+def test_transformation():
+    sdfg = get_encoder()
+    kwargs = get_args()
 
-run_pre_expansions()
+    result1 = sdfg(**kwargs)
+
+    run_pre_expansions(sdfg)
+    result2 = sdfg(**kwargs)
+
+    print(np.linalg.norm(result1))
+    print(np.linalg.norm(result2))
+
+
+sdfg = get_encoder()
+run_pre_expansions(sdfg)
