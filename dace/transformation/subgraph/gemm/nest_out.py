@@ -21,6 +21,7 @@ import dace
 from dace.transformation.dataflow import MapExpansion, MapCollapse
 from copy import deepcopy 
 
+# methods borrowed from greg 
 def rename_map_parameter(state: dace_state.SDFGState, map_entry: nodes.MapEntry, old_name: str, new_name: str):
     for i, p in enumerate(map_entry.map.params):
         if p == old_name:
@@ -67,7 +68,6 @@ class NestOut(transformation.Transformation):
 
     first_state = transformation.PatternNode(dace_sdfg.SDFGState)
     second_state = transformation.PatternNode(dace.sdfg.SDFGState)
-    #nsdfg = transformation.PatternNode(dace.sdfg.nodes.NestedSDFG)
 
     @staticmethod
     def annotates_memlets():
@@ -84,27 +84,9 @@ class NestOut(transformation.Transformation):
 
     @staticmethod
     def can_be_applied(sdfg: dace_sdfg.SDFG, candidate, expr_index, _sdfg, strict=False):
-        return True 
-        '''
-        first_state: dace_state.SDFGState = sdfg.nodes()[candidate[NestOut.first_state]]
-        second_state: dace_state.SDFGState = sdfg.nodes()[candidate[NestOut.second_state]]
-
-        sources1 = first_state.source_nodes()
-        sinks1 = first_state.sink_nodes()
-
-        sources2 = second_state.source_nodes()
-        sinks2 = second_state.sink_nodes()
-
-        map1 = sources1[0]
-        map2 = second_state.out_edges(sources2[0])
-
-        if not isinstance(map1, nodes.MapEntry) or not isinstance(map2, nodes.MapEntry):
-            return False 
-
         
-        return True
-        # check whether there are maps that are 
-        '''
+        # dummy 
+        return True 
 
 
     @staticmethod
@@ -130,8 +112,6 @@ class NestOut(transformation.Transformation):
         map_entry2: nodes.MapEntry = second_state.out_edges(sources2[0])[0].dst
         map_exit2: nodes.MapExit = second_state.in_edges(sinks2[0])[0].src
 
-        print("map_entry1", map_entry1)
-        print("map_entry2", map_entry2)
         common_params = dict()
 
         for i, ((p1, r1), (p2, r2)) in enumerate(zip(zip(map_entry1.map.params,map_entry1.map.range), zip(map_entry2.map.params, map_entry2.map.range))):
@@ -144,7 +124,6 @@ class NestOut(transformation.Transformation):
             else:
                 break 
         
-        sdfg.save('after_replace.sdfg')
         sdfg.apply_transformations_repeated(MapExpansion)
 
         for _ in range(len(common_params) - 1):
@@ -166,18 +145,8 @@ class NestOut(transformation.Transformation):
         
         # next delete maps 
         # reconnect first and then delete  
-        sdfg.save('inspect_me.sdfg')
-        print("Part 1: DONE")
-        print(map_entry1)
-        print(map_entry2)
-        print(map_exit1)
-        print(map_exit2)
-        print(type(map_entry1))
-        print(type(map_entry2))
-        print(type(map_exit1))
-        print(type(map_exit2))
-        
-
+        print(f"Part 1: OK... Common params = {common_params}")
+     
         e_dict = {} 
         for ie in first_state.in_edges(map_entry1):
             for oe in first_state.out_edges(map_entry1):
@@ -207,18 +176,20 @@ class NestOut(transformation.Transformation):
         first_state.remove_node(map_exit1)
         second_state.remove_node(map_exit2)
 
-        sdfg.save('stage2.sdfg')
         # create set of access data names 
         data_name_set = set()
         source_nodes = set()
         sink_nodes = set()
+        strides = dict() # data_name -> stride
         for n in second_state.nodes():
             if isinstance(n, nodes.AccessNode):
+                strides[n.data] = sdfg.data(n.data).strides
                 data_name_set.add(n.data)
-            if n in second_state.source_nodes():
-                source_nodes.add(n.data)
-            else:
-                sink_nodes.add(n.data)
+
+                if n in second_state.source_nodes():
+                    source_nodes.add(n.data)
+                else:
+                    sink_nodes.add(n.data)
         
         # create deepcopy of sdfg and nest it in new state
         new_sdfg = dace.sdfg.SDFG.from_json(sdfg.to_json())
@@ -246,12 +217,13 @@ class NestOut(transformation.Transformation):
         # add new access nodes and append them into data dict 
         # which maps from data_name -> data_node 
 
+        data_dict = dict()
         for data_name in data_name_set:
             node = new_state.add_access(data_name)
             data_dict[data_name] = node 
-            
+        
+        print("Part 2: OK...")
         print("data_dict", data_dict)
-        print("e_dict", e_dict)
 
         for data, access_node in data_dict.items():
             if data in source_nodes:
@@ -274,13 +246,24 @@ class NestOut(transformation.Transformation):
         print(new_map_exit.in_connectors)
         print(new_map_exit.out_connectors)
 
-        # offset parameters
+        # offset parameters by 0
         for param in params:
             nsdfg.sdfg.replace(param, '0')
         
         # replace outer ranges by 1
-        for TODO
-
+        for r in ranges:
+            print(r)
+            m = r[1]+1
+            print(m)
+            nsdfg.sdfg.replace(str(m), '1')
+        
+        # but keep the strides 
+        for data_name in data_name_set:
+            nsdfg.sdfg.data(data_name).strides = strides[data_name]
+            print(f"Stride for {data_name}")
+            print(nsdfg.sdfg.data(data_name).strides)
+            print(strides[data_name])
+        '''
         nsdfg.sdfg.replace('p0','0')
         nsdfg.sdfg.replace('p1','0')
         nsdfg.sdfg.replace('M', '1')
@@ -289,3 +272,4 @@ class NestOut(transformation.Transformation):
         nsdfg.sdfg.data('_a').strides = dace.symbolic.pystr_to_symbolic('N,1')
         nsdfg.sdfg.data('_b').strides = dace.symbolic.pystr_to_symbolic('K,1')
         nsdfg.sdfg.data('_c').strides = dace.symbolic.pystr_to_symbolic('K,1')
+        '''
