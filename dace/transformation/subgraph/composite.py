@@ -62,6 +62,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
                                     desc="Tile stride")
 
 
+    def reduce_check(sdfg, graph)
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
         graph = subgraph.graph
@@ -134,7 +135,12 @@ class CompositeFusion(transformation.SubgraphTransformation):
                 warnings.warn("Ambiguous innermap scheduling "
                               "in a GPU State for Fusion")
 
-        
+        if self.allow_expansion == True:
+            # expand first 
+            me = MultiExpansion(subgraph, self.sdfg_id, self.state_id)
+            me.debug = self.debug
+            me.apply(sdfg)
+
         if SubgraphFusion.can_be_applied(sdfg, self.subgraph_view(sdfg)):
             sf = SubgraphFusion(subgraph, self.sdfg_id, self.state_id)
             # set SubgraphFusion properties
