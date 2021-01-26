@@ -1,5 +1,6 @@
 import dace   
 import numpy as np
+import os
 
 import dace.sdfg.nodes as nodes 
 import dace.libraries as lib
@@ -8,6 +9,7 @@ from dace.transformation.subgraph import ReduceExpansion
 from dace.sdfg.graph import SubgraphView
 
 from dace.transformation.subgraph.gemm import NestOut
+from dace.codegen import compiler
 
 
 def run_pre_expansions(sdfg):
@@ -128,5 +130,23 @@ def test_transformation():
     print(np.linalg.norm(result2))
 
 
+def run_cached(sdfg, kwargs):
+    
+    binary_filename = compiler.get_binary_name(sdfg.build_folder,
+                                                       sdfg.name)
+    if os.path.isfile(binary_filename):
+        executable = compiler.load_from_file(sdfg, binary_filename)
+    else:
+        raise RuntimeError()
+    
+    executable(**kwargs)
+    
+
+
+
 sdfg = get_encoder()
-run_pre_expansions(sdfg)
+kwargs = get_args()
+run_cached(sdfg, kwargs)
+
+#run_pre_expansions(sdfg)
+#run_encoder(sdfg, kwargs)
