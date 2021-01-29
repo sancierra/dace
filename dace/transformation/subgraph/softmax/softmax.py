@@ -1,8 +1,9 @@
 import dace 
 import numpy as np 
+import torch 
 
 from dace.transformation.subgraph import ReduceExpansion, SubgraphFusion, MultiExpansion
-from dace.transformation.dataflow import MapCollapse
+from dace.transformation.dataflow import MapCollapse, RedundantSecondArray
 from dace.transformation.estimator.programs.factory import get_args as factory_args
 from dace.sdfg.graph import SubgraphView
 from dace.sdfg.nodes import MapEntry, MapExit, AccessNode
@@ -36,6 +37,7 @@ def get_sdfg():
 def get_args():
     io = factory_args('softmax')
     (inputs, outputs, symbols) = io
+    print("Symbol sizes:", symbols)
     return {**inputs, **symbols}
 
 
@@ -103,6 +105,7 @@ def fully_fuse_register(sdfg):
     sf.transient_allocation = dace.dtypes.StorageType.Register 
     sf.schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock
     sf.apply(sdfg)
+    sdfg.apply_transformations(RedundantSecondArray)
     # change storage
     for node in graph.nodes():
         if isinstance(node, AccessNode) and node.data in ['tmp_sum', 'tmp_max']:
@@ -129,6 +132,20 @@ def run_and_compare(sdfg, args, fusion_handle):
     print(np.linalg.norm(result1))
     print(np.linalg.norm(result2))
 
+def run_torch(args, cuda = True):
+    H = args['H']
+    B = args['B']
+    SN = args['SN']
+    SM = args['SM']
+
+    device = torch.device("cuda:0" if cuda else "cpu")
+    x_in = torch.from_numpy(args['X_in']).to(device)
+    softmax = torch.nn.Softmax(dim = 3)
+    result = softmax(x_in)
+    print(np.linalg.norm(result))
+
+
+
 sdfg = get_sdfg()
 args = get_args()
 sdfg.specialize({'SM': args['SM']})
@@ -136,5 +153,6 @@ sdfg.apply_gpu_transformations()
 
 
 #run(sdfg, args, fusion_handle = fully_fuse)
-run(sdfg, args, fusion_handle = partially_fuse)
+#run(sdfg, args, fusion_handle = partially_fuse)
 #run(sdfg, args, fusion_handle = fully_fuse_register)
+run_torch(args, cuda = False)
