@@ -48,11 +48,6 @@ def run():
     print(np.linalg.norm(r1))
     print(np.linalg.norm(r2))
 
-def run_expand():
-    sdfg = GEMM.to_sdfg()
-    sdfg.expand_library_nodes()
-    sdfg.apply_transformations(NestOut)
-    sdfg.save('gemm.sdfg')
 
 
 run()
