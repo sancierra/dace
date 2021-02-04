@@ -49,12 +49,15 @@ def test_fuse_all(view = True):
     if view:
         vadv_unfused.view()
 
-def test_fuse_partial(view = False):
+def test_fuse_partial(gpu = True, view = False):
     if view:
         vadv_unfused.view()
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/vadv32.sdfg')
+    if gpu:
+        sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
     set1 = set()
     set2 = set()
-    graph = vadv_unfused.nodes()[0]
     for node in graph.nodes():
         for edge in itertools.chain(graph.out_edges(node), graph.in_edges(node)):
             if isinstance(edge.dst, (dace.sdfg.nodes.MapEntry, dace.sdfg.nodes.MapExit)):
@@ -77,11 +80,11 @@ def test_fuse_partial(view = False):
     subgraph2 = dace.sdfg.graph.SubgraphView(graph, list(set2))
     print(list(set1))
     print(list(set2))
-    fusion = subgraph.SubgraphFusion()
-    fusion.apply(vadv_unfused, subgraph1)
-    fusion.apply(vadv_unfused, subgraph2)
-    vadv_unfused.view()
-
+    fusion = subgraph.SubgraphFusion(subgraph1)
+    fusion.apply(sdfg)
+    fusion = subgraph.SubgraphFusion(subgraph2)
+    fusion.apply(sdfg)
+    
 
 def test_fuse_all_numerically(gpu = False, view = False):
     I, J, K = (dace.symbol(s) for s in 'IJK')
@@ -90,7 +93,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
 
-    sdfg = dace.sdfg.SDFG.from_file('vadv32.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/vadv32.sdfg')
     if gpu:
         sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
@@ -123,6 +126,7 @@ def test_fuse_all_numerically(gpu = False, view = False):
 
     #dace.Config.set('compiler', 'cuda', 'default_block_size', value=block_size)
 
+    # up to 29 registers, if pressure too high 
     I, J, K = 128, 128, 80
     syms = dict(I=I, J=J, K=K)
     dtype = np_dtype
@@ -188,14 +192,14 @@ def test_fuse_partial_numerically(gpu = False, view = False):
     _gt_loc__dtr_stage = dace.symbol('_gt_loc__dtr_stage', dace.float32)
 
 
-    sdfg = dace.sdfg.SDFG.from_file('vadv32.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/vadv32.sdfg')
     if gpu:
         sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
 
     set1 = set()
     set2 = set()
-    graph = vadv_unfused.nodes()[0]
+    graph = sdfg.nodes()[0]
     for node in graph.nodes():
         for edge in itertools.chain(graph.out_edges(node), graph.in_edges(node)):
             if isinstance(edge.dst, (dace.sdfg.nodes.MapEntry, dace.sdfg.nodes.MapExit)):
@@ -318,7 +322,7 @@ def test_fuse_partial_numerically(gpu = False, view = False):
 #view_all()
 #test_matching()
 #test_fuse_all()
-test_fuse_all_numerically(view = False, gpu = True)
-#test_fuse_partial_numerically(view = False, gpu = False)
+#test_fuse_all_numerically(view = False, gpu = True)
+test_fuse_partial_numerically(view = False, gpu = True)
 
 #test_fuse_partial()
