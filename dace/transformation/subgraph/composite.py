@@ -34,7 +34,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
 
     allow_tiling = Property(desc="Allow StencilTiling before",
                             dtype = bool,
-                            default = False)
+                            default = True)
 
     gpu_fusion_mode = Property(desc="Fusion local register memory architecture "
                                     "or shared memory architecture. If set to "
@@ -65,7 +65,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
         graph = subgraph.graph
-        if CompositeFusion.allow_expansion == True:
+        if CompositeFusion.allow_expansion._default == True:
             # deepcopy graph 
             graph_indices = [i for (i,n) in enumerate(graph.nodes()) if n in subgraph]
             sdfg_copy = SDFG.from_json(sdfg.to_json())
@@ -88,7 +88,7 @@ class CompositeFusion(transformation.SubgraphTransformation):
         else:
             if SubgraphFusion.can_be_applied(sdfg, subgraph):
                 return True
-            if CompositeFusion.allow_tiling == True:
+            if CompositeFusion.allow_tiling._default == True:
                 if StencilTiling.can_be_applied(sdfg, subgraph):
                     return True
                 
