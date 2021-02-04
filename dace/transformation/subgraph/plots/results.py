@@ -20,25 +20,24 @@ def get_runtimes_davinci():
     vadv['baseline'] = 816
     vadv['fully fused'] = 157
     vadv['partially fused'] = 430 
-    descriptors['vadv'] = 'Float32, 128 x 128 x 80 (Davinci)'
-    runtimes['vadv'] = vadv
+    descriptors['vertical advection'] = 'Float32, 128 x 128 x 80 (Davinci)'
+    runtimes['vertical advection'] = vadv
 
     # hdiff1 
     hdiff_mini = {} 
-    hdiff_mini['baseline'] = 0
-    hdiff_mini['fully fused'] = 0
-    descriptors['hdiff_mini'] = 'Float32, 128 x 128 x 80 (Davinci)'
-    runtimes['hdiff_mini'] = hdiff_mini
+    hdiff_mini['baseline'] = 340
+    hdiff_mini['fully fused'] = 120
+    descriptors['horizontal diffusion (mini)'] = 'Float32, 128 x 128 x 80 (Davinci)'
+    runtimes['horizontal diffusion (mini)'] = hdiff_mini
 
 
     # hdiff2
     hdiff = {}
-    hdiff['baseline'] = 0
-    hdiff['partially fused'] = 0
-    hdiff['fully fused'] = 0
-    descriptors['hdiff'] = 'Float32, 128 x 128 x 80 (Davinci)'
-    runtimes['hdiff'] = hdiff 
-
+    hdiff['baseline'] = 540
+    hdiff['partially fused'] = 310
+    hdiff['fully fused'] = 550
+    descriptors['horizontal diffusion'] = 'Float32, 128 x 128 x 80 (Davinci)'
+    runtimes['horizontal diffusion'] = hdiff 
 
     return runtimes, descriptors
 
@@ -59,9 +58,7 @@ def plot_runtimes(name):
 
     rects = plot.bar(x, y, width = 0.5, color = 'green')
     plot.xticks(x, x_label)
-    #plot.yticks()
     plot.ylabel("Runtime [qs]")
-    print("DESCRIPTOR=", descriptor)
     plot.suptitle(name.capitalize())
     plot.title(descriptor)
     max_height = rects[0].get_height()
@@ -76,6 +73,7 @@ def plot_runtimes(name):
             va = 'bottom')
 
     plot.show()
+    plot.savefig(name+'.pdf')
 
-plot_runtimes('softmax')
+plot_runtimes('horizontal diffusion (mini)')
 
