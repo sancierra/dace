@@ -7321,7 +7321,7 @@
               3
             ],
             "wcr": "(lambda a, b: max(a, b))",
-            "identity": null,
+            "identity": 0,
             "name": "Reduce",
             "implementation": null,
             "schedule": "Default",
@@ -7843,7 +7843,7 @@
         },
         {
           "type": "MapEntry",
-          "label": "layer_norm_scaled_105[i=0:SM, j=0:B, k=0:N]",
+          "label": "layer_norm_scaled_105[i=0:B, j=0:SM, k=0:N]",
           "attributes": {
             "label": "layer_norm_scaled_105",
             "params": [
@@ -7856,7 +7856,7 @@
               "ranges": [
                 {
                   "start": "0",
-                  "end": "SM - 1",
+                  "end": "B - 1",
                   "step": {
                     "main": "1",
                     "approx": "1"
@@ -7865,7 +7865,7 @@
                 },
                 {
                   "start": "0",
-                  "end": "B - 1",
+                  "end": "SM - 1",
                   "step": {
                     "main": "1",
                     "approx": "1"
@@ -7917,7 +7917,7 @@
         },
         {
           "type": "MapExit",
-          "label": "layer_norm_scaled_105[i=0:SM, j=0:B, k=0:N]",
+          "label": "layer_norm_scaled_105[i=0:B, j=0:SM, k=0:N]",
           "attributes": {
             "in_connectors": {
               "IN___tmp0": null
@@ -8886,7 +8886,7 @@
         },
         {
           "type": "MapEntry",
-          "label": "layer_norm_scaled_105[i=0:SM, j=0:B, k=0:N]",
+          "label": "layer_norm_scaled_105[i=0:B, j=0:SM, k=0:N]",
           "attributes": {
             "label": "layer_norm_scaled_105",
             "params": [
@@ -8899,7 +8899,7 @@
               "ranges": [
                 {
                   "start": "0",
-                  "end": "SM - 1",
+                  "end": "B - 1",
                   "step": {
                     "main": "1",
                     "approx": "1"
@@ -8908,7 +8908,7 @@
                 },
                 {
                   "start": "0",
-                  "end": "B - 1",
+                  "end": "SM - 1",
                   "step": {
                     "main": "1",
                     "approx": "1"
@@ -11431,13 +11431,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11454,13 +11454,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11489,13 +11489,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11512,13 +11512,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11570,13 +11570,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11605,13 +11605,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -11628,13 +11628,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     }
@@ -12349,13 +12349,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     },
@@ -12378,13 +12378,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     },
@@ -14199,13 +14199,13 @@
                   "ranges": [
                     {
                       "start": "0",
-                      "end": "SM - 1",
+                      "end": "B - 1",
                       "step": "1",
                       "tile": "1"
                     },
                     {
                       "start": "0",
-                      "end": "B - 1",
+                      "end": "SM - 1",
                       "step": "1",
                       "tile": "1"
                     },
