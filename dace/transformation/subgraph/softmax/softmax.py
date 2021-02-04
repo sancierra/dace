@@ -116,6 +116,10 @@ def fully_fuse_register(sdfg):
 def run(sdfg, args, fusion_handle = None, strict = True):
     if fusion_handle:
         fusion_handle(sdfg)
+    else:
+        for node in sdfg.nodes()[0].nodes():
+            if isinstance(node, std.nodes.Reduce):
+                node.implementation = "CUDA (device)"
     sdfg.save('runnable.sdfg')
     if strict:
         sdfg.apply_strict_transformations()
@@ -139,20 +143,22 @@ def run_torch(args, cuda = True):
     SM = args['SM']
 
     device = torch.device("cuda:0" if cuda else "cpu")
+    cpu = torch.device("cpu")
     x_in = torch.from_numpy(args['X_in']).to(device)
     softmax = torch.nn.Softmax(dim = 3)
     result = softmax(x_in)
-    print(np.linalg.norm(result))
-
+    norm = np.linalg.norm(result.to(cpu).numpy())
+    print(norm)
 
 
 sdfg = get_sdfg()
 args = get_args()
 sdfg.specialize({'SM': args['SM']})
+del args['SM']
 sdfg.apply_gpu_transformations() 
 
-
+#run(sdfg, args, fusion_handle = None)
 #run(sdfg, args, fusion_handle = fully_fuse)
-#run(sdfg, args, fusion_handle = partially_fuse)
+run(sdfg, args, fusion_handle = partially_fuse)
 #run(sdfg, args, fusion_handle = fully_fuse_register)
-run_torch(args, cuda = False)
+#run_torch(args, cuda = True)
