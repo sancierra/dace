@@ -109,8 +109,11 @@ class MemletScore(ScoringFunction):
         }
         for fun, lam in sym_locals.items():
             term.replace(fun, lam)
-
-        result = symbolic.evaluate(term, self._symbols)
+        try:
+            result = symbolic.evaluate(term, self._symbols)
+        except TypeError:
+            print(f"Error: Cannot evaluate {term}")
+            raise TypeError()
         result = int(result)
         return result
 

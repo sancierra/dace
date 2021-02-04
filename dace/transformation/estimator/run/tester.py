@@ -12,7 +12,7 @@ from dace.sdfg.graph import SubgraphView
 from dace.transformation.subgraph import SubgraphFusion, StencilTiling
 from dace.transformation.subgraph.composite import CompositeFusion
 from dace.transformation.subgraph.pipeline import expand_reduce, expand_maps
-from dace.transformation.estimator import ConnectedEnumerator, BruteForceEnumerator, ScoringFunction, ExecutionScore, MemletScore, RegisterScore
+from dace.transformation.estimator import Enumerator, ConnectedEnumerator, BruteForceEnumerator, ScoringFunction, ExecutionScore, MemletScore, RegisterScore
 from dace.transformation.estimator.programs import factory
 from typing import Type, List, Dict, Callable
 
@@ -40,20 +40,16 @@ def list_top(subgraph_scores, n=10, list_all=False):
     print(f"{dupes} DUPLICATES")
 
 
-def score(sdfg, graph, enumerator_type, scoring_function, condition_function):
+def score(sdfg: dace.SDFG, graph: dace.SDFGState, enumerator: Enumerator, scoring_function: ScoringFunction, condition_function: Callable, debug: bool = True):
     '''
-    Enumerate all possibilities and score
+    Enumerate all transformation possibilities and score each of those according to a predfined scoring function
     '''
 
-    enum = enumerator_type(sdfg,
-                           graph,
-                           condition_function=condition_function,
-                           scoring_function=scoring_function)
-
-    subgraph_list = enum.list(include_score=True)
+   
+    subgraph_list = enumerator.list(include_score=True)
     for sg in subgraph_list:
         print(sg)
-    enum.histogram()
+    enumerator.histogram()
     return subgraph_list
 
 
@@ -67,12 +63,13 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
                 transformation_function=CompositeFusion,
                 condition_function=CompositeFusion.can_be_applied,
                 deduplicate=False,
+                debug=True,
                 **kwargs):
     '''
     Tests listing all subgraphs with a ScoringFunction
     '''
     if scoring_type is not None:
-        scoring_func = scoring_type(
+        scoring_function = scoring_type(
             sdfg=sdfg,
             graph=graph,
             io=io,
@@ -80,13 +77,18 @@ def test_scorer(sdfg: dace.sdfg.SDFG,
             transformation_function=transformation_function,
             **kwargs)
         if deduplicate:
-            scoring_func.deduplicate = True
+            scoring_function.deduplicate = True
     else:
-        scoring_func = None
-    # deduplication: change property
+        scoring_function = None
 
-    subgraph_list = score(sdfg, graph, enumerator_type, scoring_func,
-                          condition_function)
+
+    enum = enumerator_type(sdfg,
+                           graph,
+                           condition_function=condition_function,
+                           scoring_function=scoring_function)
+
+    subgraph_list = score(sdfg, graph, enum, scoring_function,
+                          condition_function, debug)
     list_top(subgraph_list)
     return subgraph_list
 
@@ -151,5 +153,5 @@ if __name__ == "__main__":
          transient_allocation=dace.dtypes.StorageType.Register,
          schedule_innermaps=dace.dtypes.ScheduleType.Sequential,
          deduplicate=True,
-         propagate_all=False,
-         stencil_unroll_loops=False)
+         propagate_all=True,
+         stencil_unroll_loops=True)

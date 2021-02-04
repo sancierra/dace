@@ -33,7 +33,7 @@ class ExecutionScore(ScoringFunction):
                      default = True)
     run_baseline = Property(desc = "Run baseline as a comparison. If not just return score and not a fraction",
                              dtype = bool,
-                             default = False)
+                             default = True)
 
     exit_on_error = Property(desc = "Exit program if error occurs, else return -1",
                              dtype = bool,
