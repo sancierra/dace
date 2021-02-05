@@ -157,7 +157,7 @@ sdfg.specialize({'SM': args['SM']})
 del args['SM']
 sdfg.apply_gpu_transformations() 
 
-#run(sdfg, args, fusion_handle = None)
+run(sdfg, args)
 #run(sdfg, args, fusion_handle = fully_fuse)
 run(sdfg, args, fusion_handle = partially_fuse)
 #run(sdfg, args, fusion_handle = fully_fuse_register)

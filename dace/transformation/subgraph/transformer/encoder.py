@@ -6,9 +6,10 @@ import dace.sdfg.nodes as nodes
 import dace.libraries as lib
 
 from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph.gemm import NestOut
+from dace.transformation.interstate import InlineSDFG
 from dace.sdfg.graph import SubgraphView
 
-from dace.transformation.subgraph.gemm import NestOut
 from dace.codegen import compiler
 
 
@@ -72,9 +73,12 @@ def run_pre_expansions(sdfg):
                 raise RuntimeError(f"Library Node {node} not covered")
     
     process(sdfg, graph)
+    print("APPLYING STRICT TRAFOS")
     sdfg.apply_strict_transformations()
+    #sdfg.apply_transformations_repeated(InlineSDFG)
+    print("VALIDATE")
     sdfg.validate()
-    sdfg.save('preprocessed.sdfg')
+    print("DONE")
     
 
 def get_encoder():
@@ -116,6 +120,7 @@ def expand_encoder(sdfg):
 def run_encoder(sdfg, kwargs):
     result = sdfg(**kwargs)
     print(np.linalg.norm(result))
+    return result 
 
 def test_transformation():
     sdfg = get_encoder()
@@ -145,8 +150,13 @@ def run_cached(sdfg, kwargs):
 
 
 sdfg = get_encoder()
-kwargs = get_args()
-run_cached(sdfg, kwargs)
+sdfg.validate()
 
-#run_pre_expansions(sdfg)
-#run_encoder(sdfg, kwargs)
+kwargs = get_args()
+#run_cached(sdfg, kwargs)
+
+r1 = run_encoder(sdfg, kwargs)
+expand_encoder(sdfg)
+run_pre_expansions(sdfg)
+sdfg.save('asdf.sdfg')
+r2 = run_encoder(sdfg, kwargs)
