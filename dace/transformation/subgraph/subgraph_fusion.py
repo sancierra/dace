@@ -450,24 +450,29 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         step during fusion.
         '''
         # check whether array needs to change 
-        subset_copy = dcpy(memlet.subset)
-        non_ones = subset_copy.squeeze()
-        strides = []
-        total_size = 1
-
-        if non_ones:
+        if len(sdfg.data(name).shape) != len(nsdfg.data(nname).shape):
+            subset_copy = dcpy(memlet.subset)
+            non_ones = subset_copy.squeeze()
             strides = []
             total_size = 1
-            for (i, (sh, st)) in enumerate(zip(sdfg.data(name).shape, sdfg.data(name).strides)):
-                if i in non_ones:
-                    strides.append(st)
-                    total_size *= sh 
+
+            if non_ones:
+                strides = []
+                total_size = 1
+                for (i, (sh, st)) in enumerate(zip(sdfg.data(name).shape, sdfg.data(name).strides)):
+                    if i in non_ones:
+                        strides.append(st)
+                        total_size *= sh 
+            else:
+                strides = [1]
+                total_size = 1
+                
+            nsdfg.data(nname).strides = tuple(strides)
+            nsdfg.data(nname).total_size = total_size 
+        
         else:
-            strides = [1]
-            total_size = 1
-            
-        nsdfg.data(nname).strides = tuple(strides)
-        nsdfg.data(nname).total_size = total_size 
+            nsdfg.data(nname).strides = sdfg.data(name).strides 
+            nsdfg.data(nname).total_size = sdfg.data(name).total_size
 
         # traverse the whole graph and search for arrays
         for ngraph in nsdfg.nodes():

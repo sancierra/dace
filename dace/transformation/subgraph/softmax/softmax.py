@@ -44,15 +44,18 @@ def get_args():
 def apply_pre_transformations(sdfg, cuda_expand = True, strict = False):
     graph = sdfg.nodes()[0]
     sdfg.apply_transformations_repeated(ReduceExpansion)
+    sdfg.save('sdfg_1.sdfg')
     if cuda_expand:
         for node in graph.nodes():
             if isinstance(node, std.nodes.Reduce):
                 node.implementation = 'CUDA (block allreduce)'
         
         sdfg.expand_library_nodes()
-
+        '''
         if strict:
             sdfg.apply_strict_transformations()
+        '''
+        sdfg.save('sdfg_2.sdfg')
 
 
 def fully_fuse(sdfg):
@@ -157,8 +160,10 @@ sdfg.specialize({'SM': args['SM']})
 del args['SM']
 sdfg.apply_gpu_transformations() 
 
-run(sdfg, args)
+
+
+#run(sdfg, args)
 #run(sdfg, args, fusion_handle = fully_fuse)
-run(sdfg, args, fusion_handle = partially_fuse)
-#run(sdfg, args, fusion_handle = fully_fuse_register)
+#run(sdfg, args, fusion_handle = partially_fuse)
+run(sdfg, args, fusion_handle = apply_pre_transformations)
 #run_torch(args, cuda = True)
