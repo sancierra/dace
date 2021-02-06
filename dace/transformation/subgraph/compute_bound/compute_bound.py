@@ -76,7 +76,9 @@ def fuse(sdfg):
     fusion = SubgraphFusion(subgraph)
     fusion.apply(sdfg)
 
-def test_fusion(sdfg, args):
+def test_fusion(sdfg, args, gpu = False):
+    if gpu:
+        sdfg.apply_gpu_transformations()
     # run 1 
     result1 = run(sdfg, args)
     # run 2 
@@ -88,7 +90,7 @@ def test_fusion(sdfg, args):
 
 sdfg = get_sdfg()
 args = get_args() 
-test_fusion(sdfg, args)
+test_fusion(sdfg, args, gpu = True)
 #sdfg.apply_gpu_transformations()
 #fuse(sdfg)
 #sdfg.validate()
