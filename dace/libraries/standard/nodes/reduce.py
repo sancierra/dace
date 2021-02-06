@@ -12,6 +12,7 @@ from typing import Any, Dict, Set
 from dace.config import Config
 from dace.sdfg import SDFG, SDFGState, devicelevel_block_size
 from dace.sdfg import graph
+from dace.sdfg.propagation import propagate_memlet
 from dace.frontend.python.astutils import unparse
 from dace.properties import (Property, CodeProperty, LambdaProperty,
                              RangeProperty, DebugInfoProperty, SetProperty,
@@ -685,10 +686,36 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         reduce_node = node
         in_edge = graph.in_edges(reduce_node)[0]
         out_edge = graph.out_edges(reduce_node)[0]
+        
+        input_data = sdfg.arrays[in_edge.data.data]
+        output_data = sdfg.arrays[out_edge.data.data]
 
         axes = reduce_node.axes
-        ### add a map that encloses the reduce node
-        (new_entry, new_exit) = graph.add_map(
+        
+        # define nested sdfg 
+        nsdfg = SDFG('reduce_all')
+
+        nsdfg.add_array('_allreduce_in',
+                        in_edge.data.subset.size(),
+                        input_data.dtype,
+                        strides=input_data.strides,
+                        storage=input_data.storage)
+
+        nsdfg.add_array('_allreduce_out',
+                        out_edge.data.subset.size(),
+                        output_data.dtype,
+                        strides=output_data.strides,
+                        storage=output_data.storage)
+
+        ngraph = nsdfg.add_state()
+
+
+
+
+
+
+        # add a map that encloses the reduce node
+        (new_entry, new_exit) = ngraph.add_map(
                       name = 'inner_reduce_block',
                       ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'  \
                                 for (i,rng) in enumerate(in_edge.data.subset) \
@@ -696,68 +723,136 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
                       schedule = dtypes.ScheduleType.Default)
 
         map = new_entry.map
+
+        # add reduce node to new graph
+        nreduce_node = dcpy(reduce_node)
+        ngraph.add_node(nreduce_node)
+
+        # add access nodes to new graph 
+        in_node = ngraph.add_access('_allreduce_in')
+        out_node = ngraph.add_access('_allreduce_out')
+
+        # TODO: MOVE
+        '''
+        e = ngraph.add_edge(in_node, None,
+                            new_entry, None,
+                            dcpy(in_edge.data))
+        
+        e.data.data = '_allreduce_in'
+        
+        e = ngraph.add_edge(new_exit, None,
+                            out_node, None,
+                            dcpy(out_edge.data))
+        e.data.data = '_allreduce_out'
+        '''
+        '''
+        not needed any more 
         ExpandReduceCUDABlockAll.redirect_edge(graph,
                                                in_edge,
                                                new_dst=new_entry)
         ExpandReduceCUDABlockAll.redirect_edge(graph,
                                                out_edge,
                                                new_src=new_exit)
+        '''
+        # calculate inner subsets inside map 
 
         subset_in = subsets.Range([
-            in_edge.data.subset[i] if i not in axes else
+            (0, 0, 1) if i not in axes else
             (new_entry.map.params[0], new_entry.map.params[0], 1)
             for i in range(len(in_edge.data.subset))
         ])
-        memlet_in = dace.Memlet(data=in_edge.data.data,
-                                volume=1,
-                                subset=subset_in)
-        memlet_out = dcpy(out_edge.data)
-        graph.add_edge(u=new_entry,
-                       u_connector=None,
-                       v=reduce_node,
-                       v_connector=None,
-                       memlet=memlet_in)
-        graph.add_edge(u=reduce_node,
-                       u_connector=None,
-                       v=new_exit,
-                       v_connector=None,
-                       memlet=memlet_out)
+        subset_out = subsets.Range([
+            (0, 0, 1) 
+            for i in range(len(out_edge.data.subset))
+        ])
 
+        memlet_in = dace.Memlet(data='_allreduce_in',
+                                volume=dace.symbolic.pystr_to_symbolic(1),
+                                subset=subset_in)
+        memlet_out = dace.Memlet(data='_allreduce_out',
+                                 volume=dace.symbolic.pystr_to_symbolic(1),
+                                 subset=subset_out)
+        # add edges inside map 
+        
+        e = ngraph.add_edge(u=new_entry,
+                            u_connector=None,
+                            v=nreduce_node,
+                            v_connector=None,
+                            memlet=memlet_in)
+        e = ngraph.add_edge(u=nreduce_node,
+                            u_connector=None,
+                            v=new_exit,
+                            v_connector=None,
+                            memlet=memlet_out)
+
+        # add edges outside map through propagation 
+
+        omemlet_in = propagate_memlet(ngraph, 
+                                      memlet_in,
+                                      new_entry,
+                                      False)
+        e = ngraph.add_edge(in_node, None,
+                            new_entry, None,
+                            omemlet_in)
+        
+        omemlet_out = propagate_memlet(ngraph,
+                                       memlet_out,
+                                       new_entry,
+                                       False) 
+                        
+        e = ngraph.add_edge(new_exit, None,
+                            out_node, None,
+                            omemlet_out)
+
+
+
+        nsdfg.save('try.sdfg')
         ### add in and out local storage
         from dace.transformation.dataflow.local_storage import LocalStorage
 
         in_local_storage_subgraph = {
-            LocalStorage.node_a: graph.nodes().index(new_entry),
-            LocalStorage.node_b: graph.nodes().index(reduce_node)
+            LocalStorage.node_a: ngraph.nodes().index(new_entry),
+            LocalStorage.node_b: ngraph.nodes().index(nreduce_node)
         }
         out_local_storage_subgraph = {
-            LocalStorage.node_a: graph.nodes().index(reduce_node),
-            LocalStorage.node_b: graph.nodes().index(new_exit)
+            LocalStorage.node_a: ngraph.nodes().index(nreduce_node),
+            LocalStorage.node_b: ngraph.nodes().index(new_exit)
         }
 
-        local_storage = LocalStorage(sdfg.sdfg_id,
-                                     sdfg.nodes().index(state),
+        local_storage = LocalStorage(nsdfg.sdfg_id,
+                                     nsdfg.nodes().index(ngraph),
                                      in_local_storage_subgraph, 0)
 
-        local_storage.array = in_edge.data.data
-        local_storage.apply(sdfg)
+        local_storage.array = '_allreduce_in'
+        local_storage.apply(nsdfg)
         in_transient = local_storage._data_node
-        sdfg.data(in_transient.data).storage = dtypes.StorageType.Register
+        nsdfg.data(in_transient.data).storage = dtypes.StorageType.Register
 
-        local_storage = LocalStorage(sdfg.sdfg_id,
-                                     sdfg.nodes().index(state),
+        local_storage = LocalStorage(nsdfg.sdfg_id,
+                                     nsdfg.nodes().index(ngraph),
                                      out_local_storage_subgraph, 0)
-        local_storage.array = out_edge.data.data
-        local_storage.apply(sdfg)
+        local_storage.array = '_allreduce_out'
+        local_storage.apply(nsdfg)
         out_transient = local_storage._data_node
-        sdfg.data(out_transient.data).storage = dtypes.StorageType.Register
+        nsdfg.data(out_transient.data).storage = dtypes.StorageType.Register
+        
+        # change strides and shape of out transient to dimension 1 
+        print(nsdfg.data(out_transient.data).strides)
+        nsdfg.data(out_transient.data).strides = (1,)
+        print(nsdfg.data(out_transient.data).strides)
+        print(nsdfg.data(out_transient.data).shape)
+        nsdfg.data(out_transient.data).shape = (1,)
+        print(nsdfg.data(out_transient.data).shape)
+        nsdfg.data(out_transient.data).offset = (0,)
 
         # hack: swap edges as local_storage does not work correctly here
         # as subsets and data get assigned wrongly (should be swapped)
-        e1 = graph.in_edges(out_transient)[0]
-        e2 = graph.out_edges(out_transient)[0]
+        e1 = ngraph.in_edges(out_transient)[0]
+        e2 = ngraph.out_edges(out_transient)[0]
         e1.data.data = dcpy(e2.data.data)
         e1.data.subset = dcpy(e2.data.subset)
+        e1.data.subset.squeeze()
+        e2.data.subset.squeeze()
 
         ### add an if tasket and diverge
         code = 'if '
@@ -766,39 +861,55 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
             if i < len(axes) - 1:
                 code += ' and '
         code += ':\n'
-        code += '\tout=inp'
+        code += '\t_outp=_inp'
 
-        tasklet_node = graph.add_tasklet(name='block_reduce_write',
-                                         inputs=['inp'],
-                                         outputs=['out'],
+        tasklet_node = ngraph.add_tasklet(name='block_reduce_write',
+                                         inputs=['_inp'],
+                                         outputs=['_outp'],
                                          code=code)
+        nsdfg.save('try.sdfg')
 
-        edge_out_outtrans = graph.out_edges(out_transient)[0]
-        edge_out_innerexit = graph.out_edges(new_exit)[0]
-        ExpandReduceCUDABlockAll.redirect_edge(graph,
+        edge_out_outtrans = ngraph.out_edges(out_transient)[0]
+        edge_out_innerexit = ngraph.out_edges(new_exit)[0]
+        ExpandReduceCUDABlockAll.redirect_edge(ngraph,
                                                edge_out_outtrans,
                                                new_dst=tasklet_node,
-                                               new_dst_conn='inp')
-        e = graph.add_edge(u=tasklet_node,
-                           u_connector='out',
+                                               new_dst_conn='_inp')
+        
+        
+        e = ngraph.add_edge(u=tasklet_node,
+                           u_connector='_outp',
                            v=new_exit,
                            v_connector=None,
                            memlet=dcpy(edge_out_innerexit.data))
-        # set dynamic with volume 0 FORNOW
-        e.data.volume = 0
+        
+
+        # set dynamic with volume 0 (only thread 0 outputs)
+        e.data.data = '_allreduce_out'
+        e.data.volume = dace.symbolic.pystr_to_symbolic(0)
         e.data.dynamic = True
 
-        ### set reduce_node axes to all (needed)
-        reduce_node.axes = None
+        # set outer volume to 1 accordingly (only thread 0 outputs)
+        omemlet_out.volume = dace.symbolic.pystr_to_symbolic('1')
+     
+        # set reduce_node axes to all 
+        nreduce_node.axes = None
 
         # fill scope connectors, done.
-        sdfg.fill_scope_connectors()
+        nsdfg.fill_scope_connectors()
 
         # finally, change the implementation to cuda (block)
         # itself and expand again.
-        reduce_node.implementation = 'CUDA (block)'
-        sub_expansion = ExpandReduceCUDABlock(0, 0, {}, 0)
-        return sub_expansion.expansion(node=node, state=state, sdfg=sdfg)
+        nreduce_node.implementation = 'CUDA (block)'
+        #sub_expansion = ExpandReduceCUDABlock(0, 0, {}, 0)
+        #return sub_expansion.expansion(node=node, state=state, sdfg=sdfg)
+        # awkward interface provided
+        in_edge._dst_conn = '_allreduce_in'
+        out_edge._src_conn = '_allreduce_out'
+        reduce_node.add_in_connector('_allreduce_in')
+        reduce_node.add_out_connector('_allreduce_out')
+
+        return nsdfg
         #return reduce_node.expand(sdfg, state)
 
 

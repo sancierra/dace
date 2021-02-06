@@ -4,6 +4,7 @@ import torch
 
 from dace.transformation.subgraph import ReduceExpansion, SubgraphFusion, MultiExpansion
 from dace.transformation.dataflow import MapCollapse, RedundantSecondArray
+from dace.transformation.interstate import InlineSDFG
 from dace.transformation.estimator.programs.factory import get_args as factory_args
 from dace.sdfg.graph import SubgraphView
 from dace.sdfg.nodes import MapEntry, MapExit, AccessNode
@@ -41,21 +42,21 @@ def get_args():
     return {**inputs, **symbols}
 
 
-def apply_pre_transformations(sdfg, cuda_expand = True, strict = False):
+def apply_pre_transformations(sdfg, cuda_expand = True, strict = True):
     graph = sdfg.nodes()[0]
     sdfg.apply_transformations_repeated(ReduceExpansion)
-    sdfg.save('sdfg_1.sdfg')
     if cuda_expand:
         for node in graph.nodes():
             if isinstance(node, std.nodes.Reduce):
                 node.implementation = 'CUDA (block allreduce)'
         
         sdfg.expand_library_nodes()
-        '''
+        
         if strict:
             sdfg.apply_strict_transformations()
-        '''
-        sdfg.save('sdfg_2.sdfg')
+    
+    #sdfg.apply_transformations_repeated(InlineSDFG)
+        
 
 
 def fully_fuse(sdfg):
@@ -123,9 +124,11 @@ def run(sdfg, args, fusion_handle = None, strict = True):
         for node in sdfg.nodes()[0].nodes():
             if isinstance(node, std.nodes.Reduce):
                 node.implementation = "CUDA (device)"
-    sdfg.save('runnable.sdfg')
     if strict:
         sdfg.apply_strict_transformations()
+    
+    sdfg.save('runnable.sdfg')
+
     return_value = sdfg(**args)
     return return_value 
 
