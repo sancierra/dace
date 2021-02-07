@@ -3,7 +3,7 @@ import numpy as np
 import torch 
 
 from dace.transformation.subgraph import ReduceExpansion, SubgraphFusion, MultiExpansion
-from dace.transformation.dataflow import MapCollapse, RedundantSecondArray
+from dace.transformation.dataflow import MapCollapse, RedundantSecondArray, MapExpansion
 from dace.transformation.interstate import InlineSDFG
 from dace.transformation.estimator.programs.factory import get_args as factory_args
 from dace.sdfg.graph import SubgraphView
@@ -55,7 +55,7 @@ def apply_pre_transformations(sdfg, cuda_expand = True, strict = True):
         if strict:
             sdfg.apply_strict_transformations()
     
-    #sdfg.apply_transformations_repeated(InlineSDFG)
+    sdfg.apply_transformations_repeated(InlineSDFG)
         
 
 
@@ -97,6 +97,7 @@ def partially_fuse(sdfg):
 def fully_fuse_register(sdfg):
     # inner collapse 
     apply_pre_transformations(sdfg)
+    print("Applied Pre - Transformations")
     sdfg.apply_transformations_repeated(MapCollapse)
     # fully fuse 
     sdfg.save('debug.sdfg')
@@ -114,6 +115,25 @@ def fully_fuse_register(sdfg):
     for node in graph.nodes():
         if isinstance(node, AccessNode) and node.data in ['tmp_sum', 'tmp_max']:
             sdfg.data(node.data).storage = dace.dtypes.StorageType.GPU_Shared
+
+    # now expand and collapse, assign thread block schedule to inner one 
+    sdfg.apply_transformations(MapExpansion)
+    x_in = graph.source_nodes()[0]
+    gpu_x_in = graph.out_edges(x_in)[0].dst 
+
+    for _ in range(2):
+        outer = graph.out_edges(gpu_x_in)[0].dst 
+        inner = graph.out_edges(outer)[0].dst 
+        collapse = MapCollapse(sdfg.sdfg_id,
+                               sdfg.nodes().index(graph),
+                               {MapCollapse._outer_map_entry: graph.nodes().index(outer),
+                                MapCollapse._inner_map_entry: graph.nodes().index(inner)},
+                               0)
+        collapse.apply(sdfg)
+
+    outer = graph.out_edges(gpu_x_in)[0].dst 
+    inner = graph.out_edges(outer)[0].dst 
+    inner.map.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
 
 
 
@@ -168,5 +188,7 @@ sdfg.apply_gpu_transformations()
 #run(sdfg, args)
 #run(sdfg, args, fusion_handle = fully_fuse)
 #run(sdfg, args, fusion_handle = partially_fuse)
-run(sdfg, args, fusion_handle = apply_pre_transformations)
+#run(sdfg, args, fusion_handle = apply_pre_transformations)
+run(sdfg, args, fusion_handle = fully_fuse_register)
+
 #run_torch(args, cuda = True)
