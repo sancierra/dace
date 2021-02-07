@@ -17,35 +17,49 @@ def compute_bound(A: dace.float32[M,N], B: dace.float32[M,N]):
 
     for i, j in dace.map[0:M, 0:N]:
         tmp_var = np.float32(0.0)
-        for k in range(100):
+        for k in range(200):
             with dace.tasklet:
                 in1 << A[i,j]
                 in2 << tmp_var
                 out1 >> tmp_var
 
-                out1 = out1 + sin(cos(cos(sin(in1))))
+                out1 = in2 + sin(in1)
 
         tmp1[i,j] = tmp_var 
 
     for i,j in dace.map[0:M, 0:N]:
         tmp_var = np.float32(0.0)
-        for k in range(100):
+        for k in range(200):
             with dace.tasklet:
                 in1 << B[i,j]
                 in2 << tmp_var
                 out1 >> tmp_var
 
-                out1 += sqrt(cos(sqrt(sin(sin(in1)))))
+                out1 = in2 + cos(in1)
 
         tmp2[i,j] = tmp_var 
 
     for i,j in dace.map[0:M, 0:N]:
+        '''
         with dace.tasklet:
             in1 << tmp1[i,j]
             in2 << tmp2[i,j]
             out1 >> ret[i,j]
 
-            out1 = sin(cos(in1) + cos(in2)) / sin(cos(in1) + sin(in2))
+            tt1 = sin(cos(in1) + cos(in2)) / (2+sin(cos(in1) + sin(in2)))
+            tt2 = (cos(tt1) + sin(tt1)) / 8
+            tt3 = cos(tt1) + sin(tt2) 
+            out1 = tt3
+        '''
+        tmp_var = tmp1[i,j] + tmp2[i,j] 
+        for k in range(100):
+            with dace.tasklet:
+                in1 << tmp_var 
+                out1 >> tmp_var
+                
+                out1 = in1 + cos(in1) - sin(in1)  
+
+        ret[i,j] = tmp_var
 
     return ret 
 
@@ -59,8 +73,8 @@ def get_args():
     N = 512
     M = 512
 
-    args['A'] = np.ndarray((M,N), dtype = np.float32)
-    args['B'] = np.ndarray((M,N), dtype = np.float32)
+    args['A'] = np.random.rand(M,N).astype(np.float32)
+    args['B'] = np.random.rand(M,N).astype(np.float32)
 
     args.update({'N':N, 'M':M})
     return args 
@@ -68,6 +82,7 @@ def get_args():
 
 def run(sdfg, args):
     result = sdfg(**args)
+    print(result[0][0:50])
     return result 
 
 def fuse(sdfg):
