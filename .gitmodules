@@ -11,3 +11,6 @@
 [submodule "diode/webclient"]
 	path = diode/webclient
 	url = https://github.com/spcl/dace-webclient.git
+[submodule "dace/transformation/subgraph/transformer/substation"]
+	path = dace/transformation/subgraph/transformer/substation
+	url = https://github.com/spcl/substation.git
