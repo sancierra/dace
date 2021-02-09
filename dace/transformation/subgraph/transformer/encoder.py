@@ -222,7 +222,8 @@ def run_cached(sdfg, kwargs):
     
     executable(**kwargs)
     
-def run(run_baseline = True, 
+def run(gpu = False,
+        run_baseline = True, 
         run_preprocessed = True,
         run_numpy = True,
         run_cached = False):
@@ -236,7 +237,7 @@ def run(run_baseline = True,
     kwargs_numpy = get_args_numpy(kwargs_sdfg)
 
     if gpu:
-        gpu.apply_gpu_transformations()
+        sdfg.apply_gpu_transformations()
 
     if run_baseline:
         ### vanilla sdfg 
@@ -265,7 +266,7 @@ def run(run_baseline = True,
     for (result_name, result_array) in results.items():
         print(np.linalg.norm(result_array), " -> ", result_name)
     
-run(gpu = False,
+run(gpu = True,
     run_baseline = True, 
     run_preprocessed = True,
     run_numpy = True,
