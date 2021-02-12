@@ -4,6 +4,7 @@ import os
 
 import dace.sdfg.nodes as nodes 
 import dace.libraries as lib
+import dace.dtypes as dtypes 
 
 from dace.transformation.subgraph import ReduceExpansion
 from dace.transformation.subgraph.gemm import NestOut
@@ -18,7 +19,7 @@ import substation
 import substation.transformer as transformer
 
 
-def run_pre_expansions(sdfg):
+def expand_reductions(sdfg):
     # expands a raw encoder sdfg using 
     # transformations suitable for encoding 
 
@@ -82,28 +83,66 @@ def run_pre_expansions(sdfg):
     
     process(sdfg, graph)
 
-    print("APPLYING STRICT TRAFOS...")
+def pre_transformations(sdfg, gpu = False):
+    graph = sdfg.nodes()[0]
+    print("Applying strict trafos...")
     sdfg.apply_strict_transformations()
+    '''
+    print("Inlining bias node...")
     for node in graph.nodes():
         if isinstance(node, nodes.NestedSDFG) and 'bias' in node.label:
-            
             InlineSDFG.apply_to(sdfg, _nested_sdfg = node)
-    #sdfg.apply_transformations_repeated(InlineSDFG)
 
-    print("FORNOW: ISOLATING BIAS LAYER...")
+    print("FORNOW: Nest back bias...")
     for node in graph.nodes():
         if isinstance(node, nodes.MapEntry) and node.label == 'linear_with_bias_47':
             nest_state_subgraph(sdfg, graph, graph.scope_subgraph(node))
-   
-    print("VALIDATE...")
+    '''
+    print("FORNOW: Register -> Default")
+    for node in graph.nodes():
+        if isinstance(node, nodes.NestedSDFG) and 'einsum' not in node.label:
+            nsdfg = node.sdfg 
+            ngraph = nsdfg.nodes()[0]
+            print(f"Searching Nested SDFG {node}")
+            for nnode in ngraph.nodes():
+                if isinstance(nnode, lib.blas.nodes.MatMul):
+                    '''
+                    print(f"Found node {nnode}")
+                    node_to_delete = ngraph.out_edges(nnode)[0].dst 
+                    print("node_to_delete=", node_to_delete)
+                    dace.sdfg.utils.change_edge_src(ngraph, node_to_delete, nnode)
+                    ngraph.remove_node(node_to_delete)
+                    ngraph.out_edges(nnode)[0].src_conn = '_c'
+                    print("****", ngraph.out_edges(nnode)[0].data)
+                    '''
+                    for iedge in ngraph.in_edges(nnode):
+                        if isinstance(iedge.src, nodes.AccessNode):
+                            if gpu:
+                                nsdfg.data(iedge.src.data).storage = dtypes.StorageType.GPU_Global
+                            else:
+                                nsdfg.data(iedge.src.data).storage = dtypes.StorageType.Default
+            
+            
+
+
+    print("Validate...")
     sdfg.validate()
-    print("DONE.")
+    print("Done.")
     
 
-def get_encoder():
+def get_encoder_cpu():
     # returns a raw encoder sdfg
-    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_cpu.sdfg')
     return sdfg  
+
+def get_encoder_cpu2():
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_gpu.sdfg')
+    return sdfg 
+
+def get_encoder_gpu():
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_gpu.sdfg')
+    sdfg.apply_gpu_transformations()
+    return sdfg 
 
 def get_args():
     kwargs = {}
@@ -199,75 +238,111 @@ def run_encoder_numpy(kwargs):
 
     
 def test_transformation():
-    sdfg = get_encoder()
+    ''' tests pre - tranformations in gpu and cpu '''
+    sdfg = get_encoder_cpu()
     kwargs = get_args()
 
     result1 = sdfg(**kwargs)
 
-    run_pre_expansions(sdfg)
+    expand_reductions(sdfg)
+    pre_transformations(sdfg)
     result2 = sdfg(**kwargs)
 
     print(np.linalg.norm(result1))
     print(np.linalg.norm(result2))
 
 
-def run_cached(sdfg, kwargs):
-    
-    binary_filename = compiler.get_binary_name(sdfg.build_folder,
-                                                       sdfg.name)
-    if os.path.isfile(binary_filename):
-        executable = compiler.load_from_file(sdfg, binary_filename)
-    else:
-        raise RuntimeError()
-    
-    executable(**kwargs)
-    
-def run(gpu = False,
-        run_baseline = True, 
-        run_preprocessed = True,
-        run_numpy = True,
+
+def assign_reduce(sdfg, implementation):
+    ''' assigns reduction implementation to all reduce nodes '''
+    graph = sdfg.nodes()[0]
+    for node in graph.nodes():
+        if isinstance(node, lib.standard.nodes.Reduce):
+            print(f"Assigned reduce node {node}")
+            node.implementation = implementation
+
+
+def run(run_baseline_cpu = True,
+        run_baseline_gpu = True, 
+        run_baseline_numpy = True,
+
+        run_baseline_debug = True,
+
+        run_expanded_cpu = True,
+        run_expanded_gpu = True,
+
+
         run_cached = False):
         
     results = {}
 
-    sdfg = get_encoder()
-    sdfg.validate() 
+    sdfg_cpu = get_encoder_cpu()
+    sdfg_cpu.validate() 
+
+    sdfg_gpu = get_encoder_gpu()
+    sdfg_gpu.validate() 
+
+    sdfg_cpu2 = get_encoder_cpu2()
+    sdfg_cpu2.validate
 
     kwargs_sdfg = get_args()
     kwargs_numpy = get_args_numpy(kwargs_sdfg)
 
-    if gpu:
-        sdfg.apply_gpu_transformations()
+    #pre_transformations(sdfg_cpu, gpu = False)
+    #pre_transformations(sdfg_gpu, gpu = True)
+    #pre_transformations(sdfg_cpu2, gpu = False)
 
-    if run_baseline:
+
+    if run_baseline_cpu:
         ### vanilla sdfg 
-        result1 = run_encoder(sdfg, kwargs_sdfg)
-        results['baseline'] = result1
+        assign_reduce(sdfg_cpu, 'pure')
+        result_bcpu = run_encoder(sdfg_cpu, kwargs_sdfg)
+        results['baseline_cpu'] = result_bcpu
+    
+    if run_baseline_debug:
+        ### fixed sdfg --.-- 
+        assign_reduce(sdfg_gpu, 'pure')
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['baseline_cpu2'] = result_bgpu
 
-    if run_preprocessed:
+    if run_baseline_gpu:
+        assign_reduce(sdfg_gpu, 'CUDA (device)')
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['baseline_gpu'] = result_bgpu
+        
+    if run_expanded_cpu:
         ### preprocessed sdfg 
-        run_pre_expansions(sdfg)
-        sdfg.validate()
-        result2 = run_encoder(sdfg, kwargs_sdfg)
-        results['preprocessed'] = result2
+        expand_reductions(sdfg_cpu)
+        sdfg_cpu.validate()
+        result2_cpu = run_encoder(sdfg_cpu, kwargs_sdfg)
+        results['preprocessed_cpu'] = result2_cpu
+
+    if run_expanded_gpu:
+        expand_reductions(sdfg_gpu)
+        sdfg_gpu.validate()
+        assign_reduce(sdfg_gpu, 'CUDA (block allreduce)')
+        result2_gpu = run_encuder(sdfg_gpu, kwargs_sdfg)
+        results['preprocessed_gpu'] = result2_gpu 
 
 
-    if run_numpy:
+    if run_baseline_numpy:
         ### numpy reference
         result_np = run_encoder_numpy(kwargs_numpy)
         results['numpy_reference'] = result_np 
 
     if run_cached:
-        ### cached
-        result_cached = run_cached(sdfg, kwargs_sdfg)
+        ### cached -- pass sdfg_cpu as a reference
+        result_cached = run_cached(sdfg_cpu, kwargs_sdfg)
         results['cached'] = result_cached 
 
 
     for (result_name, result_array) in results.items():
         print(np.linalg.norm(result_array), " -> ", result_name)
     
-run(gpu = True,
-    run_baseline = True, 
-    run_preprocessed = True,
-    run_numpy = True,
+run(run_baseline_cpu = True, 
+    run_baseline_debug = True, # debug 
+    run_baseline_gpu = True,
+    run_expanded_cpu = False,
+    run_expanded_gpu = False,
+    run_baseline_numpy = False,
     run_cached = False)
