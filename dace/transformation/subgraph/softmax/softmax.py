@@ -9,6 +9,9 @@ from dace.transformation.estimator.programs.factory import get_args as factory_a
 from dace.sdfg.graph import SubgraphView
 from dace.sdfg.nodes import MapEntry, MapExit, AccessNode
 import dace.libraries.standard as std 
+from dace.codegen import compiler
+
+import dace.transformation.helpers as helpers
 
 
 
@@ -42,6 +45,7 @@ def get_args():
     return {**inputs, **symbols}
 
 
+
 def apply_pre_transformations(sdfg, cuda_expand = True, strict = True):
     graph = sdfg.nodes()[0]
     sdfg.apply_transformations_repeated(ReduceExpansion)
@@ -49,13 +53,10 @@ def apply_pre_transformations(sdfg, cuda_expand = True, strict = True):
         for node in graph.nodes():
             if isinstance(node, std.nodes.Reduce):
                 node.implementation = 'CUDA (block allreduce)'
+                node.expand(sdfg, graph)
         
-        sdfg.expand_library_nodes()
-        
-        if strict:
-            sdfg.apply_strict_transformations()
-    
     sdfg.apply_transformations_repeated(InlineSDFG)
+    sdfg.apply_transformations(RedundantSecondArray)
         
 
 
@@ -94,7 +95,7 @@ def partially_fuse(sdfg):
     sf.apply(sdfg)
     
 
-def fully_fuse_register(sdfg):
+def fully_fuse_block_inner(sdfg):
     # inner collapse 
     apply_pre_transformations(sdfg)
     print("Applied Pre - Transformations")
@@ -110,7 +111,6 @@ def fully_fuse_register(sdfg):
     sf.transient_allocation = dace.dtypes.StorageType.Register 
     sf.schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock
     sf.apply(sdfg)
-    sdfg.apply_transformations(RedundantSecondArray)
     # change storage
     for node in graph.nodes():
         if isinstance(node, AccessNode) and node.data in ['tmp_sum', 'tmp_max']:
@@ -134,7 +134,33 @@ def fully_fuse_register(sdfg):
     outer = graph.out_edges(gpu_x_in)[0].dst 
     inner = graph.out_edges(outer)[0].dst 
     inner.map.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
+    '''
+    scope_subgraph = graph.scope_subgraph(inner, include_entry = False, include_exit = False)
+    print(scope_subgraph.nodes())
+    nsdfg = helpers.nest_state_subgraph(sdfg, graph, scope_subgraph)
+    print(nsdfg)
+    sdfg.save('nested.sdfg')
+    '''
 
+
+def fully_fuse_register(sdfg):
+    apply_pre_transformations(sdfg, cuda_expand = False)
+    graph = sdfg.nodes()[0]
+    subgraph = SubgraphView(graph, graph.nodes())
+    me = MultiExpansion(subgraph)
+    me.apply(sdfg)
+    sf = SubgraphFusion(subgraph)
+    sf.transient_allocation = dace.dtypes.StorageType.Register 
+    sf.schedule_innermaps = dace.dtypes.ScheduleType.Sequential
+    sf.apply(sdfg)
+    return sdfg 
+
+
+def run_cached(sdfg, args):
+    binary_filename = compiler.get_binary_name(sdfg.build_folder, sdfg.name)    
+    handle = compiler.load_from_file(sdfg, binary_filename)
+    result = handle(**args)
+    return result
 
 
 def run(sdfg, args, fusion_handle = None, strict = True):
@@ -189,6 +215,17 @@ sdfg.apply_gpu_transformations()
 #run(sdfg, args, fusion_handle = fully_fuse)
 #run(sdfg, args, fusion_handle = partially_fuse)
 #run(sdfg, args, fusion_handle = apply_pre_transformations)
+#run(sdfg, args, fusion_handle = fully_fuse_block_inner)
 run(sdfg, args, fusion_handle = fully_fuse_register)
+
+#fully_fuse_block_inner(sdfg)
+#rv = run_cached(sdfg, args)
+#print(np.linalg.norm(rv))
+
+#rv = run(sdfg, args)
+#print(np.linalg.norm(rv))
+
+#run_and_compare(sdfg, args, fusion_handle = fully_fuse)
+#run_and_compare(sdfg, args, fusion_handle = fully_fuse_block_inner)
 
 #run_torch(args, cuda = True)
