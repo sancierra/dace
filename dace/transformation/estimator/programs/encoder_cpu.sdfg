@@ -8179,7 +8179,7 @@
           "label": "layer_norm_scaled_106",
           "attributes": {
             "code": {
-              "string_data": "o = ((in_scal * ((in_x - in_m) / (in_s + 1e-05))) + in_bias)",
+              "string_data": "o = ((in_scal * ((in_x - in_m) / (in_s + float(1e-05)))) + in_bias)",
               "language": "Python"
             },
             "debuginfo": {
@@ -8602,7 +8602,7 @@
           "label": "gelu_22",
           "attributes": {
             "code": {
-              "string_data": "outp = ((0.5 * inp) * (1 + math.tanh((math.sqrt((2.0 / math.pi)) * (inp + (0.044715 * (inp ** 3)))))))",
+              "string_data": "outp = ((float(0.5) * inp) * (float(1) + math.tanh((math.sqrt((  float(0.6366197724)  )) * (inp + (  float(0.044715) * (inp ** 3)))))))",
               "language": "Python"
             },
             "debuginfo": {

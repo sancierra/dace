@@ -11,7 +11,8 @@ def get_runtimes_davinci():
     softmax = {}
     color = {}
     softmax['baseline'] = 378
-    softmax['fully fused'] = 100
+    softmax['fully fused'] = 102
+    softmax['fully fused (reg)'] = 92
     softmax['partially fused'] = 145
     softmax['pytorch reference'] = 58
     descriptors['softmax'] = 'Float32, 16 x 16 x 128 x 128 (Davinci)'

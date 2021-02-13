@@ -11,7 +11,10 @@ from dace.sdfg.nodes import MapEntry, MapExit, AccessNode
 import dace.libraries.standard as std 
 from dace.codegen import compiler
 
+import dace.sdfg.nodes as nodes 
 import dace.transformation.helpers as helpers
+import dace.dtypes as dtypes 
+
 
 
 
@@ -153,6 +156,15 @@ def fully_fuse_register(sdfg):
     sf.transient_allocation = dace.dtypes.StorageType.Register 
     sf.schedule_innermaps = dace.dtypes.ScheduleType.Sequential
     sf.apply(sdfg)
+
+    sdfg.expand_library_nodes()
+    for n in graph.nodes():
+        if isinstance(n, nodes.NestedSDFG):
+            for ngraph in n.sdfg.nodes():
+                for nn in ngraph.nodes():
+                    if isinstance(nn, nodes.MapEntry):
+                        print(f"Changed node Schedule of {nn}")
+                        nn.map.schedule = dtypes.ScheduleType.Sequential
     return sdfg 
 
 
