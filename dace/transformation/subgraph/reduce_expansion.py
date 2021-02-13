@@ -48,6 +48,10 @@ class ReduceExpansion(transformation.Transformation):
                                     dtype=bool,
                                     default=False)
 
+    tile_size = Property(desc = "Tile Size for Reduction Tiling",
+                         dtype = int,
+                         default = 1)
+
     reduce_implementation = Property(
         desc="Reduce implementation of inner reduce. If specified,"
         "overrides any existing implementations",
@@ -152,6 +156,10 @@ class ReduceExpansion(transformation.Transformation):
 
         inner_exit = nstate.exit_node(inner_entry)
         outer_exit = nstate.exit_node(outer_entry)
+
+        # take care of tiling 
+        if self.tile_size > 1:
+            tiling = Tiling()
 
         # find earliest parent read-write occurrence of array onto which
         # we perform the reduction:
