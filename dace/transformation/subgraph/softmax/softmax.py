@@ -215,12 +215,43 @@ def run_torch(args, cuda = True):
     print(norm)
 
 
+
+def test_tiled_reduction(sdfg, args):
+    graph = sdfg.nodes()[0]
+    print("PART I: Tiled ReduceExpansion")
+    for n in graph.nodes():
+        if isinstance(n, std.nodes.Reduce):
+            r = ReduceExpansion(0,0,{ReduceExpansion._reduce: graph.nodes().index(n)},0)
+            r.tile_size = 4
+            print("APPLY")
+            r.apply(sdfg)
+    
+    for n in graph.nodes():
+        if isinstance(n, std.nodes.Reduce):
+            if n.axes == None:
+                n.implementation = 'CUDA (block allreduce)'
+    
+    sdfg.save('tiling_inspect_i.sdfg')
+    print("PART II: Expanding LibraryNodes")
+
+    sdfg.expand_library_nodes()
+    sdfg.save('tiling_inspect_ii.sdfg')
+
+    return sdfg 
+
+
 sdfg = get_sdfg()
 args = get_args()
 sdfg.specialize({'SM': args['SM']})
 del args['SM']
-sdfg.apply_gpu_transformations() 
 
+
+
+
+
+
+#sdfg.apply_gpu_transformations() 
+test_tiled_reduction(sdfg, args)
 
 
 #run(sdfg, args)
@@ -228,7 +259,7 @@ sdfg.apply_gpu_transformations()
 #run(sdfg, args, fusion_handle = partially_fuse)
 #run(sdfg, args, fusion_handle = apply_pre_transformations)
 #run(sdfg, args, fusion_handle = fully_fuse_block_inner)
-run(sdfg, args, fusion_handle = fully_fuse_register)
+#run(sdfg, args, fusion_handle = fully_fuse_register)
 
 #fully_fuse_block_inner(sdfg)
 #rv = run_cached(sdfg, args)
