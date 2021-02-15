@@ -902,6 +902,9 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
                 code += ' and '
         code += ':\n'
         code += '\t_outp=_inp'
+        if not add_enclosing_maps:
+            code += '\n'
+            code += '__syncthreads();'
 
         nsdfg.save('intermediate.sdfg')
         tasklet_node = ngraph.add_tasklet(name='block_reduce_write',
