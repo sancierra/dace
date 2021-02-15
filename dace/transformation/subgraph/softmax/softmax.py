@@ -217,8 +217,8 @@ def run_torch(args, cuda = True):
 
 
 def test_tiled_reduction(sdfg, args):
+    sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
-    print("PART I: Tiled ReduceExpansion")
     for n in graph.nodes():
         if isinstance(n, std.nodes.Reduce):
             r = ReduceExpansion(0,0,{ReduceExpansion._reduce: graph.nodes().index(n)},0)
@@ -230,16 +230,16 @@ def test_tiled_reduction(sdfg, args):
         if isinstance(n, std.nodes.Reduce):
             if n.axes == None:
                 n.implementation = 'CUDA (block allreduce)'
+        if isinstance(n, nodes.EntryNode) and n.label == 'reduce_values':
+            n.map.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
     
-    sdfg.save('tiling_inspect_i.sdfg')
-    print("PART II: Expanding LibraryNodes")
-
-    sdfg.expand_library_nodes()
-    sdfg.save('tiling_inspect_ii.sdfg')
-
-    return sdfg 
+    result = sdfg(**args)
+    print(np.linalg.norm(result)) 
 
 
+def tiled_handle(sdfg):
+    test_tiled_reduction(sdfg, None)
+        
 sdfg = get_sdfg()
 args = get_args()
 sdfg.specialize({'SM': args['SM']})

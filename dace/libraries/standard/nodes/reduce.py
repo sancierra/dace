@@ -8,12 +8,14 @@ import itertools
 import functools
 import dace.serialize
 import dace.library
+
 from typing import Any, Dict, Set
 from dace.config import Config
 from dace.sdfg import SDFG, SDFGState, devicelevel_block_size
 from dace.sdfg import graph
 from dace.sdfg.propagation import propagate_memlet
 from dace.frontend.python.astutils import unparse
+from dace.memlet import Memlet 
 from dace.properties import (Property, CodeProperty, LambdaProperty,
                              RangeProperty, DebugInfoProperty, SetProperty,
                              make_properties, indirect_properties, DataProperty,
@@ -690,7 +692,6 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         input_data = sdfg.arrays[in_edge.data.data]
         output_data = sdfg.arrays[out_edge.data.data]
 
-        axes = reduce_node.axes
         
         # define nested sdfg 
         nsdfg = SDFG('reduce_all')
@@ -713,20 +714,25 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         # if the reduce node is already contained in 
         # a thread block map, no need to.
         
-        scope_dict = graph.scope_dict(reduce_node)
+        scope_dict = graph.scope_dict()
         current_node = reduce_node
         while scope_dict[current_node] and scope_dict[current_node].map.schedule != dtypes.ScheduleType.GPU_ThreadBlock:
             current_node = scope_dict[current_node]
 
-        if current_node:
-            add_enclosing_maps = True 
-        else:
+        print("Result=", scope_dict[current_node])
+        print(scope_dict[current_node].map.schedule)
+        if scope_dict[current_node]:
             add_enclosing_maps = False 
             threadblock_entry = scope_dict[current_node]
+
+        else:
+            add_enclosing_maps = True 
 
         print("Add enclosing maps = ", add_enclosing_maps)
         if add_enclosing_maps:
             # add a map that encloses the reduce node
+            axes = reduce_node.axes if reduce_node.axes else [i for i in range(len(in_edge.data.subset()))]
+
             (new_entry, new_exit) = ngraph.add_map(
                         name = 'inner_reduce_block',
                         ndrange = {'i'+str(i): f'{rng[0]}:{rng[1]+1}:{rng[2]}'  \
@@ -750,7 +756,7 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         if add_enclosing_maps:
 
             subset_in = subsets.Range([
-                (0, 0, 1) if i not in axes else
+                (dace.symbolic.pystr_to_symbolic(0, 0, 1)) if i not in axes else
                 (new_entry.map.params[0], new_entry.map.params[0], 1)
                 for i in range(len(in_edge.data.subset))
             ])
@@ -791,24 +797,23 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         
         else:
             # no outer maps, so 
-            assert nsdfg.data('_allreduce_in').size() == 1
-            assert nsdfg.data('_allreduce_out').size() == 1
+            assert nsdfg.data('_allreduce_in').total_size == 1
+            assert nsdfg.data('_allreduce_out').total_size == 1
 
 
         # add outside edges 
         pre_node, post_node = None, None 
         pre_data, post_data = None, None 
         if add_enclosing_maps:
-            pre_node, post_node = nreduce_node, nreduce_node
-            pre_data, post_data = graph.in_edges(reduce_node)[0].data, graph.out_edges(reduce_node)[0].data
-            pre_data.data = '_allreduce_in'
-            post_data.data = '_allreduce_out'
-        
-        else:
             pre_node, post_node = new_entry, new_exit 
             pre_data, post_data = omemlet_in, omemlet_out 
 
-
+        else:
+            pre_node, post_node = nreduce_node, nreduce_node
+            pre_data, post_data = dcpy(in_edge.data), dcpy(out_edge.data)
+            pre_data.data = '_allreduce_in'
+            post_data.data = '_allreduce_out'
+        
         e = ngraph.add_edge(in_node, None,
                             pre_node, None,
                             pre_data)
@@ -865,23 +870,26 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         nsdfg.data(out_transient.data).storage = dtypes.StorageType.Register
         
         # change strides and shape of out transient to dimension 1 
-        if add_enclosing_maps:
-            print(nsdfg.data(out_transient.data).strides)
-            nsdfg.data(out_transient.data).strides = (1,)
-            print(nsdfg.data(out_transient.data).strides)
-            print(nsdfg.data(out_transient.data).shape)
-            nsdfg.data(out_transient.data).shape = (1,)
-            print(nsdfg.data(out_transient.data).shape)
-            nsdfg.data(out_transient.data).offset = (0,)
+        print(nsdfg.data(out_transient.data).strides)
+        nsdfg.data(out_transient.data).strides = (dace.symbolic.pystr_to_symbolic(1),)
+        print(nsdfg.data(out_transient.data).strides)
+        print(nsdfg.data(out_transient.data).shape)
+        nsdfg.data(out_transient.data).shape = (dace.symbolic.pystr_to_symbolic(1),)
+        print(nsdfg.data(out_transient.data).shape)
+        nsdfg.data(out_transient.data).offset = (dace.symbolic.pystr_to_symbolic(0),)
 
-            # hack: swap edges as local_storage does not work correctly here
-            # as subsets and data get assigned wrongly (should be swapped)
-            e1 = ngraph.in_edges(out_transient)[0]
-            e2 = ngraph.out_edges(out_transient)[0]
-            e1.data.data = dcpy(e2.data.data)
-            e1.data.subset = dcpy(e2.data.subset)
-            e1.data.subset.squeeze()
-            e2.data.subset.squeeze()
+        # hack: swap edges as local_storage does not work correctly here
+        # as subsets and data get assigned wrongly (should be swapped)
+        e1 = ngraph.in_edges(out_transient)[0]
+        e2 = ngraph.out_edges(out_transient)[0]
+        e1.data.data = dcpy(e2.data.data)
+        e1.data.subset = dcpy(e2.data.subset)
+        e1.data.subset.squeeze()
+        e2.data.subset.squeeze()
+        e1.data.volume = 1
+        e1.data.dynamic = False 
+        e2.data.volume = 1
+        e2.data.dynamic = False 
 
 
 
@@ -890,17 +898,39 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         code = 'if '
         for (i, param) in enumerate(threadblock_entry.map.params):
             code += (param + '== 0')
-            if i < len(axes) - 1:
+            if i < len(threadblock_entry.map.params) - 1:
                 code += ' and '
         code += ':\n'
         code += '\t_outp=_inp'
 
+        nsdfg.save('intermediate.sdfg')
         tasklet_node = ngraph.add_tasklet(name='block_reduce_write',
                                          inputs=['_inp'],
                                          outputs=['_outp'],
                                          code=code)
 
-
+        out_transient_edge = ngraph.out_edges(out_transient)[0]
+        # redirect this via our new tasklet 
+        e = ngraph.add_edge(u = out_transient,
+                            u_connector = None,
+                            v = tasklet_node,
+                            v_connector = '_inp',
+                            memlet = dcpy(out_transient_edge.data))
+        # this edge requires special memlet 
+        print("*****", subsets.Range.from_array(nsdfg.data('_allreduce_out')))
+        post_tasklet_memlet = Memlet(data = '_allreduce_out',
+                                     volume = dace.symbolic.pystr_to_symbolic(0),
+                                     dynamic = True,
+                                     subset = subsets.Range.from_array(nsdfg.data('_allreduce_out')))
+        print("******", post_tasklet_memlet)
+        e = ngraph.add_edge(u = tasklet_node,
+                            u_connector = '_outp',
+                            v = out_transient_edge.dst,
+                            v_connector = out_transient_edge.dst_conn,
+                            memlet = post_tasklet_memlet)
+        print("ADDED", e.data)
+        ngraph.remove_edge(out_transient_edge)
+        '''
         edge_out_outtrans = ngraph.out_edges(out_transient)[0]        
         ExpandReduceCUDABlockAll.redirect_edge(ngraph,
                                                edge_out_outtrans,
@@ -909,20 +939,20 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         
         edge_out = ngraph.in_edges(out_node)[0]
         e = ngraph.add_edge(u=tasklet_node,
-                           u_connector='_outp',
-                           v=new_exit if add_enclosing_maps else out_node,
-                           v_connector=None,
-                           memlet=dcpy(edge_out.data))
-        
+                            u_connector='_outp',
+                            v=new_exit if add_enclosing_maps else out_node,
+                            v_connector=None,
+                            memlet=dcpy(edge_out.data))
+        '''
 
-        # set dynamic with volume 0 (only thread 0 outputs)
-        e.data.data = '_allreduce_out'
-        e.data.volume = dace.symbolic.pystr_to_symbolic(0)
-        e.data.dynamic = True
+
 
         # set outer volume to 1 accordingly (only thread 0 outputs)
+        ngraph.out_edges(tasklet_node)[0].volume = dace.symbolic.pystr_to_symbolic('1')
+        '''
         omemlet_out.volume = dace.symbolic.pystr_to_symbolic('1')
-     
+        '''
+
         # set reduce_node axes to all 
         nreduce_node.axes = None
 

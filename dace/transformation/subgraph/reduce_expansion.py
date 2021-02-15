@@ -190,6 +190,7 @@ class ReduceExpansion(transformation.Transformation):
 
             OutLocalStorage.apply_to(nsdfg.sdfg, node_a = inner_inner_exit, node_b = inner_exit)
             incoming_transient_tiled = ngraph.out_edges(inner_inner_exit)[0].dst
+            nsdfg.sdfg.data(incoming_transient_tiled.data).storage = dtypes.StorageType.Register
             old_edge = ngraph.out_edges(incoming_transient_tiled)[0]
 
             # add new second identity tasklet 
@@ -200,6 +201,7 @@ class ReduceExpansion(transformation.Transformation):
             ngraph.add_edge(incoming_transient_tiled, None, tasklet_node, 'inp', Memlet(mm_trans.data, mm_trans.subset, volume=1))
             ngraph.add_edge(tasklet_node, 'out', inner_exit, 'IN__out', old_edge.data)
 
+            '''
             oedge = ngraph.out_edges(tasklet_node)[0]
             oedge.data.volume = 0
             oedge.data.dynamic = True
@@ -207,6 +209,7 @@ class ReduceExpansion(transformation.Transformation):
             oedge.data.volume = 1
             oedge = ngraph.out_edges(oedge.dst)[0]
             oedge.data.volume = oedge.data.subset.num_elements()
+            '''
 
 
             ngraph.remove_edge(old_edge)
