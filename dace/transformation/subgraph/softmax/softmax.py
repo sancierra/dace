@@ -216,7 +216,7 @@ def run_torch(args, cuda = True):
 
 
 
-def test_tiled_reduction(sdfg, args):
+def test_tiled_reduction(sdfg):
     sdfg.apply_gpu_transformations()
     graph = sdfg.nodes()[0]
     for n in graph.nodes():
@@ -230,15 +230,62 @@ def test_tiled_reduction(sdfg, args):
         if isinstance(n, std.nodes.Reduce):
             if n.axes == None:
                 n.implementation = 'CUDA (block allreduce)'
+            else:
+                n.schedule = dace.dtypes.ScheduleType.Sequential 
+
         if isinstance(n, nodes.EntryNode) and n.label == 'reduce_values':
             n.map.schedule = dace.dtypes.ScheduleType.GPU_ThreadBlock
-    
-    result = sdfg(**args)
-    print(np.linalg.norm(result)) 
 
+    '''
+    sdfg.expand_library_nodes()
+    for n in graph.nodes():
+        if isinstance(n, nodes.NestedSDFG):
+            for ngraph in n.sdfg.nodes():
+                for nn in ngraph.nodes():
+                    if isinstance(nn, nodes.MapEntry):
+                        print(f"Changed node Schedule of {nn}")
+                        nn.map.schedule = dtypes.ScheduleType.Sequential
+    '''
+
+def test_tiled_fusion(sdfg):
+    sdfg.apply_gpu_transformations()
+    graph = sdfg.nodes()[0]
+    
+    print("---- Reduction Nodes ----")
+    for n in graph.nodes():
+        if isinstance(n, std.nodes.Reduce):
+            r = ReduceExpansion(0,0,{ReduceExpansion._reduce: graph.nodes().index(n)},0)
+            r.tile_size = 4
+            print(f"Applying ReduceExpansion on {n}")
+            r.apply(sdfg)
+
+    for n in graph.nodes():
+        if isinstance(n, std.nodes.Reduce):
+            print(f"Changing Implementation of Reduction node {n}")
+            if n.axes == None:
+                n.implementation = 'CUDA (block allreduce)'
+            else:
+                n.implementation = 'pure'
+                n.schedule = dace.dtypes.ScheduleType.Sequential 
+    
+    sdfg.save('intermediate.sdfg')
+
+    print("---- Tiled SubgraphFusion ----")
+
+    subgraph = SubgraphView(graph, graph.nodes())
+    me = MultiExpansion(subgraph)
+    me.apply(sdfg)
+    sf = SubgraphFusion(subgraph)
+    sf.transient_allocation = dace.dtypes.StorageType.GPU_Shared 
+    sf.schedule_innermaps = dace.dtypes.ScheduleType.GPU_ThreadBlock
+    sf.inner_tile_sizes = (4,1)
+    sf.apply(sdfg)
+
+    sdfg.save('tiling_inspect.sdfg')
+    
 
 def tiled_handle(sdfg):
-    test_tiled_reduction(sdfg, None)
+    test_tiled_reduction(sdfg)
         
 sdfg = get_sdfg()
 args = get_args()
@@ -251,7 +298,7 @@ del args['SM']
 
 
 #sdfg.apply_gpu_transformations() 
-test_tiled_reduction(sdfg, args)
+test_tiled_reduction(sdfg)
 
 
 #run(sdfg, args)

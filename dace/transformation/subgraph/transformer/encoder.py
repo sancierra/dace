@@ -87,17 +87,7 @@ def pre_transformations(sdfg, gpu = False):
     graph = sdfg.nodes()[0]
     print("Applying strict trafos...")
     sdfg.apply_strict_transformations()
-    '''
-    print("Inlining bias node...")
-    for node in graph.nodes():
-        if isinstance(node, nodes.NestedSDFG) and 'bias' in node.label:
-            InlineSDFG.apply_to(sdfg, _nested_sdfg = node)
-
-    print("FORNOW: Nest back bias...")
-    for node in graph.nodes():
-        if isinstance(node, nodes.MapEntry) and node.label == 'linear_with_bias_47':
-            nest_state_subgraph(sdfg, graph, graph.scope_subgraph(node))
-    '''
+ 
     print("FORNOW: Register -> Default")
     for node in graph.nodes():
         if isinstance(node, nodes.NestedSDFG) and 'einsum' not in node.label:
@@ -115,13 +105,14 @@ def pre_transformations(sdfg, gpu = False):
                     ngraph.out_edges(nnode)[0].src_conn = '_c'
                     print("****", ngraph.out_edges(nnode)[0].data)
                     '''
+                    '''
                     for iedge in ngraph.in_edges(nnode):
                         if isinstance(iedge.src, nodes.AccessNode):
                             if gpu:
                                 nsdfg.data(iedge.src.data).storage = dtypes.StorageType.GPU_Global
                             else:
                                 nsdfg.data(iedge.src.data).storage = dtypes.StorageType.Default
-            
+                    '''
             
 
 
@@ -144,9 +135,14 @@ def get_encoder_gpu():
     sdfg.apply_gpu_transformations()
     return sdfg 
 
+def get_encoder_debug():
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_debug.sdfg')
+    return sdfg 
+
+
 def get_args():
     kwargs = {}
-    B = 16; SM = 20; P = 8; H = 5; emb = 15; N=P*H
+    B = 1; SM = 32; P = 16; H = 8; emb = 24; N=P*H
     kwargs.update({'B':np.int32(B), 'SM': np.int32(SM), 'N':np.int32(N), 'P':np.int32(P), 'H':np.int32(H), 'emb':np.int32(emb)})
     
     kwargs['attn_wk'] = np.random.rand(P,H,N).astype(np.float32)
@@ -199,7 +195,11 @@ def get_args_numpy(args):
     kwargs['attn_wk'] = np.transpose(args['attn_wk'], (1,0,2))
     kwargs['attn_wv'] = np.transpose(args['attn_wv'], (1,0,2))
     kwargs['attn_wq'] = np.transpose(args['attn_wq'], (1,0,2))
-    kwargs['attn_wo'] = np.reshape(args['attn_wo'], (args['N'], args['N']))
+    # this configuration works lol
+    kwargs['attn_wo'] = np.transpose(args['attn_wo'], (2,1,0))
+    kwargs['attn_wo'] = np.reshape(kwargs['attn_wo'], (args['N'], args['N']))
+    # try me 
+
 
     kwargs['attn_scale'] = args['attn_scale']
     kwargs['norm1_bias'] = args['norm1_bias']
@@ -210,6 +210,7 @@ def get_args_numpy(args):
     kwargs['linear2_w'] = args['linear2_w']
     kwargs['norm2_bias'] = args['norm2_bias']
     kwargs['norm2_scale'] = args['norm2_scale']
+
     
     
     return kwargs 
@@ -226,15 +227,16 @@ def get_args_numpy(args):
 def run_encoder(sdfg, kwargs):
     sdfg.save('input.sdfg')
     result = sdfg(**kwargs)
-    print(np.linalg.norm(result))
     return result 
 
-def run_encoder_numpy(kwargs):
+def run_encoder_numpy(kwargs, return_all_args = False):
     result_vec = transformer.encoder(**kwargs)
     # normed2, ......
-    result = result_vec[0]
-    print(np.linalg.norm(result))
-    return result 
+    print(np.linalg.norm(result_vec[0]))
+    if return_all_args:
+        return result_vec
+    else:
+        return result_vec[0]
 
     
 def test_transformation():
@@ -265,25 +267,31 @@ def assign_reduce(sdfg, implementation):
 def run(run_baseline_cpu = True,
         run_baseline_gpu = True, 
         run_baseline_numpy = True,
-
         run_baseline_debug = True,
 
         run_expanded_cpu = True,
         run_expanded_gpu = True,
 
 
+
+
         run_cached = False):
         
     results = {}
 
+    '''
     sdfg_cpu = get_encoder_cpu()
     sdfg_cpu.validate() 
+    '''
 
     sdfg_gpu = get_encoder_gpu()
     sdfg_gpu.validate() 
 
     sdfg_cpu2 = get_encoder_cpu2()
-    sdfg_cpu2.validate
+    sdfg_cpu2.validate()
+
+    sdfg_debug = get_encoder_debug()
+    sdfg_debug.validate()
 
     kwargs_sdfg = get_args()
     kwargs_numpy = get_args_numpy(kwargs_sdfg)
@@ -291,6 +299,12 @@ def run(run_baseline_cpu = True,
     #pre_transformations(sdfg_cpu, gpu = False)
     #pre_transformations(sdfg_gpu, gpu = True)
     #pre_transformations(sdfg_cpu2, gpu = False)
+
+    if run_baseline_numpy:
+        ### numpy reference
+        result_np = run_encoder_numpy(kwargs_numpy)
+        results['numpy_reference'] = result_np 
+        
 
 
     if run_baseline_cpu:
@@ -300,15 +314,60 @@ def run(run_baseline_cpu = True,
         results['baseline_cpu'] = result_bcpu
     
     if run_baseline_debug:
-        ### fixed sdfg --.-- 
-        assign_reduce(sdfg_gpu, 'pure')
-        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
-        results['baseline_cpu2'] = result_bgpu
+        ### run a numpy comparision test 
+
+        def print_result(name, sdfg_result, numpy_result, is_list = True):
+            print("--------")
+            print(name)
+            print("sdfg\t", np.linalg.norm(sdfg_result))
+            print("nupy\t", np.linalg.norm(numpy_result[0] if is_list else numpy_result))
+
+            sdfg_squeezed = np.squeeze(sdfg_result)
+            numpy_squeezed = np.squeeze(numpy_result[0] if is_list else numpy_result)
+
+            print("shapes =", sdfg_result.shape, numpy_squeezed.shape)
+            if sdfg_squeezed.shape == numpy_squeezed.shape:
+                print(np.allclose(sdfg_squeezed, numpy_squeezed, rtol = 1e-4, atol = 1e-6))
+
+
+        result_np = run_encoder_numpy(kwargs_numpy, return_all_args = True)
+
+        assign_reduce(sdfg_debug, 'pure')
+        #(normed2, attn, normed1, qq, kk, vv, attn_resid) = run_encoder(sdfg_debug, kwargs_sdfg)
+        # 0       1      2       3   5   6   7   -      8       4        -1          10         11
+        #                                  after scaling, after softmax, after einsum, after wo -> attn
+
+        (normed2, attn, normed1, qq, kk, vv, attn_resid, mean1, std1) = run_encoder(sdfg_debug, kwargs_sdfg)
+
+        print(normed2[0,0,0:6])
+        print(result_np[0][0,0,0:6])
+        print_result("normed2", normed2, result_np[0])
+        print_result("attn", attn, result_np[1])
+        print_result("normed1", normed1, result_np[2])
+        #print_result("ff", ff, result_np[3])
+        print_result("kk", kk, result_np[6])
+        print_result("qq", qq, result_np[5])
+        print_result("vv", vv, result_np[7])
+        #print_result("alpha", alpha, result_np[8])
+        #print_result("gamma", gamma, result_np[4])
+        print_result("attn_resid", attn_resid, result_np[-1], is_list = False)
+        print_result("mean1", mean1, result_np[10], is_list = False)
+        print_result("std1", std1, result_np[11], is_list = False)
+
+        print_result("norm1_mean", norm1_mean, result_np[10], is_list = False)
+        print_result("norm1_std", norm1_std, result_np[11], is_list = False)
+        
+        
 
     if run_baseline_gpu:
+        assign_reduce(sdfg_gpu, 'pure')
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['baseline_gpu_pure'] = result_bgpu
+
         assign_reduce(sdfg_gpu, 'CUDA (device)')
         result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
-        results['baseline_gpu'] = result_bgpu
+        results['baseline_gpu_device'] = result_bgpu
+
         
     if run_expanded_cpu:
         ### preprocessed sdfg 
@@ -321,14 +380,11 @@ def run(run_baseline_cpu = True,
         expand_reductions(sdfg_gpu)
         sdfg_gpu.validate()
         assign_reduce(sdfg_gpu, 'CUDA (block allreduce)')
-        result2_gpu = run_encuder(sdfg_gpu, kwargs_sdfg)
+        result2_gpu = run_encoder(sdfg_gpu, kwargs_sdfg)
         results['preprocessed_gpu'] = result2_gpu 
 
 
-    if run_baseline_numpy:
-        ### numpy reference
-        result_np = run_encoder_numpy(kwargs_numpy)
-        results['numpy_reference'] = result_np 
+   
 
     if run_cached:
         ### cached -- pass sdfg_cpu as a reference
@@ -339,9 +395,9 @@ def run(run_baseline_cpu = True,
     for (result_name, result_array) in results.items():
         print(np.linalg.norm(result_array), " -> ", result_name)
     
-run(run_baseline_cpu = True, 
+run(run_baseline_cpu = False, 
     run_baseline_debug = True, # debug 
-    run_baseline_gpu = True,
+    run_baseline_gpu = False,
     run_expanded_cpu = False,
     run_expanded_gpu = False,
     run_baseline_numpy = False,
