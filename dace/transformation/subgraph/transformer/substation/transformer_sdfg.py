@@ -22,36 +22,25 @@ def gelu(x: dace_dtype[B, SM, N]):
         with dace.tasklet:
             inp << x[i, j, k]
             outp >> out[i, j, k]
-            outp = 0.5 * inp * (1 + math.tanh(
-                math.sqrt(2.0 / math.pi) * (inp + 0.044715 * (inp**3))))
+            outp = float(0.5) * inp * (float(1) + math.tanh(
+                math.sqrt(float(0.6366197724)) * (inp + float(0.044715) * (inp**3))))
     return out
-
-
-@dace.program
-def linear(x: dace_dtype[B, SM, N], w: dace_dtype[emb, N]):
-    """Fully-connected layer with weights w applied to x, and optional bias b.
-
-    x is of shape (batch, *).
-    w is of shape (num_inputs, num_outputs).
-
-    """
-    return x @ np.transpose(w)
 
 
 @dace.program
 def linear_with_bias(x: dace_dtype[B, SM, N], w: dace_dtype[emb, N],
                      bias: dace_dtype[emb]):
     """Fully-connected layer with weights w and bias."""
-    out = np.ndarray([B, SM, emb], x.dtype)
-    outb = np.ndarray([B, SM, emb], x.dtype)
-    for i in dace.map[0:B]:
-        out[i] = x[i] @ np.transpose(w[:])
+    out = np.einsum('bik,jk->bij', x, w)
+    outb = np.ndarray([B, SM, emb], dace_dtype) 
+    
     for i, j, k in dace.map[0:B, 0:SM, 0:emb]:
         with dace.tasklet:
             inp << out[i, j, k]
             b << bias[k]
             outp >> outb[i, j, k]
             outp = inp + b
+
     return outb
 
 
@@ -67,12 +56,12 @@ def meanstd(x: dace_dtype[B, SM, N]):
         with dace.tasklet:
             fmom << moment[i, j]
             mn >> mean[i, j]
-            mn = fmom / (SM * B)
+            mn = fmom / (N)
         with dace.tasklet:
             fmom << moment[i, j]
             smom << second_moment[i, j]
             st >> std[i, j]
-            st = (smom - (fmom * fmom)) / (SM * B)
+            st = sqrt(smom / N - (fmom * fmom / (N*N)))
 
     return mean, std
 
@@ -111,18 +100,25 @@ def layer_norm_scaled(x: dace_dtype[B, SM, N], scale: dace_dtype[N],
             in_s << std[i, j]
             o >> out[i, j, k]
             o = in_scal * ((in_x - in_m) / (in_s + eps)) + in_bias
-    return out
+    
+    return out, mean, std
 
 
 @dace.program
 def dropout(x: dace_dtype[B, SM, N], mask: dace_dtype[B, SM, N]):
     """Apply dropout with pre-randomized dropout mask."""
     return x * mask
-
-
+'''
+@dace.program
+def softmax(x: dace_dtype[B, H, SM, SN]):
+    tmp_max = np.maximum.reduce(x, axis=-1, keepdims=True, initial=-9999)
+    tmp_out = np.exp(x - tmp_max)
+    tmp_sum = np.add.reduce(tmp_out, axis=-1, keepdims=True, initial=0)
+    return tmp_out / tmp_sum
+'''
 @dace.program
 def softmax(X_in: dace_dtype[H, B, SN, SM]):
-    tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, axis=3)
+    tmp_max = dace.reduce(lambda a, b: max(a, b), X_in, identity = -2147483648, axis=3)
     tmp_out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
     out = np.ndarray([H, B, SN, SM], dtype=dace_dtype)
 
@@ -158,7 +154,8 @@ def mha_forward(q: dace_dtype[B, SN, N], k: dace_dtype[B, SM, N],
     alpha = softmax(beta)
     gamma = np.einsum("phbk,hbjk->phbj", vv, alpha)
     out = np.einsum("phi,phbj->bji", wo, gamma)
-    return out
+
+    return (out, qq, kk, vv, beta, alpha, gamma)
 
 
 
@@ -194,12 +191,13 @@ def encoder(x: dace_dtype[B, SM,
     #              P=P,
     #              SM=SM,
     #              SN=SM)
-    attn = mha_forward(x, x, x, attn_wq, attn_wk, attn_wv, attn_wo, attn_scale)
+
+    (attn, qq, kk, vv, beta, alpha, gamma) = mha_forward(x, x, x, attn_wq, attn_wk, attn_wv, attn_wo, attn_scale)
 
     # Residual connection.
     attn_resid = dropout(attn, attn_dropout) + x  # B x SM x N
 
-    normed1 = layer_norm_scaled(attn_resid, norm1_scale,
+    (normed1, mean1, std1) = layer_norm_scaled(attn_resid, norm1_scale,
                                 norm1_bias)  # B x SM x N
 
     # Feedforward network.
@@ -213,9 +211,10 @@ def encoder(x: dace_dtype[B, SM,
 
     # Residual connection.
     ff_resid = dropout(ff, ff_dropout) + normed1  # B x SM x N
-    normed2 = layer_norm_scaled(ff_resid, norm2_scale,
+    (normed2, mean2, std2) = layer_norm_scaled(ff_resid, norm2_scale,
                                 norm2_bias)  # B x SM x N
-    return normed2
+                                
+    return normed2, attn, normed1, qq, kk, vv, attn_resid, mean1, std1 
 
 
 @dace.program
@@ -251,14 +250,14 @@ def decoder(x: dace_dtype[B, SM, N], attn_wq: dace_dtype[P, H, N],
 
     # Residual connection.
     attn_resid = dropout(attn, attn_dropout) + x
-    normed1 = layer_norm(attn_resid, norm1_scale, norm1_bias)
+    normed1, mean1, std1 = layer_norm(attn_resid, norm1_scale, norm1_bias)
     # Feedforward network.
     ff = linear_with_bias(
         dropout(gelu(linear_with_bias(normed1, linear1_w, linear1_b)),
                 linear1_dropout), linear2_w, linear2_b)
     # Residual connection.
     ff_resid = dropout(ff, ff_dropout) + normed1
-    normed2 = layer_norm(ff_resid, norm2_scale, norm2_bias)
+    normed2, mean2, std2 = layer_norm(ff_resid, norm2_scale, norm2_bias)
     return normed2
 
 
