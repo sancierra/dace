@@ -292,6 +292,7 @@ def run(run_baseline_cpu = True,
         results['baseline_cpu'] = result_bcpu
 
     if run_baseline_gpu:
+        sdfg_gpu.save('gpu_sdfg.sdfg')
         assign_reduce(sdfg_gpu, 'pure')
         result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
         results['baseline_gpu_pure'] = result_bgpu
@@ -324,6 +325,8 @@ def run(run_baseline_cpu = True,
 
     if debug:
         ### run a numpy comparision test 
+        sdfg_debug = get_encoder_debug()
+        sdfg_debug.apply_gpu_transformations() 
 
         def print_result(name, sdfg_result, numpy_result, is_list = True):
             print("--------")
@@ -342,11 +345,6 @@ def run(run_baseline_cpu = True,
         result_np = run_encoder_numpy(kwargs_numpy, return_all_args = True)
 
         assign_reduce(sdfg_debug, 'pure')
-       
-        normed2_sdfg = run_encoder(sdfg_debug, kwargs_sdfg)
-        normed2_nupy = result_np[0]
-
-        print_result("baseline", normed2_sdfg, normed2_nupy, is_list = False)
 
 
         '''
@@ -354,6 +352,7 @@ def run(run_baseline_cpu = True,
         # 0       1      2       3   5   6   7   -      8       4        -1          10         11
         #                                  after scaling, after softmax, after einsum, after wo -> attn
 
+        '''
         (normed2, attn, normed1, qq, kk, vv, attn_resid, mean1, std1) = run_encoder(sdfg_debug, kwargs_sdfg)
         print_result("normed2", normed2, result_np[0])
         print_result("attn", attn, result_np[1])
@@ -367,14 +366,12 @@ def run(run_baseline_cpu = True,
         print_result("attn_resid", attn_resid, result_np[-1], is_list = False)
         print_result("mean1", mean1, result_np[10], is_list = False)
         print_result("std1", std1, result_np[11], is_list = False)
-        print_result("norm1_mean", norm1_mean, result_np[10], is_list = False)
-        print_result("norm1_std", norm1_std, result_np[11], is_list = False)
-        '''
+        
     
-run(run_baseline_cpu = True, 
+run(run_baseline_cpu = False, 
     run_baseline_gpu = False,
-    run_expanded_cpu = True,
+    run_expanded_cpu = False,
     run_expanded_gpu = False,
     run_baseline_numpy = True,
     run_cached = False,
-    debug = False)
+    debug = True)
