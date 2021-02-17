@@ -102,6 +102,7 @@ def layer_norm(x, scale=None, bias=None, eps=1e-5):
     normed = (x - mean) / (std + eps)
     if scale is not None and bias is not None:
         return normed*scale + bias, mean, std, normed
+    print("WARNING: Layer norm w/o bias")
     return normed, mean, std, None
 
 
@@ -200,13 +201,13 @@ def encoder(x, attn_wq, attn_wk, attn_wv, attn_wo,
     ff_resid = ff_dropout + normed1
     normed2, norm2_mean, norm2_std, norm2_normed = layer_norm(
         ff_resid, norm2_scale, norm2_bias)
-    return (normed2,
+    return (normed2, attn, normed1, ff1,
             attn_concat, attn_proj_q, attn_proj_k, attn_proj_v, attn_scaled_scores,
             attn_dropout_mask,
             norm1_mean, norm1_std, norm1_normed,
             linear1_dropout_mask, ff_dropout_mask,
             norm2_mean, norm2_std, norm2_normed,
-            ff_resid, ff1, ff1_linear, normed1, attn_resid)
+            ff_resid, ff1_linear, attn_resid)
 
 
 def encoder_backward(
