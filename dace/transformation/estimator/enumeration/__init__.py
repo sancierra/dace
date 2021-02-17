@@ -1,3 +1,4 @@
 from .enumerator import Enumerator
-from .enum_brute_force import BruteForceEnumerator
-from .enum_connected import ConnectedEnumerator
+from .brute_force_enumerator import BruteForceEnumerator
+from .connected_enumerator import ConnectedEnumerator
+from .greedy_enumerator import GreedyEnumerator
