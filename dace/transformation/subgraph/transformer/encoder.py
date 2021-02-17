@@ -123,15 +123,11 @@ def pre_transformations(sdfg, gpu = False):
 
 def get_encoder_cpu():
     # returns a raw encoder sdfg
-    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_cpu.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
     return sdfg  
 
-def get_encoder_cpu2():
-    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_gpu.sdfg')
-    return sdfg 
-
 def get_encoder_gpu():
-    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder_gpu.sdfg')
+    sdfg = dace.sdfg.SDFG.from_file('../../estimator/programs/encoder.sdfg')
     sdfg.apply_gpu_transformations()
     return sdfg 
 
@@ -267,53 +263,66 @@ def assign_reduce(sdfg, implementation):
 def run(run_baseline_cpu = True,
         run_baseline_gpu = True, 
         run_baseline_numpy = True,
-        run_baseline_debug = True,
+        debug = False,
 
         run_expanded_cpu = True,
         run_expanded_gpu = True,
-
-
-
 
         run_cached = False):
         
     results = {}
 
-    '''
-    sdfg_cpu = get_encoder_cpu()
-    sdfg_cpu.validate() 
-    '''
-
-    sdfg_gpu = get_encoder_gpu()
-    sdfg_gpu.validate() 
-
-    sdfg_cpu2 = get_encoder_cpu2()
-    sdfg_cpu2.validate()
-
-    sdfg_debug = get_encoder_debug()
-    sdfg_debug.validate()
 
     kwargs_sdfg = get_args()
     kwargs_numpy = get_args_numpy(kwargs_sdfg)
 
-    #pre_transformations(sdfg_cpu, gpu = False)
-    #pre_transformations(sdfg_gpu, gpu = True)
-    #pre_transformations(sdfg_cpu2, gpu = False)
-
+    sdfg_cpu = get_encoder_cpu()
+    sdfg_gpu = get_encoder_gpu() 
+    
+    
     if run_baseline_numpy:
         ### numpy reference
         result_np = run_encoder_numpy(kwargs_numpy)
         results['numpy_reference'] = result_np 
         
-
-
     if run_baseline_cpu:
         ### vanilla sdfg 
         assign_reduce(sdfg_cpu, 'pure')
         result_bcpu = run_encoder(sdfg_cpu, kwargs_sdfg)
         results['baseline_cpu'] = result_bcpu
-    
-    if run_baseline_debug:
+
+    if run_baseline_gpu:
+        assign_reduce(sdfg_gpu, 'pure')
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['baseline_gpu_pure'] = result_bgpu
+
+        assign_reduce(sdfg_gpu, 'CUDA (device)')
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['baseline_gpu_device'] = result_bgpu
+
+    if run_expanded_cpu:
+        ### preprocessed sdfg 
+        expand_reductions(sdfg_cpu)
+        sdfg_cpu.validate()
+        result2_cpu = run_encoder(sdfg_cpu, kwargs_sdfg)
+        results['preprocessed_cpu'] = result2_cpu
+
+    if run_expanded_gpu:
+        expand_reductions(sdfg_gpu)
+        sdfg_gpu.validate()
+        assign_reduce(sdfg_gpu, 'CUDA (block allreduce)')
+        result2_gpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        results['preprocessed_gpu'] = result2_gpu 
+
+    if run_cached:
+        ### cached -- pass sdfg_cpu as a reference
+        result_cached = run_cached(sdfg_cpu, kwargs_sdfg)
+        results['cached'] = result_cached 
+
+    for (result_name, result_array) in results.items():
+        print(np.linalg.norm(result_array), " -> ", result_name)
+
+    if debug:
         ### run a numpy comparision test 
 
         def print_result(name, sdfg_result, numpy_result, is_list = True):
@@ -333,14 +342,19 @@ def run(run_baseline_cpu = True,
         result_np = run_encoder_numpy(kwargs_numpy, return_all_args = True)
 
         assign_reduce(sdfg_debug, 'pure')
+       
+        normed2_sdfg = run_encoder(sdfg_debug, kwargs_sdfg)
+        normed2_nupy = result_np[0]
+
+        print_result("baseline", normed2_sdfg, normed2_nupy, is_list = False)
+
+
+        '''
         #(normed2, attn, normed1, qq, kk, vv, attn_resid) = run_encoder(sdfg_debug, kwargs_sdfg)
         # 0       1      2       3   5   6   7   -      8       4        -1          10         11
         #                                  after scaling, after softmax, after einsum, after wo -> attn
 
         (normed2, attn, normed1, qq, kk, vv, attn_resid, mean1, std1) = run_encoder(sdfg_debug, kwargs_sdfg)
-
-        print(normed2[0,0,0:6])
-        print(result_np[0][0,0,0:6])
         print_result("normed2", normed2, result_np[0])
         print_result("attn", attn, result_np[1])
         print_result("normed1", normed1, result_np[2])
@@ -353,52 +367,14 @@ def run(run_baseline_cpu = True,
         print_result("attn_resid", attn_resid, result_np[-1], is_list = False)
         print_result("mean1", mean1, result_np[10], is_list = False)
         print_result("std1", std1, result_np[11], is_list = False)
-
         print_result("norm1_mean", norm1_mean, result_np[10], is_list = False)
         print_result("norm1_std", norm1_std, result_np[11], is_list = False)
-        
-        
-
-    if run_baseline_gpu:
-        assign_reduce(sdfg_gpu, 'pure')
-        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
-        results['baseline_gpu_pure'] = result_bgpu
-
-        assign_reduce(sdfg_gpu, 'CUDA (device)')
-        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
-        results['baseline_gpu_device'] = result_bgpu
-
-        
-    if run_expanded_cpu:
-        ### preprocessed sdfg 
-        expand_reductions(sdfg_cpu)
-        sdfg_cpu.validate()
-        result2_cpu = run_encoder(sdfg_cpu, kwargs_sdfg)
-        results['preprocessed_cpu'] = result2_cpu
-
-    if run_expanded_gpu:
-        expand_reductions(sdfg_gpu)
-        sdfg_gpu.validate()
-        assign_reduce(sdfg_gpu, 'CUDA (block allreduce)')
-        result2_gpu = run_encoder(sdfg_gpu, kwargs_sdfg)
-        results['preprocessed_gpu'] = result2_gpu 
-
-
-   
-
-    if run_cached:
-        ### cached -- pass sdfg_cpu as a reference
-        result_cached = run_cached(sdfg_cpu, kwargs_sdfg)
-        results['cached'] = result_cached 
-
-
-    for (result_name, result_array) in results.items():
-        print(np.linalg.norm(result_array), " -> ", result_name)
+        '''
     
-run(run_baseline_cpu = False, 
-    run_baseline_debug = True, # debug 
+run(run_baseline_cpu = True, 
     run_baseline_gpu = False,
-    run_expanded_cpu = False,
+    run_expanded_cpu = True,
     run_expanded_gpu = False,
-    run_baseline_numpy = False,
-    run_cached = False)
+    run_baseline_numpy = True,
+    run_cached = False,
+    debug = False)
