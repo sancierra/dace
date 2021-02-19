@@ -4,6 +4,7 @@ import dace.transformation.subgraph.helpers as helpers
 from dace.transformation.subgraph import SubgraphFusion, MultiExpansion, helpers 
 from dace.transformation.subgraph.composite import CompositeFusion
 from dace.transformation.estimator.enumeration import GreedyEnumerator
+from dace.sdfg.utils import dfs_topological_sort
 import dace.sdfg.nodes as nodes
 import numpy as np
 
@@ -73,16 +74,18 @@ def enumerate_greedy(sdfg, graph, subgraph):
                                          graph = graph,
                                          subgraph = subgraph)
     map_sets = list()
+    print("---------TEST----------")
     for subgraph in greedy_enumerator:
         print("Current Subgraph = ", subgraph)
         map_sets.append(subgraph)
         print(subgraph)
-    
+
     for map_set in map_sets:
         for other_set in map_sets:
             if other_set != map_set:
                 assert len(set(map_set) & set(other_set)) == 0
-    
+    print("-----------------------")
+
 
 def case_1(sdfg):
     # Test Case 1: Whole graph 
@@ -92,10 +95,22 @@ def case_1(sdfg):
 
 def case_2(sdfg):
     graph = sdfg.nodes()[0]
-    #subgraph = TODO 
+    index = 0
+    map_entries = []
+    for node in dfs_topological_sort(graph):
+        if isinstance(node, nodes.MapEntry):
+            index += 1
+            map_entries.append(node)
+        
+        if index > 6:
+            break 
+    
+    subgraph = helpers.subgraph_from_maps(sdfg, graph, map_entries)
+    enumerate_greedy(sdfg, graph, subgraph)
+
 
 greedy_sdfg = greedy.to_sdfg()
-greedy_sdfg2 = greedy2.to_sdfg()
 # Test Case 1: Whole graph 
 case_1(greedy_sdfg)
+case_2(greedy_sdfg)
 

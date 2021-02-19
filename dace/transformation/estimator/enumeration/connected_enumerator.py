@@ -21,7 +21,7 @@ class ConnectedEnumerator(ScoringEnumerator):
     '''
 
     prune = Property(desc="Perform Greedy Pruning during Enumeration",
-                     default=False,
+                     default=True,
                      dtype=bool)
 
     def __init__(self,
@@ -38,30 +38,10 @@ class ConnectedEnumerator(ScoringEnumerator):
         self._local_maxima = []
         self._function_args = kwargs
 
-        # connect everything that shares an edge (any direction)
-        # to an access node
-        self._adjacency_list = {m: set() for m in self._map_entries}
-        # helper dict needed for a quick build
-        exit_nodes = {graph.exit_node(me): me for me in self._map_entries}
-        for node in (subgraph.nodes() if subgraph else graph.nodes()):
-            if isinstance(node, nodes.AccessNode):
-                adjacent_entries = set()
-                for e in graph.in_edges(node):
-                    if isinstance(e.src, nodes.MapExit) and e.src in exit_nodes:
-                        adjacent_entries.add(exit_nodes[e.src])
-                for e in graph.out_edges(node):
-                    if isinstance(
-                            e.dst,
-                            nodes.MapEntry) and e.dst in self._map_entries:
-                        adjacent_entries.add(e.dst)
-                # now add everything to everything
-                for entry in adjacent_entries:
-                    for other_entry in adjacent_entries:
-                        if entry != other_entry:
-                            self._adjacency_list[entry].add(other_entry)
-                            self._adjacency_list[other_entry].add(entry)
-
-    def traverse(self, current: List, forbidden: Set, prune=False):
+        self.calculate_topology(subgraph)
+       
+        
+    def traverse(self, current: List, forbidden: Set):
         if len(current) > 0:
             # get current subgraph we are inspecting
             #print("*******")
@@ -82,6 +62,7 @@ class ConnectedEnumerator(ScoringEnumerator):
                 score = self._scoring_function(current_subgraph)
 
             # calculate where to backtrack next if not prune
+            '''
             go_next = set()
             if conditional_eval or not self._prune or len(current) == 1:
                 go_next = set(m for c in current
@@ -90,6 +71,20 @@ class ConnectedEnumerator(ScoringEnumerator):
                 if self.debug:
                     go_next = list(go_next)
                     go_next.sort(key=lambda e: e.map.label)
+            '''
+
+
+
+            go_next = list()
+            if conditional_eval or self.prune == False or len(current) == 1:
+                go_next = list(set(m for c in current
+                                   for m in self._adjacency_list[c]
+                                   if m not in current and m not in forbidden))
+
+                # for determinism and correctness during pruning
+                go_next.sort(key = lambda me: self._labels[me])
+             
+
             # yield element if condition is True
             if conditional_eval:
                 self._histogram[len(current)] += 1
@@ -99,18 +94,16 @@ class ConnectedEnumerator(ScoringEnumerator):
 
         else:
             # special case at very beginning: explore every node
-            go_next = set(m for m in self._adjacency_list.keys())
-            if self.debug:
-                go_next = list(go_next)
-                go_next.sort(key=lambda e: e.map.label)
+            go_next = list(set(m for m in self._adjacency_list.keys()))
+            go_next.sort(key = lambda me: self._labels[me])
+            
         if len(go_next) > 0:
-            # we can explore
+            # recurse further
             forbidden_current = set()
             for child in go_next:
                 current.append(child)
-                yield from self.traverse(current, forbidden | forbidden_current,
-                                         prune)
-                pp = current.pop()
+                yield from self.traverse(current, forbidden | forbidden_current)
+                current.pop()
                 forbidden_current.add(child)
 
        
@@ -120,4 +113,4 @@ class ConnectedEnumerator(ScoringEnumerator):
         search space yielding tuples (subgraph, score)
         '''
         self._histogram = defaultdict(int)
-        yield from self.traverse([], set(), False)
+        yield from self.traverse([], set())
