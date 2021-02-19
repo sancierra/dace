@@ -1,4 +1,4 @@
-from dace.transformation import pattern_matching
+from dace.transformation import transformation as pattern_matching
 from dace import nodes, registry, SDFGState
 
 

@@ -101,7 +101,7 @@ def layer_norm_scaled(x: dace_dtype[B, SM, N], scale: dace_dtype[N],
             o >> out[i, j, k]
             o = in_scal * ((in_x - in_m) / (in_s + eps)) + in_bias
     
-    return out, mean, std
+    return out
 
 
 @dace.program
@@ -197,7 +197,7 @@ def encoder(x: dace_dtype[B, SM,
     # Residual connection.
     attn_resid = dropout(attn, attn_dropout) + x  # B x SM x N
 
-    (normed1, mean1, std1) = layer_norm_scaled(attn_resid, norm1_scale,
+    normed1 = layer_norm_scaled(attn_resid, norm1_scale,
                                 norm1_bias)  # B x SM x N
 
     # Feedforward network.
@@ -211,10 +211,10 @@ def encoder(x: dace_dtype[B, SM,
 
     # Residual connection.
     ff_resid = dropout(ff, ff_dropout) + normed1  # B x SM x N
-    (normed2, mean2, std2) = layer_norm_scaled(ff_resid, norm2_scale,
+    normed2 = layer_norm_scaled(ff_resid, norm2_scale,
                                 norm2_bias)  # B x SM x N
                                 
-    return normed2, attn, normed1, qq, kk, vv, attn_resid, mean1, std1 
+    return normed2
 
 
 @dace.program
