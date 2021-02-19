@@ -73,8 +73,6 @@ class ConnectedEnumerator(ScoringEnumerator):
                     go_next.sort(key=lambda e: e.map.label)
             '''
 
-
-
             go_next = list()
             if conditional_eval or self.prune == False or len(current) == 1:
                 go_next = list(set(m for c in current
