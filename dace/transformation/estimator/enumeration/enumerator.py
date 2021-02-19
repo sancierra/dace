@@ -31,39 +31,33 @@ class Enumerator:
                  sdfg: SDFG,
                  graph: SDFGState,
                  subgraph: SubgraphView = None,
-                 condition_function: Callable = None,
-                 scoring_function: ScoringFunction = None):
+                 condition_function: Callable = None):
 
         self._sdfg = sdfg
         self._graph = graph
         self._scope_children = graph.scope_children()
         self._condition_function = condition_function
-        self._scoring_function = scoring_function
 
         # get hightest scope maps
         self._map_entries = helpers.get_outermost_scope_maps(
             sdfg, graph, subgraph)
         self._max_length = len(self._map_entries)
 
-        if self._condition_function is None and self._scoring_function is not None:
-            warnings.warn('Initialized with no condition function but scoring'
-                          'function. Will try to score all subgraphs!')
+      
         # for memorization purposes
         self._histogram = None
-
+       
     def iterator(self):
         '''
         iterator interface to implement
         '''
         # Interface to implement
         raise NotImplementedError
-
-    def list(self, include_score=True):
-        if include_score:
-            return list(e for e in self.iterator())
-        else:
-            return list(e[0] for e in self.iterator())
-
+    
+ 
+    def list(self):
+        return list(e for e in self.iterator())
+       
     def __iter__(self):
         yield from self.iterator()
 
@@ -71,7 +65,7 @@ class Enumerator:
         if self._histogram is None and cached:
             old_mode = self.mode
             self.mode = 'map_entries'
-            lst = self.list(include_score=False)
+            lst = self.list()
             self._histogram = {}
             for i in range(1, 1 + self._max_length):
                 no_elements = sum([len(sg) == i for sg in lst])

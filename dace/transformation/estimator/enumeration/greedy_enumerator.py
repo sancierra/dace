@@ -2,7 +2,8 @@
 
 from dace.transformation.estimator.enumeration import Enumerator
 
-from dace.transformation.subgraph import SubgraphFusion, CompositeFusion, helpers
+from dace.transformation.subgraph import SubgraphFusion, helpers
+from dace.transformation.subgraph.composite import CompositeFusion
 from dace.properties import make_properties, Property
 from dace.sdfg import SDFG, SDFGState
 from dace.sdfg.graph import SubgraphView
@@ -82,12 +83,12 @@ class GreedyEnumerator(Enumerator):
         children_dict = defaultdict(set)
         parent_dict = defaultdict(set)
 
-        for map_entry in map_entries:
+        for map_entry in self._map_entries:
             map_exit = graph.exit_node(map_entry)
             for e in graph.out_edges(map_exit):
                 if isinstance(e.dst, nodes.AccessNode):
                     for oe in graph.out_edges(e.dst):
-                        if oe.dst in map_entries:
+                        if oe.dst in self._map_entries:
                             other_entry = oe.dst
                             children_dict[map_entry].add(other_entry)
                             parent_dict[other_entry].add(map_entry)
@@ -103,14 +104,13 @@ class GreedyEnumerator(Enumerator):
         while current_id < len(self._map_entries):
             # get current ids whose in_degree is 0 
             candidates = list(me for (me, s) in parent_dict.items() if len(s) == 0 and me not in self._labels)
-            candidates.sort(key = lambda me: me.id)
+            candidates.sort(key = lambda me: self._graph.node_id(me))
             for c in candidates:
                 self._labels[c] = current_id 
                 current_id += 1
                 # remove candidate for each players adjacency list 
                 for c_child in children_dict[c]:
-                    parent_dict[c_child].remove(s)
-            
+                    parent_dict[c_child].remove(c)
         
         
     def iterator(self):
@@ -125,49 +125,60 @@ class GreedyEnumerator(Enumerator):
         added = set() 
         outer_queued = set(self._source_maps)
         outer_queue = [QueuedEntry(me, self._labels[me]) for me in self._source_maps]
-        while len(outer_queue) > 0
+        while len(outer_queue) > 0:
             
             # current iteration: define queue / set with which we are going 
             # to find current components 
             
-            next_iterate = heapq.heappop(outer_queue)
-            while next_iterate in visited:
+            while len(outer_queue) > 0:
                 next_iterate = heapq.heappop(outer_queue)
-
-            current_set = set(next_iterate.map_entry)
+                if next_iterate.map_entry not in added:
+                    break 
+                elif len(outer_queue) == 0:
+                    next_iterate = None 
+                    break 
+            
+            
+            if not next_iterate:
+                break 
+           
+            current_set = set()
             inner_queue = [next_iterate]
+            inner_queued = {next_iterate.map_entry}
 
             while len(inner_queue) > 0:
+                
                 # select starting map 
                 current = heapq.heappop(inner_queue)
                 current_map = current.map_entry 
 
-                # check current + current set can be fused 
+                # check whether current | current_set can be fused 
                 add_current_map = False 
                 if len(current_set) == 0:
                     add_current_map = True 
                 else:
-                    subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, current_set | current_map)
-                    if self._condition_function(self._sdfg, self._graph, subgraph):
+                    subgraph = helpers.subgraph_from_maps(self._sdfg, self._graph, current_set | {current_map})
+                    if self._condition_function(self._sdfg, subgraph):
                         add_current_map = True 
-                    
                     
                 if add_current_map:
                     # add it to current set and continue BFS 
                     added.add(current_map)
+                    current_set.add(current_map)
                     # recurse further
                     for current_neighbor_map in self._adjacency_list[current_map]:
                         # add to outer queue and set 
-                        if current_neighbor_map not in outer_queued:
-                            heapq.heappush(outer_queue, QueuedEntry(current_neighbor_map, self._labels[current_neighbor_map])) 
-                            outer_queued.add(current_neighbor_map)
-                        # add to inner queue and set 
-                        if current_neighbor_map not in inner_queued:
-                            heapq.heappush(inner_queue, QueuedEntry(current_neighbor_map, self._labels[current_neighbor_map]))
-                            inner_queued.add(current_neighbor_map)
+                        if current_neighbor_map not in added:
+                            if current_neighbor_map not in outer_queued:
+                                heapq.heappush(outer_queue, QueuedEntry(current_neighbor_map, self._labels[current_neighbor_map])) 
+                                outer_queued.add(current_neighbor_map)
+                            # add to inner queue and set 
+                            if current_neighbor_map not in inner_queued:
+                                heapq.heappush(inner_queue, QueuedEntry(current_neighbor_map, self._labels[current_neighbor_map]))
+                                inner_queued.add(current_neighbor_map)
 
             # yield 
             if self.mode == 'map_entries':
-                yield tuple(map_entries)
+                yield tuple(current_set)
             else:
-                yield helpers.subgraph_from_maps(self._sdfg, self._graph, map_entries)
+                yield helpers.subgraph_from_maps(self._sdfg, self._graph, current_set)

@@ -1,8 +1,9 @@
 # Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
 import dace
 import dace.transformation.subgraph.helpers as helpers
-from dace.transformation.subgraph import SubgraphFusion, MultiExpansion, CompositeFusion, helpers 
-from dace.transformation.estimator.
+from dace.transformation.subgraph import SubgraphFusion, MultiExpansion, helpers 
+from dace.transformation.subgraph.composite import CompositeFusion
+from dace.transformation.estimator.enumeration import GreedyEnumerator
 import dace.sdfg.nodes as nodes
 import numpy as np
 
@@ -11,7 +12,6 @@ from dace.sdfg.graph import SubgraphView
 import sys
 
 from dace.transformation.subgraph import SubgraphFusion
-from util import expand_maps, expand_reduce, fusion
 
 N, M, O, P, Q = [dace.symbol(s) for s in ['N', 'M', 'O', 'P', 'Q']]
 N.set(5)
@@ -45,18 +45,27 @@ def greedy(A: dace.float64[N], B: dace.float64[M], C: dace.float64[O]):
             out = inp1 * 2 + inp2 * 2 
 
     cc = C* 5 + 2
-    cc = cc + 3 + C 
+    ccc = cc + 3 + C 
 
     result = np.ndarray((N,M,O), dtype = np.float32)
     for i,j,k in dace.map[0:N, 0:M, 0:O]:
         with dace.tasklet:
-            inp1 << out[i,j,k]
-            inp2 << cc[k]
+            inp1 << tmp[i,j]
+            inp2 << ccc[k]
             out >> result
+
             out = inp1 + inp2
     
     return result 
 
+@dace.program 
+def greedy2(A: dace.float64[N]):
+    aa = A*2
+    bb = aa * 2
+    cc = bb * 3
+    tmp = A*4
+    dd = tmp + cc 
+    return dd 
 
 
 def enumerate_greedy(sdfg, graph, subgraph):
@@ -68,6 +77,11 @@ def enumerate_greedy(sdfg, graph, subgraph):
         print("Current Subgraph = ", subgraph)
         map_sets.append(subgraph)
         print(subgraph)
+    
+    for map_set in map_sets:
+        for other_set in map_sets:
+            if other_set != map_set:
+                assert len(set(map_set) & set(other_set)) == 0
     
 
 def case_1(sdfg):
@@ -81,9 +95,7 @@ def case_2(sdfg):
     #subgraph = TODO 
 
 greedy_sdfg = greedy.to_sdfg()
-greedy_sdfg.view()
-
-
+greedy_sdfg2 = greedy2.to_sdfg()
 # Test Case 1: Whole graph 
-case_1(sdfg)
+case_1(greedy_sdfg)
 

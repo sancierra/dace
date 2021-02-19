@@ -1,6 +1,7 @@
 """ This file implements the ConnectedEnumerator class """
 
 from dace.transformation.estimator.enumeration import Enumerator
+from dace.transformation.estimator.enumeration import ScoringEnumerator
 
 from dace.transformation.subgraph import SubgraphFusion, helpers
 from dace.properties import make_properties, Property
@@ -15,7 +16,7 @@ import itertools
 
 
 @make_properties
-class ConnectedEnumerator(Enumerator):
+class ConnectedEnumerator(ScoringEnumerator):
     '''
     Enumerates all subgraphs that are connected through Access Nodes
     '''
@@ -98,7 +99,7 @@ class ConnectedEnumerator(Enumerator):
             # yield element if condition is True
             if conditional_eval:
                 self._histogram[len(current)] += 1
-                yield (current.copy(),
+                yield (tuple(current),
                        score) if self.mode == 'map_entries' else (
                            current_subgraph, score)
 
@@ -121,7 +122,7 @@ class ConnectedEnumerator(Enumerator):
         else:
             # we cannot explore - possible local maximum candidate
             # TODO continue work
-            self._local_maxima.append(current.copy())
+            self._local_maxima.append(tuple(current))
 
     def iterator(self):
         '''
