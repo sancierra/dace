@@ -47,9 +47,6 @@ class GreedyEnumerator(Enumerator):
         # create a neighbors mapping: adjacency_list[m] = set of all the *neighbors* of m
         # neighbor = another map succeeding / preceeding with just an access node in between
         self._adjacency_list = {m: set() for m in self._map_entries}
-        # also create a directed DAG neighbors mapping 
-        children_list = {m: set() for m in self._map_entries}
-
         # helper dict needed for a quick build
         exit_nodes = {graph.exit_node(me): me for me in self._map_entries}
         if subgraph:

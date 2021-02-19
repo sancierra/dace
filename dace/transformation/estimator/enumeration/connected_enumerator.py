@@ -14,16 +14,11 @@ from collections import deque, defaultdict, ChainMap
 from typing import Set, Union, List, Callable
 import itertools
 
-
 @make_properties
 class ConnectedEnumerator(ScoringEnumerator):
     '''
     Enumerates all subgraphs that are connected through Access Nodes
     '''
-
-    local_maxima = Property(desc="List local maxima while enumerating",
-                            default=False,
-                            dtype=bool)
 
     prune = Property(desc="Perform Greedy Pruning during Enumeration",
                      default=False,
@@ -43,7 +38,6 @@ class ConnectedEnumerator(ScoringEnumerator):
         self._local_maxima = []
         self._function_args = kwargs
 
-        # create adjacency list (improved version)
         # connect everything that shares an edge (any direction)
         # to an access node
         self._adjacency_list = {m: set() for m in self._map_entries}
@@ -119,16 +113,11 @@ class ConnectedEnumerator(ScoringEnumerator):
                 pp = current.pop()
                 forbidden_current.add(child)
 
-        else:
-            # we cannot explore - possible local maximum candidate
-            # TODO continue work
-            self._local_maxima.append(tuple(current))
-
+       
     def iterator(self):
         '''
         returns an iterator that iterates over
         search space yielding tuples (subgraph, score)
         '''
-        self._local_maxima = []
         self._histogram = defaultdict(int)
         yield from self.traverse([], set(), False)
