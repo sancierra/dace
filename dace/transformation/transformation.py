@@ -46,7 +46,7 @@ class Transformation(object):
         methods' documentation.
 
         In order to be included in lists and apply through the
-        `sdfg.apply_transformations` API, each transformation shouls be
+        `sdfg.apply_transformations` API, each transformation should be
         registered with ``Transformation.register`` (or, more commonly,
         the ``@dace.registry.autoregister_params`` class decorator) with two
         optional boolean keyword arguments: ``singlestate`` (default: False)

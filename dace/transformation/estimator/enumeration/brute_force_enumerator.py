@@ -56,7 +56,7 @@ class BruteForceEnumerator(Enumerator):
                 # yield element if condition is True
                 if conditional_eval:
                     self._histogram[len(sg)] += 1
-                    yield (list(sg), score) if self.mode == 'map_entries' else (
+                    yield (tuple(sg), score) if self.mode == 'map_entries' else (
                         current_subgraph, score)
 
     def iterator(self):
