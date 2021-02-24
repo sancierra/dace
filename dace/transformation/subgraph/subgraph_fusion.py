@@ -771,11 +771,11 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
                         e_inner = graph.add_edge(dst, None, global_map_exit,
                                                  in_conn, inner_memlet)
-                        mm_outer = propagate_memlet(graph, inner_memlet, global_map_entry, \
-                                                    union_inner_edges = False)
-
+                        #mm_outer = propagate_memlet(graph, inner_memlet, global_map_entry, \
+                        #                            union_inner_edges = False)
+                        outer_memlet = dcpy(out_edge.data)
                         e_outer = graph.add_edge(global_map_exit, out_conn,
-                                                 dst_transient, None, mm_outer)
+                                                 dst_transient, None, outer_memlet)
 
                         # remove edge from dst to dst_transient that was created
                         # in intermediate preparation.
@@ -820,6 +820,9 @@ class SubgraphFusion(transformation.SubgraphTransformation):
             # all connected edges will be finally removed as well
             graph.remove_node(map_entry)
             graph.remove_node(map_exit)
+
+        #_propagate_node(graph, global_map_entry)
+        #_propagate_node(graph, global_map_exit)
 
         # create a mapping from data arrays to offsets
         # for later memlet adjustments later
