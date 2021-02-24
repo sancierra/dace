@@ -79,6 +79,7 @@ def _test_quantitatively(sdfg, graph):
     csdfg(A=A, B=B1, C=C1, N=N, M=M)
     del csdfg
     fusion(sdfg, graph)
+    sdfg.save('out_transient.sdfg')
     csdfg = sdfg.compile()
     csdfg(A=A, B=B2, C=C2, N=N, M=M)
     del csdfg
@@ -89,11 +90,8 @@ def _test_quantitatively(sdfg, graph):
 def test_out_transient1():
     # non-transient
     sdfg = program1.to_sdfg()
-<<<<<<< HEAD
-    sdfg.apply_transformations_repeated(StateFusion)
-=======
+    #sdfg.apply_transformations_repeated(StateFusion)
     sdfg.apply_strict_transformations()
->>>>>>> upstream/master
     graph = sdfg.nodes()[0]
     _test_quantitatively(sdfg, graph)
 

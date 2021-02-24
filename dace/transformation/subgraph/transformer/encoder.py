@@ -6,7 +6,7 @@ import dace.sdfg.nodes as nodes
 import dace.libraries as lib
 import dace.dtypes as dtypes 
 
-from dace.transformation.subgraph import ReduceExpansion
+from dace.transformation.subgraph import ReduceExpansion, MultiExpansion, SubgraphFusion
 from dace.transformation.subgraph.gemm import NestOut
 from dace.transformation.interstate import InlineSDFG
 from dace.sdfg.graph import SubgraphView
@@ -138,7 +138,7 @@ def get_encoder_debug():
 
 def get_args():
     kwargs = {}
-    B = 1; SM = 32; P = 16; H = 8; emb = 24; N=P*H
+    B = 2; SM = 32; P = 16; H = 8; emb = 24; N=P*H
     kwargs.update({'B':np.int32(B), 'SM': np.int32(SM), 'N':np.int32(N), 'P':np.int32(P), 'H':np.int32(H), 'emb':np.int32(emb)})
     
     kwargs['attn_wk'] = np.random.rand(P,H,N).astype(np.float32)
@@ -260,6 +260,8 @@ def assign_reduce(sdfg, implementation):
             node.implementation = implementation
 
 
+
+
 def run(run_baseline_cpu = True,
         run_baseline_gpu = True, 
         run_baseline_numpy = True,
@@ -277,6 +279,18 @@ def run(run_baseline_cpu = True,
     kwargs_numpy = get_args_numpy(kwargs_sdfg)
 
     sdfg_cpu = get_encoder_cpu()
+
+    graph = sdfg_cpu.nodes()[0]
+    
+        
+    sdfg_cpu.apply_transformations_repeated(ReduceExpansion)
+    ## ok 
+    sg = SubgraphView(graph, graph.nodes())
+    print(MultiExpansion.can_be_applied(sdfg_cpu, sg))
+    me = MultiExpansion(sg)
+    me.apply(sdfg_cpu)
+    sdfg_cpu.save('intermediate.sdfg')
+
     sdfg_gpu = get_encoder_gpu() 
     
     
@@ -289,6 +303,7 @@ def run(run_baseline_cpu = True,
         ### vanilla sdfg 
         assign_reduce(sdfg_cpu, 'pure')
         result_bcpu = run_encoder(sdfg_cpu, kwargs_sdfg)
+        sdfg_cpu.save('intermediate2.sdfg')
         results['baseline_cpu'] = result_bcpu
 
     if run_baseline_gpu:
@@ -368,10 +383,10 @@ def run(run_baseline_cpu = True,
         print_result("std1", std1, result_np[11], is_list = False)
         
     
-run(run_baseline_cpu = False, 
+run(run_baseline_cpu = True, 
     run_baseline_gpu = False,
     run_expanded_cpu = False,
     run_expanded_gpu = False,
     run_baseline_numpy = True,
     run_cached = False,
-    debug = True)
+    debug = False)
