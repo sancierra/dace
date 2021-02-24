@@ -719,8 +719,6 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         while scope_dict[current_node] and scope_dict[current_node].map.schedule != dtypes.ScheduleType.GPU_ThreadBlock:
             current_node = scope_dict[current_node]
 
-        print("Result=", scope_dict[current_node])
-        print(scope_dict[current_node].map.schedule)
         if scope_dict[current_node]:
             add_enclosing_maps = False 
             threadblock_entry = scope_dict[current_node]
@@ -870,12 +868,8 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
         nsdfg.data(out_transient.data).storage = dtypes.StorageType.Register
         
         # change strides and shape of out transient to dimension 1 
-        print(nsdfg.data(out_transient.data).strides)
         nsdfg.data(out_transient.data).strides = (dace.symbolic.pystr_to_symbolic(1),)
-        print(nsdfg.data(out_transient.data).strides)
-        print(nsdfg.data(out_transient.data).shape)
         nsdfg.data(out_transient.data).shape = (dace.symbolic.pystr_to_symbolic(1),)
-        print(nsdfg.data(out_transient.data).shape)
         nsdfg.data(out_transient.data).offset = (dace.symbolic.pystr_to_symbolic(0),)
 
         # hack: swap edges as local_storage does not work correctly here
@@ -920,18 +914,15 @@ class ExpandReduceCUDABlockAll(pm.ExpandTransformation):
                             v_connector = '_inp',
                             memlet = dcpy(out_transient_edge.data))
         # this edge requires special memlet 
-        print("*****", subsets.Range.from_array(nsdfg.data('_allreduce_out')))
         post_tasklet_memlet = Memlet(data = '_allreduce_out',
                                      volume = dace.symbolic.pystr_to_symbolic(0),
                                      dynamic = True,
                                      subset = subsets.Range.from_array(nsdfg.data('_allreduce_out')))
-        print("******", post_tasklet_memlet)
         e = ngraph.add_edge(u = tasklet_node,
                             u_connector = '_outp',
                             v = out_transient_edge.dst,
                             v_connector = out_transient_edge.dst_conn,
                             memlet = post_tasklet_memlet)
-        print("ADDED", e.data)
         ngraph.remove_edge(out_transient_edge)
         '''
         edge_out_outtrans = ngraph.out_edges(out_transient)[0]        

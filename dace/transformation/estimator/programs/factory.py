@@ -5,6 +5,8 @@ from dace.sdfg import SDFG
 import numpy as np
 import os, sys
 
+import dace
+
 from .util import expand_maps, expand_reduce, fusion, stencil_tiling
 
 DATATYPE = np.float32
@@ -48,6 +50,9 @@ def get_program(program_name):
                         e.data.volume = pystr_to_symbolic('K-2')
 
         propagate_memlets_scope(sdfg, graph, graph.scope_leaves())
+
+        for _, _, arr in sdfg.arrays_recursive():
+            arr.lifetime = dace.dtypes.AllocationLifetime.Scope
         sdfg.save('vadv_improved.sdfg')
 
     elif program_name == 'hdiff':
@@ -69,7 +74,8 @@ def get_program(program_name):
             os.path.join(PATH, 'gemver' + data_suffix + '.sdfg'))
     elif program_name == 'transformer':
         sdfg = SDFG.from_file(
-            os.path.join(PATH, 'transformer' + data_suffix + '.sdfg'))
+            os.path.join(PATH, 'encoder.sdfg'))
+       
     else:
         raise NotImplementedError("Program not found")
 
@@ -240,6 +246,29 @@ def get_args(program_name):
         })
 
     elif program_name == 'transformer':
-        raise NotImplementedError("TODO")
+        inputs, outputs, symbols = {}, {}, {}
+        B = 8; SM = 32; P = 32; H = 8; emb = 64; N=P*H
+        
+        symbols.update({'B':np.int32(B), 'SM': np.int32(SM), 'N':np.int32(N), 'P':np.int32(P), 'H':np.int32(H), 'emb':np.int32(emb)})
+        
+        inputs['attn_wk'] = np.random.rand(P,H,N).astype(np.float32)
+        inputs['x'] = np.random.rand(B,SM,N).astype(np.float32)
+        inputs['attn_wv'] = np.random.rand(P,H,N).astype(np.float32)
+        inputs['attn_scale'] = np.float32(1.0)
+        inputs['attn_wq'] = np.random.rand(P,H,N).astype(np.float32)
+        inputs['attn_wo'] = np.random.rand(P,H,N).astype(np.float32)
+        inputs['norm1_bias'] = np.random.rand(N).astype(np.float32)
+        inputs['norm1_scale'] = np.random.rand(N).astype(np.float32)
+        inputs['linear1_w'] = np.random.rand(emb,N).astype(np.float32)
+        inputs['linear1_b'] = np.random.rand(emb).astype(np.float32)
+        inputs['linear2_b'] = np.random.rand(N).astype(np.float32)
+        inputs['linear2_w'] = np.random.rand(N,emb).astype(np.float32)
+        inputs['norm2_bias'] = np.random.rand(N).astype(np.float32)
+        inputs['norm2_scale'] = np.random.rand(N).astype(np.float32)
+        inputs['attn_dropout'] = np.ones((B,SM,N), dtype = np.float32)
+        inputs['linear1_dropout'] = np.ones((B,SM,emb), dtype = np.float32)
+        inputs['ff_dropout'] = np.ones((B,SM,N), dtype = np.float32)
+
+        return (inputs, outputs, symbols)
     else:
         raise NotImplementedError("Program not found")

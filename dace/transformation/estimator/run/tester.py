@@ -46,7 +46,7 @@ def score(sdfg: dace.SDFG, graph: dace.SDFGState, enumerator: Enumerator, scorin
     '''
 
    
-    subgraph_list = enumerator.list(include_score=True)
+    subgraph_list = enumerator.scores()
     for sg in subgraph_list:
         print(sg)
     enumerator.histogram()
@@ -145,10 +145,10 @@ if __name__ == "__main__":
         'hdiff', 'hdiff_mini', 'transformer', 'gemver'
     ]
 
-    test(program_name='hdiff',
+    test(program_name='vadv',
          enumerator_type=ConnectedEnumerator,
-         scoring_type=RegisterScore,
-         gpu=True,
+         scoring_type=ExecutionScore,
+         gpu=False,
          debug=True,
          transient_allocation=dace.dtypes.StorageType.Register,
          schedule_innermaps=dace.dtypes.ScheduleType.Sequential,
