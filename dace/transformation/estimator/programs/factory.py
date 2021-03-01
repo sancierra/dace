@@ -69,7 +69,7 @@ def get_program(program_name):
             os.path.join(PATH, 'gemver' + data_suffix + '.sdfg'))
     elif program_name == 'transformer':
         sdfg = SDFG.from_file(
-            os.path.join(PATH, 'transformer' + data_suffix + '.sdfg'))
+            os.path.join(PATH, 'encoder' + '.sdfg'))
     else:
         raise NotImplementedError("Program not found")
 
