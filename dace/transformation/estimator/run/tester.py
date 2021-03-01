@@ -46,7 +46,7 @@ def score(sdfg: dace.SDFG, graph: dace.SDFGState, enumerator: Enumerator, scorin
     '''
 
    
-    subgraph_list = enumerator.list(include_score=True)
+    subgraph_list = enumerator.scores()
     for sg in subgraph_list:
         print(sg)
     enumerator.histogram()
