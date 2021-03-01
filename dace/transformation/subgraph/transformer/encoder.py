@@ -288,17 +288,17 @@ def run(run_baseline_cpu = True,
     if run_baseline_cpu:
         ### vanilla sdfg 
         assign_reduce(sdfg_cpu, 'pure')
-        result_bcpu = run_encoder(sdfg_cpu, kwargs_sdfg)
+        result_bcpu = run_encoder(sdfg_cpu, kwargs_sdfg)[0]
         results['baseline_cpu'] = result_bcpu
 
     if run_baseline_gpu:
         sdfg_gpu.save('gpu_sdfg.sdfg')
         assign_reduce(sdfg_gpu, 'pure')
-        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)[0]
         results['baseline_gpu_pure'] = result_bgpu
 
         assign_reduce(sdfg_gpu, 'CUDA (device)')
-        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)
+        result_bgpu = run_encoder(sdfg_gpu, kwargs_sdfg)[0]
         results['baseline_gpu_device'] = result_bgpu
 
     if run_expanded_cpu:
@@ -321,7 +321,11 @@ def run(run_baseline_cpu = True,
         results['cached'] = result_cached 
 
     for (result_name, result_array) in results.items():
+        #try:
         print(np.linalg.norm(result_array), " -> ", result_name)
+        #except ValueError
+        #    print(np.linalg.norm(result_array), " -> ", result_name)
+
 
     if debug:
         ### run a numpy comparision test 
@@ -339,7 +343,7 @@ def run(run_baseline_cpu = True,
 
             print("shapes =", sdfg_result.shape, numpy_squeezed.shape)
             if sdfg_squeezed.shape == numpy_squeezed.shape:
-                print(np.allclose(sdfg_squeezed, numpy_squeezed, rtol = 1e-4, atol = 1e-6))
+                print(np.allclose(sdfg_squeezed, numpy_squeezed, rtol = 1e-4, atol = 1e-3))
 
 
         result_np = run_encoder_numpy(kwargs_numpy, return_all_args = True)
@@ -368,8 +372,8 @@ def run(run_baseline_cpu = True,
         print_result("std1", std1, result_np[11], is_list = False)
         
     
-run(run_baseline_cpu = False, 
-    run_baseline_gpu = False,
+run(run_baseline_cpu = True, 
+    run_baseline_gpu = True,
     run_expanded_cpu = False,
     run_expanded_gpu = False,
     run_baseline_numpy = True,
