@@ -28,7 +28,6 @@ class TrivialMapElimination(transformation.Transformation):
     def can_be_applied(graph, candidate, expr_index, sdfg, strict=False):
         map_entry = graph.nodes()[candidate[TrivialMapElimination._map_entry]]
         map_from, map_to, map_step = map_entry.map.range[0]
-
         return len(map_entry.map.range) == 1 and map_to == map_from
 
     @staticmethod
@@ -43,7 +42,7 @@ class TrivialMapElimination(transformation.Transformation):
 
         map_param = map_entry.map.params[0]
         map_from, map_to, _ = map_entry.map.range[0]
-        assert map_from == map_to
+        #assert map_from == map_to
 
         # Replace the map index variable with the value it obtained
         scope = graph.scope_subgraph(map_entry)
