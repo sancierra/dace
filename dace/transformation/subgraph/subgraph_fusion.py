@@ -13,7 +13,7 @@ from dace.properties import make_properties, Property
 from dace.symbolic import symstr, overapproximate
 from dace.sdfg.propagation import propagate_memlets_sdfg, propagate_memlet, propagate_memlets_scope, _propagate_node
 from dace.transformation.subgraph import helpers
-from dace.transformation.dataflow import RedundantArray
+from dace.transformation.dataflow import RedundantArray, MapTiling
 from dace.sdfg.utils import consolidate_edges_scope
 from dace.transformation.helpers import find_contiguous_subsets
 
@@ -67,6 +67,13 @@ class SubgraphFusion(transformation.SubgraphTransformation):
         "not work correctly)",
         dtype=bool,
         default=True)
+
+    inner_tile_sizes = Property(
+        desc="Tile all inner maps by a certain tile size. "
+        "No Tiling == default == 1",
+        dtype = tuple,
+        default = (1,)
+    )
 
     @staticmethod
     def can_be_applied(sdfg: SDFG, subgraph: SubgraphView) -> bool:
@@ -976,7 +983,31 @@ class SubgraphFusion(transformation.SubgraphTransformation):
 
         # create a hook for outside access to global_map
         self._global_map_entry = global_map_entry
+
+        # loop over inner maps and assign correct schedule / tiling 
+        # first do tiling 
+        apply_tiling : bool = any([its > 1 for its in self.inner_tile_sizes])
+        if apply_tiling:
+            for node in graph.scope_children()[global_map_entry]:
+                if isinstance(node, nodes.MapEntry):
+                    map_tiling_subgraph = {MapTiling._map_entry: graph.nodes().index(node)}
+                    map_tiling = MapTiling(sdfg.sdfg_id, sdfg.nodes().index(graph), map_tiling_subgraph, 0)
+                    map_tiling.tile_sizes = self.inner_tile_sizes
+                    if MapTiling.can_be_applied(graph, map_tiling_subgraph, 0, sdfg):
+                        map_tiling.apply(sdfg)
+                    else:
+                        warnings.warn(f"Cannot run tiling on map {node}")
+        
+        # then do scheduling
         if self.schedule_innermaps is not None:
             for node in graph.scope_children()[global_map_entry]:
                 if isinstance(node, nodes.MapEntry):
+                    # assign schedule 
                     node.map.schedule = self.schedule_innermaps
+                    # force child map to be sequential 
+                    if apply_tiling:
+                        for node_child in graph.scope_children()[node]:
+                            if isinstance(node_child, nodes.MapEntry):
+                                node_child.map.schedule = dtypes.ScheduleType.Sequential
+                
+                    

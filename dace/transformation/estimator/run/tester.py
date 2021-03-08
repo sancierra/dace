@@ -142,12 +142,12 @@ def test(program_name: str,
 if __name__ == "__main__":
     program_options = [
         'synthetic', 'softmax', 'vadv'
-        'hdiff', 'hdiff_mini', 'transformer', 'gemver'
+        'hdiff', 'hdiff_mini', 'transformer'
     ]
 
-    test(program_name='vadv',
+    test(program_name='transformer',
          enumerator_type=ConnectedEnumerator,
-         scoring_type=ExecutionScore,
+         scoring_type=RegisterScore,
          gpu=False,
          debug=True,
          transient_allocation=dace.dtypes.StorageType.Register,

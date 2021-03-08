@@ -75,7 +75,6 @@ def get_program(program_name):
     elif program_name == 'transformer':
         sdfg = SDFG.from_file(
             os.path.join(PATH, 'encoder.sdfg'))
-       
     else:
         raise NotImplementedError("Program not found")
 
