@@ -1,7 +1,10 @@
 import dace
 from dace.transformation.dataflow.tiling import MapTiling
+from dace.transformation.dataflow import TrivialMapElimination, MapExpansion
 from dace.transformation.subgraph.pipeline import fusion
+from dace.transformation.subgraph import StencilTiling
 from dace.sdfg.propagation import propagate_memlets_sdfg
+from dace.sdfg.graph import SubgraphView
 
 import dace.subsets as subsets
 import numpy as np
@@ -56,7 +59,7 @@ def jacobi2d(A):  #, N, tsteps):
             b = 0.2 * (a1 + a2 + a3 + a4 + a5)
 
         @dace.map
-        def b(i: _[1:N - 1], j: _[1:N - 1]):
+        def b(i: _[2:N - 2], j: _[2:N - 2]):
             a1 << B[i, j]
             a2 << B[i, j - 1]
             a3 << B[i, j + 1]
@@ -139,7 +142,11 @@ def run(sdfg, graph, view = False, compile = False, gpu = False):
         csdfg(A=A1,N=N,tsteps=tsteps)
         print(np.linalg.norm(A))
 
-    pre_tiling(sdfg, graph)
+    #pre_tiling(sdfg, graph)
+    subgraph = SubgraphView(graph, graph.nodes())
+    st = StencilTiling(subgraph)
+    st.apply(sdfg)
+
     if view:
         sdfg.view()
     if compile:
@@ -154,11 +161,23 @@ def run(sdfg, graph, view = False, compile = False, gpu = False):
         print(np.linalg.norm(A))
 
     if compile:
-        assert np.allcose(A1, A2)
+        assert np.allclose(A1, A2)
     fusion(sdfg, graph)
+
+    for node in graph.nodes():
+        if isinstance(node, dace.sdfg.nodes.MapEntry):
+            print(node.label)
+            if node.label == 'b':
+                MapExpansion.apply_to(sdfg, map_entry = node)
+                print("APPLIED")
+                break
+
+    
+    sdfg.apply_transformations_repeated(TrivialMapElimination)
 
     if view:
         sdfg.view()
+    
 
     if compile:
         A3 = A.copy()
@@ -184,4 +203,4 @@ if __name__ == '__main__':
             graph = g
             break
 
-    run(sdfg, graph, compile = True, gpu = False, view = False)
+    run(sdfg, graph, compile = False, gpu = False, view = True)
