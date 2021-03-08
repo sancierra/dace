@@ -1,4 +1,4 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 """ A module that contains various DaCe type definitions. """
 from __future__ import print_function
 import ctypes
@@ -40,6 +40,7 @@ class ScheduleType(aenum.AutoNumberEnum):
     Sequential = ()  #: Sequential code (single-thread)
     MPI = ()  #: MPI processes
     CPU_Multicore = ()  #: OpenMP
+    Unrolled = ()  #: Unrolled code
 
     #: Default scope schedule for GPU code. Specializes to schedule GPU_Device and GPU_Global during inference.
     GPU_Default = ()
@@ -122,9 +123,18 @@ class InstrumentationType(aenum.AutoNumberEnum):
     PAPI_Counters = ()
     GPU_Events = ()
 
+@extensible_enum
+class TilingType(aenum.AutoNumberEnum):
+    """ Available tiling types in a `StripMining` transformation. """
+
+    Normal = ()
+    CeilRange = ()
+    NumberOfTiles = ()
+
 
 # Maps from ScheduleType to default StorageType
 SCOPEDEFAULT_STORAGE = {
+    StorageType.Default: StorageType.Default,
     None: StorageType.CPU_Heap,
     ScheduleType.Sequential: StorageType.Register,
     ScheduleType.MPI: StorageType.CPU_Heap,
@@ -139,10 +149,12 @@ SCOPEDEFAULT_STORAGE = {
 
 # Maps from ScheduleType to default ScheduleType for sub-scopes
 SCOPEDEFAULT_SCHEDULE = {
+    ScheduleType.Default: ScheduleType.Default,
     None: ScheduleType.CPU_Multicore,
     ScheduleType.Sequential: ScheduleType.Sequential,
     ScheduleType.MPI: ScheduleType.CPU_Multicore,
     ScheduleType.CPU_Multicore: ScheduleType.Sequential,
+    ScheduleType.Unrolled: ScheduleType.CPU_Multicore,
     ScheduleType.GPU_Default: ScheduleType.GPU_Device,
     ScheduleType.GPU_Persistent: ScheduleType.GPU_Device,
     ScheduleType.GPU_Device: ScheduleType.GPU_ThreadBlock,
@@ -976,11 +988,6 @@ _ALLOWED_MODULES = {
 
 # Lists allowed modules and maps them to OpenCL
 _OPENCL_ALLOWED_MODULES = {"builtins": "", "dace": "", "math": ""}
-
-
-def ismodule(var):
-    """ Returns True if a given object is a module. """
-    return inspect.ismodule(var)
 
 
 def ismodule(var):

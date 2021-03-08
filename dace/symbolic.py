@@ -1,5 +1,6 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 import ast
+from functools import lru_cache
 import sympy
 import pickle
 import re
@@ -144,6 +145,16 @@ class SymExpr(object):
             self._approx_expr = self._main_expr
         else:
             self._approx_expr = pystr_to_symbolic(approx_expr)
+
+    def __new__(cls, *args, **kwargs):
+        if len(args) == 1:
+            return args[0]
+        if len(args) == 2:
+            main_expr, approx_expr = args
+            # If values are equivalent, create a normal symbolic expression
+            if approx_expr is None or main_expr == approx_expr:
+                return main_expr
+        return super(SymExpr, cls).__new__(cls)
 
     @property
     def expr(self):
@@ -506,6 +517,11 @@ def sympy_intdiv_fix(expr):
     b = sympy.Wild('b', properties=[lambda k: k.is_Symbol or k.is_Integer])
     c = sympy.Wild('c')
     d = sympy.Wild('d')
+    e = sympy.Wild('e',
+                   properties=[
+                       lambda k: isinstance(k, sympy.Basic) and not isinstance(
+                           k, sympy.Atom)
+                   ])
     int_ceil = sympy.Function('int_ceil')
     int_floor = sympy.Function('int_floor')
 
@@ -542,6 +558,12 @@ def sympy_intdiv_fix(expr):
                 nexpr = nexpr.subs(ceil, m[a] * int_ceil(m[c], m[d]))
                 processed += 1
                 continue
+            # Ceiling with composite expression at the numerator
+            m = ceil.match(sympy.ceiling(e / b))
+            if m is not None:
+                nexpr = nexpr.subs(ceil, int_ceil(m[e], m[b]))
+                processed += 1
+                continue
         for floor in nexpr.find(sympy.floor):
             # Simple floor
             m = floor.match(sympy.floor(a / b))
@@ -563,7 +585,12 @@ def sympy_intdiv_fix(expr):
                                                                     m[d])))
                 processed += 1
                 continue
-
+            # floor with composite expression
+            m = floor.match(sympy.floor(e / b))
+            if m is not None:
+                nexpr = nexpr.subs(floor, int_floor(m[e], m[b]))
+                processed += 1
+                continue
     return nexpr
 
 
@@ -592,8 +619,7 @@ def sympy_divide_fix(expr):
             nexpr = nexpr.subs(
                 candidate,
                 int_floor(
-                    sympy.Mul(*(candidate.args[:ri] +
-                                    candidate.args[ri + 1:])),
+                    sympy.Mul(*(candidate.args[:ri] + candidate.args[ri + 1:])),
                     int(1 / candidate.args[ri])))
             processed += 1
 
@@ -628,6 +654,20 @@ class SympyBooleanConverter(ast.NodeTransformer):
     Replaces boolean operations with the appropriate SymPy functions to avoid
     non-symbolic evaluation.
     """
+    _ast_to_sympy_comparators = {
+        ast.Eq: 'Eq',
+        ast.Gt: 'Gt',
+        ast.GtE: 'Ge',
+        ast.Lt: 'Lt',
+        ast.LtE: 'Le',
+        ast.NotEq: 'Ne',
+        # Python-specific
+        ast.In: 'In',
+        ast.Is: 'Is',
+        ast.IsNot: 'IsNot',
+        ast.NotIn: 'NotIn',
+    }
+
     def visit_UnaryOp(self, node):
         if isinstance(node.op, ast.Not):
             func_node = ast.copy_location(
@@ -652,13 +692,16 @@ class SympyBooleanConverter(ast.NodeTransformer):
         op = node.ops[0]
         arguments = [node.left, node.comparators[0]]
         func_node = ast.copy_location(
-            ast.Name(id=type(op).__name__, ctx=ast.Load()), node)
+            ast.Name(
+                id=SympyBooleanConverter._ast_to_sympy_comparators[type(op)],
+                ctx=ast.Load()), node)
         new_node = ast.Call(func=func_node,
                             args=[self.visit(arg) for arg in arguments],
                             keywords=[])
         return ast.copy_location(new_node, node)
 
 
+@lru_cache(2048)
 def pystr_to_symbolic(expr, symbol_map=None, simplify=None):
     """ Takes a Python string and converts it into a symbolic expression. """
     from dace.frontend.python.astutils import unparse  # Avoid import loops
@@ -700,15 +743,26 @@ def pystr_to_symbolic(expr, symbol_map=None, simplify=None):
                              symbol_map)
 
 
+@lru_cache(maxsize=2048)
+def simplify(expr: SymbolicType) -> SymbolicType:
+    return sympy.simplify(expr)
+
+
 class DaceSympyPrinter(sympy.printing.str.StrPrinter):
     """ Several notational corrections for integer math and C++ translation
         that sympy.printing.cxxcode does not provide. """
+    def __init__(self, arrays, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.arrays = arrays or set()
+
     def _print_Float(self, expr):
         if int(expr) == expr:
             return str(int(expr))
         return super()._print_Float(expr)
 
     def _print_Function(self, expr):
+        if str(expr.func) in self.arrays:
+            return f'{expr.func}[{expr.args[0]}]'
         if str(expr.func) == 'int_floor':
             return '((%s) / (%s))' % (self._print(
                 expr.args[0]), self._print(expr.args[1]))
@@ -730,20 +784,26 @@ class DaceSympyPrinter(sympy.printing.str.StrPrinter):
         return '(not (%s))' % self._print(expr.args[0])
 
 
-def symstr(sym):
-    """ Convert a symbolic expression to a C++ compilable expression. """
+def symstr(sym, arrayexprs: Optional[Set[str]] = None) -> str:
+    """ 
+    Convert a symbolic expression to a C++ compilable expression. 
+    :param sym: Symbolic expression to convert.
+    :param arrayexprs: Set of names of arrays, used to convert SymPy 
+                       user-functions back to array expressions.
+    :return: C++-compilable expression.
+    """
     def repstr(s):
         return s.replace('Min', 'min').replace('Max', 'max')
 
     if isinstance(sym, SymExpr):
-        return symstr(sym.expr)
+        return symstr(sym.expr, arrayexprs)
 
     try:
         sym = sympy_numeric_fix(sym)
         sym = sympy_intdiv_fix(sym)
         sym = sympy_divide_fix(sym)
 
-        sstr = DaceSympyPrinter().doprint(sym)
+        sstr = DaceSympyPrinter(arrayexprs).doprint(sym)
 
         if isinstance(sym,
                       symbol) or isinstance(sym, sympy.Symbol) or isinstance(
@@ -752,7 +812,7 @@ def symstr(sym):
         else:
             return '(' + repstr(sstr) + ')'
     except (AttributeError, TypeError, ValueError):
-        sstr = DaceSympyPrinter().doprint(sym)
+        sstr = DaceSympyPrinter(arrayexprs).doprint(sym)
         return '(' + repstr(sstr) + ')'
 
 

@@ -1,4 +1,4 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 import ast
 import astunparse
 import functools
@@ -125,7 +125,8 @@ class IntelFPGACodeGen(fpga.FPGACodeGen):
 #include "dace/intel_fpga/host.h"
 #include <iostream>\n\n""")
 
-        self._frame.generate_fileheader(self._global_sdfg, host_code)
+        self._frame.generate_fileheader(self._global_sdfg, host_code,
+                                        'intelfpga_host')
 
         params_comma = self._global_sdfg.signature(with_arrays=False)
         if params_comma:
@@ -769,19 +770,21 @@ __kernel void \\
 
         #generate Stream defines if needed
         for edge in state.in_edges(node):
-            desc = sdfg.arrays[edge.data.data]
-            if isinstance(desc, dace.data.Stream):
-                src_node = find_input_arraynode(state, edge)
-                self._dispatcher.dispatch_copy(src_node, node, edge, sdfg,
-                                               state, state_id, None,
-                                               nested_stream)
+            if edge.data.data is not None:  # skip empty memlets
+                desc = sdfg.arrays[edge.data.data]
+                if isinstance(desc, dace.data.Stream):
+                    src_node = find_input_arraynode(state, edge)
+                    self._dispatcher.dispatch_copy(src_node, node, edge, sdfg,
+                                                   state, state_id, None,
+                                                   nested_stream)
         for edge in state.out_edges(node):
-            desc = sdfg.arrays[edge.data.data]
-            if isinstance(desc, dace.data.Stream):
-                dst_node = find_output_arraynode(state, edge)
-                self._dispatcher.dispatch_copy(node, dst_node, edge, sdfg,
-                                               state, state_id, None,
-                                               nested_stream)
+            if edge.data.data is not None:  # skip empty memlets
+                desc = sdfg.arrays[edge.data.data]
+                if isinstance(desc, dace.data.Stream):
+                    dst_node = find_output_arraynode(state, edge)
+                    self._dispatcher.dispatch_copy(node, dst_node, edge, sdfg,
+                                                   state, state_id, None,
+                                                   nested_stream)
         return function_header + "\n" + nested_stream.getvalue()
 
     def generate_nsdfg_arguments(self, sdfg, dfg, state, node):
@@ -803,9 +806,8 @@ __kernel void \\
                 offset = cpp.cpp_offset_expr(desc, in_memlet.subset, None)
                 offset_expr = '[' + offset + ']'
 
-                expr = self.make_ptr_vector_cast(sdfg,
-                                                 in_memlet.data + offset_expr,
-                                                 in_memlet,
+                expr = self.make_ptr_vector_cast(in_memlet.data + offset_expr,
+                                                 desc.dtype,
                                                  node.in_connectors[vconn],
                                                  False, defined_type)
                 if desc.storage == dtypes.StorageType.FPGA_Global:
@@ -860,7 +862,7 @@ __kernel void \\
                     else:
                         typedef = "{}*".format(vec_type)
                     expr = self.make_ptr_vector_cast(
-                        sdfg, out_memlet.data + offset_expr, out_memlet,
+                        out_memlet.data + offset_expr, desc.dtype,
                         node.out_connectors[uconn], False, defined_type)
                     memlet_references.append((typedef, uconn, expr))
                     # Register defined variable
@@ -878,7 +880,8 @@ __kernel void \\
 
                     typedef = defined_ctype + "*"
                     memlet_references.append(
-                        (typedef, uconn, cpp.cpp_ptr_expr(sdfg, out_memlet)))
+                        (typedef, uconn,
+                         cpp.cpp_ptr_expr(sdfg, out_memlet, defined_type)))
 
                     self._dispatcher.defined_vars.add(uconn,
                                                       DefinedType.Pointer,
@@ -1297,13 +1300,24 @@ __kernel void \\
         return self.make_write(defined_type, dtype, memlet.data, memlet.data,
                                offset, inname, memlet.wcr, False, 1)
 
-    def make_ptr_vector_cast(self, sdfg, expr, memlet, conntype, is_scalar,
+    def make_ptr_vector_cast(self, dst_expr, dst_dtype, src_dtype, is_scalar,
                              defined_type):
-        vtype = self.make_vector_type(conntype, False)
-        if conntype != sdfg.arrays[memlet.data].dtype:
+        """
+        Cast a destination pointer so the source expression can be written to
+        it.
+        :param dst_expr: Expression of the target pointer.
+        :param dst_dtype: Type of the target pointer.
+        :param src_dtype: Type of the variable that needs to be written.
+        :param is_scalar: Whether the variable to be written is a scalar.
+        :param defined_type: The code generated variable type of the
+                             destination.
+        """
+        vtype = self.make_vector_type(src_dtype, False)
+        expr = dst_expr
+        if dst_dtype != src_dtype:
             if is_scalar:
-                expr = f"*({vtype} *)(&{expr})"
-            elif conntype.base_type != sdfg.arrays[memlet.data].dtype:
+                expr = f"*({vtype} *)(&{dst_expr})"
+            elif src_dtype.base_type != dst_dtype:
                 expr = f"({vtype})(&{expr})"
             elif defined_type == DefinedType.Pointer:
                 expr = "&" + expr
@@ -1364,10 +1378,10 @@ class OpenCLDaceKeywordRemover(cpp.DaCeKeywordRemover):
             # If we don't have a memlet for this target, it could be the case
             # that on the right hand side we have a constant (a Name or a subscript)
             # If this is the case, we try to infer the type, otherwise we fallback to generic visit
-            if (isinstance(node.value, ast.Name)
-                    and node.value.id in self.constants) or (
-                        isinstance(node.value, ast.Subscript)
-                        and node.value.value.id in self.constants):
+            if ((isinstance(node.value, ast.Name)
+                 and node.value.id in self.constants)
+                    or (isinstance(node.value, ast.Subscript)
+                        and node.value.value.id in self.constants)):
                 dtype = infer_expr_type(astunparse.unparse(node.value),
                                         self.dtypes)
                 value = cppunparse.cppunparse(self.visit(node.value),
@@ -1410,7 +1424,7 @@ class OpenCLDaceKeywordRemover(cpp.DaCeKeywordRemover):
             self.width_converters.add((True, ocltype, veclen))
             unpack_str = "unpack_{}{}".format(ocltype, veclen)
 
-        if veclen_lhs > veclen_rhs:
+        if veclen_lhs > veclen_rhs and isinstance(dtype_rhs, dace.pointer):
             veclen = veclen_lhs
             ocltype = fpga.vector_element_type_of(dtype).ocltype
             self.width_converters.add((False, ocltype, veclen))
@@ -1482,6 +1496,20 @@ class OpenCLDaceKeywordRemover(cpp.DaCeKeywordRemover):
                                    memlet.num_accesses))
 
         return ast.copy_location(updated, node)
+
+    def visit_BinOp(self, node):
+        if node.op.__class__.__name__ == 'Pow':
+            # Special case for integer power: do not generate dace namespaces (dace::math) but just call pow
+            if not (isinstance(node.right, (ast.Num, ast.Constant))
+                    and int(node.right.n) == node.right.n and node.right.n >= 0):
+                left_value = cppunparse.cppunparse(self.visit(node.left),
+                                                   expr_semicolon=False)
+                right_value = cppunparse.cppunparse(self.visit(node.right),
+                                                    expr_semicolon=False)
+                updated = ast.Name(
+                    id="pow({},{})".format(left_value, right_value))
+                return ast.copy_location(updated, node)
+        return self.generic_visit(node)
 
     def visit_Name(self, node):
         if node.id not in self.memlets:

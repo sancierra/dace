@@ -1,4 +1,4 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 """ Contains classes implementing the different types of nodes of the stateful
     dataflow multigraph representation. """
 
@@ -255,7 +255,7 @@ class AccessNode(Node):
         node._setzero = self._setzero
         node._in_connectors = dcpy(self._in_connectors, memo=memo)
         node._out_connectors = dcpy(self._out_connectors, memo=memo)
-        node.debuginfo = dcpy(self.debuginfo, memo=memo)
+        node._debuginfo = dcpy(self._debuginfo, memo=memo)
         return node
 
     @property
@@ -446,6 +446,12 @@ class NestedSDFG(CodeNode):
     instrument = Property(choices=dtypes.InstrumentationType,
                           desc="Measure execution statistics with given method",
                           default=dtypes.InstrumentationType.No_Instrumentation)
+
+    no_inline = Property(
+        dtype=bool,
+        desc="If True, this nested SDFG will not be inlined in strict mode "
+        "(in the InlineSDFG transformation)",
+        default=False)
 
     def __init__(self,
                  label,
@@ -1223,10 +1229,4 @@ class LibraryNode(CodeNode):
     def register_implementation(cls, name, transformation_type):
         """Register an implementation to belong to this library node type."""
         cls.implementations[name] = transformation_type
-        match_node_name = "__" + transformation_type.__name__
-        if (hasattr(transformation_type, "_match_node")
-                and transformation_type._match_node != match_node_name):
-            raise ValueError(
-                "Transformation " + transformation_type.__name__ +
-                " is already registered with a different library node.")
         transformation_type._match_node = cls

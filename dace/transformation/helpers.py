@@ -1,7 +1,8 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 """ Transformation helper API. """
 import copy
 import itertools
+from networkx import MultiDiGraph
 
 from dace.subsets import Range, Subset, union
 import dace.subsets as subsets
@@ -102,14 +103,14 @@ def nest_state_subgraph(sdfg: SDFG,
     # Collect data used in access nodes within subgraph (will be referenced in
     # full upon nesting)
     input_arrays = set()
-    output_arrays = set()
+    output_arrays = {}
     for node in subgraph.nodes():
         if (isinstance(node, nodes.AccessNode)
                 and node.data not in subgraph_transients):
             if node.has_reads(state):
                 input_arrays.add(node.data)
             if node.has_writes(state):
-                output_arrays.add(node.data)
+                output_arrays[node.data] = state.in_edges(node)[0].data.wcr
 
     # Create the nested SDFG
     nsdfg = SDFG(name or 'nested_' + state.label)
@@ -120,15 +121,15 @@ def nest_state_subgraph(sdfg: SDFG,
 
     # Input/output data that are not source/sink nodes are added to the graph
     # as non-transients
-    for name in (input_arrays | output_arrays):
+    for name in (input_arrays | output_arrays.keys()):
         datadesc = copy.deepcopy(sdfg.arrays[name])
         datadesc.transient = False
         nsdfg.add_datadesc(name, datadesc)
 
     # Connected source/sink nodes outside subgraph become global data
     # descriptors in nested SDFG
-    input_names = []
-    output_names = []
+    input_names = {}
+    output_names = {}
     global_subsets: Dict[str, Tuple[str, Subset]] = {}
     for edge in inputs:
         if edge.data.data is None:  # Skip edges with an empty memlet
@@ -149,7 +150,7 @@ def nest_state_subgraph(sdfg: SDFG,
                     new_subset = Range.from_array(sdfg.arrays[name])
                 global_subsets[name] = (new_name, new_subset)
                 nsdfg.arrays[new_name].shape = new_subset.size()
-        input_names.append(new_name)
+        input_names[edge] = new_name
     for edge in outputs:
         if edge.data.data is None:  # Skip edges with an empty memlet
             continue
@@ -169,11 +170,15 @@ def nest_state_subgraph(sdfg: SDFG,
                     new_subset = Range.from_array(sdfg.arrays[name])
                 global_subsets[name] = (new_name, new_subset)
                 nsdfg.arrays[new_name].shape = new_subset.size()
-        output_names.append(new_name)
+        output_names[edge] = new_name
     ###################
 
     # Add scope symbols to the nested SDFG
-    for v in scope.defined_vars:
+    defined_vars = set(
+        symbolic.pystr_to_symbolic(s)
+        for s in (state.symbols_defined_at(top_scopenode).keys()
+                  | sdfg.symbols))
+    for v in defined_vars:
         if v in sdfg.symbols:
             sym = sdfg.symbols[v]
             nsdfg.add_symbol(v, sym.dtype)
@@ -199,14 +204,14 @@ def nest_state_subgraph(sdfg: SDFG,
 
     # Add access nodes and edges as necessary
     edges_to_offset = []
-    for name, edge in zip(input_names, inputs):
+    for edge, name in input_names.items():
         node = nstate.add_read(name)
         new_edge = copy.deepcopy(edge.data)
         new_edge.data = name
         edges_to_offset.append(
             (edge, nstate.add_edge(node, None, edge.dst, edge.dst_conn,
                                    new_edge)))
-    for name, edge in zip(output_names, outputs):
+    for edge, name in output_names.items():
         node = nstate.add_write(name)
         new_edge = copy.deepcopy(edge.data)
         new_edge.data = name
@@ -223,14 +228,22 @@ def nest_state_subgraph(sdfg: SDFG,
                     global_subsets[original_edge.data.data][1], True)
 
     # Add nested SDFG node to the input state
-    nested_sdfg = state.add_nested_sdfg(nsdfg, None,
-                                        set(input_names) | input_arrays,
-                                        set(output_names) | output_arrays)
+    nested_sdfg = state.add_nested_sdfg(
+        nsdfg, None,
+        set(input_names.values()) | input_arrays,
+        set(output_names.values()) | output_arrays.keys())
 
     # Reconnect memlets to nested SDFG
     reconnected_in = set()
     reconnected_out = set()
-    for name, edge in zip(input_names, inputs):
+    empty_input = None
+    empty_output = None
+    for edge in inputs:
+        if edge.data.data is None:
+            empty_input = edge
+            continue
+
+        name = input_names[edge]
         if name in reconnected_in:
             continue
         if full_data:
@@ -242,7 +255,12 @@ def nest_state_subgraph(sdfg: SDFG,
         state.add_edge(edge.src, edge.src_conn, nested_sdfg, name, data)
         reconnected_in.add(name)
 
-    for name, edge in zip(output_names, outputs):
+    for edge in outputs:
+        if edge.data.data is None:
+            empty_output = edge
+            continue
+
+        name = output_names[edge]
         if name in reconnected_out:
             continue
         if full_data:
@@ -251,6 +269,7 @@ def nest_state_subgraph(sdfg: SDFG,
         else:
             data = copy.deepcopy(edge.data)
             data.subset = global_subsets[edge.data.data][1]
+        data.wcr = edge.data.wcr
         state.add_edge(nested_sdfg, name, edge.dst, edge.dst_conn, data)
         reconnected_out.add(name)
 
@@ -263,12 +282,21 @@ def nest_state_subgraph(sdfg: SDFG,
             state.add_nedge(entry, node, Memlet())
         state.add_edge(node, None, nested_sdfg, name,
                        Memlet.from_array(name, sdfg.arrays[name]))
-    for name in output_arrays:
+    for name, wcr in output_arrays.items():
         node = state.add_write(name)
         if exit is not None:
             state.add_nedge(node, exit, Memlet())
-        state.add_edge(nested_sdfg, name, node, None,
-                       Memlet.from_array(name, sdfg.arrays[name]))
+        state.add_edge(nested_sdfg, name, node, None, Memlet(data=name,
+                                                             wcr=wcr))
+
+
+    # Graph was not reconnected, but needs to be
+    if state.in_degree(nested_sdfg) == 0 and empty_input is not None:
+        state.add_edge(empty_input.src, empty_input.src_conn, nested_sdfg, None,
+                       empty_input.data)
+    if state.out_degree(nested_sdfg)  == 0 and empty_output is not None:
+        state.add_edge(nested_sdfg, None, empty_output.dst,
+                       empty_output.dst_conn, empty_output.data)
 
     # Remove subgraph nodes from graph
     state.remove_nodes_from(subgraph.nodes())
@@ -470,9 +498,30 @@ def split_interstate_edges(sdfg: SDFG) -> None:
             sdfg.remove_edge(e)
 
 
+def is_symbol_unused(sdfg: SDFG, sym: str) -> bool:
+    """
+    Checks for uses of symbol in an SDFG, and if there are none returns False.
+    :param sdfg: The SDFG to search.
+    :param sym: The symbol to test.
+    :return: True if the symbol can be removed, False otherwise.
+    """
+    for desc in sdfg.arrays.values():
+        if sym in map(str, desc.free_symbols):
+            return False
+    for state in sdfg.nodes():
+        if sym in state.free_symbols:
+            return False
+    for e in sdfg.edges():
+        if sym in e.data.free_symbols:
+            return False
+
+    # Not found, symbol can be removed
+    return True
+
+
 def are_subsets_contiguous(subset_a: subsets.Subset,
-                            subset_b: subsets.Subset,
-                            dim: int = None) -> bool:
+                           subset_b: subsets.Subset,
+                           dim: int = None) -> bool:
 
     if dim is not None:
         # A version that only checks for contiguity in certain
@@ -480,7 +529,7 @@ def are_subsets_contiguous(subset_a: subsets.Subset,
         if (not isinstance(subset_a, subsets.Range)
                 or not isinstance(subset_b, subsets.Range)):
             raise NotImplementedError('Contiguous subset check only '
-                                        'implemented for ranges')
+                                      'implemented for ranges')
 
         # Other dimensions must be equal
         for i, (s1, s2) in enumerate(zip(subset_a.ranges, subset_b.ranges)):
@@ -501,8 +550,8 @@ def are_subsets_contiguous(subset_a: subsets.Subset,
     # General case
     bbunion = subsets.bounding_box_union(subset_a, subset_b)
     try:
-        if bbunion.num_elements() <= (subset_a.num_elements() +
-                                        subset_b.num_elements()):
+        if bbunion.num_elements() == (subset_a.num_elements() +
+                                      subset_b.num_elements()):
             return True
     except TypeError:
         pass
@@ -520,8 +569,7 @@ def find_contiguous_subsets(subset_list: List[subsets.Subset],
     """
     # Currently O(n^3) worst case. TODO: improve
     subset_set = set(
-        subsets.Range.from_indices(s) if isinstance(s, subsets.Indices
-                                                    ) else s
+        subsets.Range.from_indices(s) if isinstance(s, subsets.Indices) else s
         for s in subset_list)
     while True:
         for sa, sb in itertools.product(subset_set, subset_set):
@@ -541,3 +589,63 @@ def find_contiguous_subsets(subset_list: List[subsets.Subset],
         else:  # No modification performed
             break
     return subset_set
+
+
+def constant_symbols(sdfg: SDFG) -> Set[str]:
+    """ 
+    Returns a set of symbols that will never change values throughout the course
+    of the given SDFG. Specifically, these are the input symbols (i.e., not
+    defined in a particular scope) that are never set by interstate edges.
+    :param sdfg: The input SDFG.
+    :return: A set of symbol names that remain constant throughout the SDFG.
+    """
+    interstate_symbols = {
+        k
+        for e in sdfg.edges() for k in e.data.assignments.keys()
+    }
+    return set(sdfg.symbols) - interstate_symbols
+
+
+def simplify_state(state: SDFGState) -> MultiDiGraph:
+    """
+    Returns a networkx MultiDiGraph object that contains all the access nodes
+    and corresponding edges of an SDFG state. The removed code nodes and map
+    scopes are replaced by edges that connect their ancestor and succesor access
+    nodes.
+    :param state: The input SDFG state.
+    :return: The MultiDiGraph object.
+    """
+
+    # Copy the whole state
+    G = MultiDiGraph()
+    for n in state.nodes():
+        G.add_node(n)
+    for n in state.nodes():
+        for e in state.all_edges(n):
+            G.add_edge(e.src, e.dst)
+    # Collapse all mappings and their scopes into one node
+    scope_children = state.scope_children()
+    for n in scope_children[None]:
+        if isinstance(n, nodes.EntryNode):
+            G.add_edges_from([(n, x) for (y, x) in
+                                G.out_edges(state.exit_node(n))])
+            G.remove_nodes_from(scope_children[n])
+    # Remove all nodes that are not AccessNodes or have incoming
+    # wcr edges and connect their predecessors and successors
+    for n in state.nodes():
+        if n in G.nodes():
+            if not isinstance(n, nodes.AccessNode):
+                for p in G.predecessors(n):
+                    for c in G.successors(n):
+                        G.add_edge(p, c)
+                G.remove_node(n)
+            else:
+                for e in state.all_edges(n):
+                    if e.data.wcr is not None:
+                        for p in G.predecessors(n):
+                            for s in G.successors(n):
+                                G.add_edge(p, s)
+                        G.remove_node(n)
+                        break
+    
+    return G

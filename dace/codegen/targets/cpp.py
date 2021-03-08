@@ -1,4 +1,4 @@
-# Copyright 2019-2020 ETH Zurich and the DaCe authors. All rights reserved.
+# Copyright 2019-2021 ETH Zurich and the DaCe authors. All rights reserved.
 """
 Helper functions for C++ code generation.
 NOTE: The C++ code generator is currently located in cpu.py.
@@ -6,6 +6,7 @@ NOTE: The C++ code generator is currently located in cpu.py.
 import ast
 import copy
 import functools
+import warnings
 
 import sympy as sp
 from six import StringIO
@@ -202,7 +203,7 @@ def memlet_copy_to_absolute_strides(dispatcher,
 
 
 def ptr(name: str, desc: data.Data) -> str:
-    """ 
+    """
     Returns a string that points to the data based on its name and descriptor.
     :param name: Data name.
     :param desc: Data descriptor.
@@ -230,12 +231,11 @@ def emit_memlet_reference(dispatcher,
     """
     desc = sdfg.arrays[memlet.data]
     typedef = conntype.ctype
-    datadef = memlet.data
+    datadef = ptr(memlet.data, desc)
     offset = cpp_offset_expr(desc, memlet.subset)
     offset_expr = '[' + offset + ']'
     is_scalar = not isinstance(conntype, dtypes.pointer)
     ref = ''
-    pointer_name = ptr(pointer_name, desc)
 
     # Get defined type (pointer, stream etc.) and change the type definition
     # accordingly.
@@ -285,8 +285,9 @@ def emit_memlet_reference(dispatcher,
     else:
         raise TypeError('Unsupported memlet type "%s"' % defined_type.name)
 
-    if desc.storage == dace.StorageType.FPGA_Global:
-        # This is a device buffer.
+    if (defined_type != DefinedType.ArrayInterface
+            and desc.storage == dace.StorageType.FPGA_Global):
+        # This is a device buffer accessed on the host.
         # Can not be accessed with offset different than zero. Check this if we can:
         if (isinstance(offset, int) and int(offset) != 0) or (isinstance(
                 offset, str) and offset.isnumeric() and int(offset) != 0):
@@ -299,8 +300,8 @@ def emit_memlet_reference(dispatcher,
         ref = '&'
     else:
         # Cast as necessary
-        expr = make_ptr_vector_cast(sdfg, datadef + offset_expr, memlet,
-                                    conntype, is_scalar, defined_type)
+        expr = make_ptr_vector_cast(datadef + offset_expr, desc.dtype, conntype,
+                                    is_scalar, defined_type)
 
     # Register defined variable
     dispatcher.defined_vars.add(pointer_name,
@@ -385,10 +386,10 @@ def ndcopy_to_strided_copy(
     # and shapes to the copy. The second condition is there because sometimes
     # the symbolic math engine fails to produce the same expressions for both
     # arrays.
-    if ((src_copylen == copy_length and dst_copylen == copy_length)
+    if (tuple(src_strides) == tuple(dst_strides) and (
+        (src_copylen == copy_length and dst_copylen == copy_length)
             or (tuple(src_shape) == tuple(copy_shape)
-                and tuple(dst_shape) == tuple(copy_shape)
-                and tuple(src_strides) == tuple(dst_strides))):
+                and tuple(dst_shape) == tuple(copy_shape)))):
         # Emit 1D copy of the whole array
         copy_shape = [functools.reduce(lambda x, y: x * y, copy_shape)]
         return copy_shape, [1], [1]
@@ -399,16 +400,34 @@ def ndcopy_to_strided_copy(
         copydim = next(i for i, c in enumerate(copy_shape) if c != 1)
 
         # In source strides
-        if len(copy_shape) == len(src_shape):
+        src_copy_shape = src_subset.size_exact()
+        if copy_shape == src_copy_shape:
             srcdim = copydim
         else:
-            srcdim = next(i for i, c in enumerate(src_shape) if c != 1)
+            try:
+                srcdim = next(i for i, c in enumerate(src_copy_shape) if c != 1)
+            except StopIteration:
+                # NOTE: This is the old stride computation code for FPGA
+                # compatibility
+                if len(copy_shape) == len(src_shape):
+                    srcdim = copydim
+                else:
+                    srcdim = next(i for i, c in enumerate(src_shape) if c != 1)
 
         # In destination strides
-        if len(copy_shape) == len(dst_shape):
+        dst_copy_shape = dst_subset.size_exact()
+        if copy_shape == dst_copy_shape:
             dstdim = copydim
         else:
-            dstdim = next(i for i, c in enumerate(dst_shape) if c != 1)
+            try:
+                dstdim = next(i for i, c in enumerate(dst_copy_shape) if c != 1)
+            except StopIteration:
+                # NOTE: This is the old stride computation code for FPGA
+                # compatibility
+                if len(copy_shape) == len(dst_shape):
+                    dstdim = copydim
+                else:
+                    dstdim = next(i for i, c in enumerate(dst_shape) if c != 1)
 
         # Return new copy
         return [copy_shape[copydim]], [src_strides[srcdim]
@@ -433,17 +452,12 @@ def cpp_offset_expr(d: data.Data,
         :param indices: A tuple of indices to use for expression.
         :return: A string in C++ syntax with the correct offset
     """
-    subset = copy.deepcopy(subset_in)
-
-    # Offset according to parameters
+    # Offset according to parameters, then offset according to array
     if offset is not None:
-        if isinstance(offset, subsets.Subset):
-            subset.offset(offset, False)
-        else:
-            subset.offset(subsets.Indices(offset), False)
-
-    # Then, offset according to array
-    subset.offset(subsets.Indices(d.offset), False)
+        subset = subset_in.offset_new(offset, False)
+        subset.offset(d.offset, False)
+    else:
+        subset = subset_in.offset_new(d.offset, False)
 
     # Obtain start range from offsetted subset
     indices = indices or ([0] * len(d.strides))
@@ -477,24 +491,26 @@ def cpp_array_expr(sdfg,
         return offset_cppstr
 
 
-def make_ptr_vector_cast(sdfg, expr, memlet, conntype, is_scalar, defined_type):
+def make_ptr_vector_cast(dst_expr, dst_dtype, src_dtype, is_scalar,
+                         defined_type):
     """
     If there is a type mismatch, cast pointer type. Used mostly in vector types.
     """
-    if conntype != sdfg.arrays[memlet.data].dtype:
+    if src_dtype != dst_dtype:
         if is_scalar:
-            expr = '*(%s *)(&%s)' % (conntype.ctype, expr)
-        elif conntype.base_type != sdfg.arrays[memlet.data].dtype:
-            expr = '(%s)(&%s)' % (conntype.ctype, expr)
+            dst_expr = '*(%s *)(&%s)' % (src_dtype.ctype, dst_expr)
+        elif src_dtype.base_type != dst_dtype:
+            dst_expr = '(%s)(&%s)' % (src_dtype.ctype, dst_expr)
         elif defined_type == DefinedType.Pointer:
-            expr = '&' + expr
+            dst_expr = '&' + dst_expr
     elif not is_scalar:
-        expr = '&' + expr
-    return expr
+        dst_expr = '&' + dst_expr
+    return dst_expr
 
 
 def cpp_ptr_expr(sdfg,
                  memlet,
+                 defined_type,
                  offset=None,
                  relative_offset=True,
                  use_other_subset=False,
@@ -510,7 +526,7 @@ def cpp_ptr_expr(sdfg,
         offset_cppstr = cpp_offset_expr(desc, s, o, indices=indices)
     dname = ptr(memlet.data, desc)
 
-    if isinstance(sdfg.arrays[dname], data.Scalar):
+    if defined_type == DefinedType.Scalar:
         dname = '&' + dname
 
     if offset_cppstr == '0':
@@ -998,7 +1014,8 @@ class DaCeKeywordRemover(ExtNodeTransformer):
         # New subscript is created as a name AST object (rather than a
         # subscript), as otherwise the visitor will recursively descend into
         # the new expression and modify it erroneously.
-        newnode = ast.Name(id="%s[%s]" % (target, sym2cpp(subscript)))
+        defined = set(self.memlets.keys()) | set(self.constants.keys())
+        newnode = ast.Name(id="%s[%s]" % (target, sym2cpp(subscript, defined)))
 
         return ast.copy_location(newnode, node)
 
